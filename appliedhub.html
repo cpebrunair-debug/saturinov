@@ -1101,9 +1101,24 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
 .team-profile-actions .btn{white-space:nowrap}
 @media(max-width:920px){.dashboard-logo-lockup{justify-content:center}.dashboard-logo-badge.dashboard .dashboard-logo-img{height:64px}.profile-edit-grid{grid-template-columns:1fr}.profile-edit-hero{padding:24px 20px}.hub-logo-icon{width:60px;height:60px}}
 
+
+.global-json-toolbar{position:fixed;top:16px;right:16px;z-index:1705;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,0.92);border:1px solid rgba(11,140,122,0.16);box-shadow:0 14px 34px rgba(26,85,201,0.12);backdrop-filter:blur(14px)}
+.global-json-toolbar-label{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--teal);white-space:nowrap}
+.global-json-toolbar .btn{height:34px;padding:0 14px;border-radius:10px;font-size:12px}
+.global-json-toolbar .btn-outline{background:rgba(255,255,255,0.88)}
+@media(max-width:768px){.global-json-toolbar{top:12px;right:12px;padding:8px 10px;gap:6px}.global-json-toolbar-label{display:none}.global-json-toolbar .btn{height:32px;padding:0 10px;font-size:11px}}
+
 </style>
 </head>
 <body>
+
+
+<div class="global-json-toolbar" aria-label="Database JSON tools">
+  <div class="global-json-toolbar-label">Database JSON</div>
+  <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
+  <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
+</div>
+
 
 <!-- ══════════════════════════════════════════════ -->
 <!-- LANDING PAGE -->
@@ -6897,7 +6912,7 @@ function exportJsonBackup(){
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    toast('Backup JSON exported');
+    toast('Database JSON exported');
   }catch(err){
     toast('Backup export failed');
   }
@@ -6908,18 +6923,149 @@ function triggerJsonBackupImport(){
   input.value = '';
   input.click();
 }
+
+function safeStructuredClone(value){
+  if(value === undefined) return undefined;
+  try{return JSON.parse(JSON.stringify(value));}catch(e){return value;}
+}
+function mergeUniqueNumberArray(currentArr, incomingArr){
+  const values = [];
+  (Array.isArray(currentArr) ? currentArr : []).forEach(item => { if(!values.includes(item)) values.push(item); });
+  (Array.isArray(incomingArr) ? incomingArr : []).forEach(item => { if(!values.includes(item)) values.push(item); });
+  return values;
+}
+function mergePlainObject(currentObj, incomingObj){
+  const base = currentObj && typeof currentObj === 'object' && !Array.isArray(currentObj) ? safeStructuredClone(currentObj) : {};
+  const incoming = incomingObj && typeof incomingObj === 'object' && !Array.isArray(incomingObj) ? safeStructuredClone(incomingObj) : {};
+  return {...base, ...incoming};
+}
+function mergeRecordArrays(currentArr, incomingArr, preferredKeys=[]){
+  const map = new Map();
+  const buildKey = (item, index) => {
+    if(item === null || item === undefined) return `null:${index}`;
+    if(typeof item !== 'object') return `primitive:${String(item)}`;
+    for(const key of preferredKeys){
+      const value = item[key];
+      if(value !== undefined && value !== null && String(value) !== '') return `${key}:${String(value).toLowerCase()}`;
+    }
+    try{return `json:${JSON.stringify(item)}`;}catch(e){return `idx:${index}`;}
+  };
+  (Array.isArray(currentArr) ? currentArr : []).forEach((item, index) => {
+    map.set(buildKey(item, index), safeStructuredClone(item));
+  });
+  (Array.isArray(incomingArr) ? incomingArr : []).forEach((item, index) => {
+    map.set(buildKey(item, index), safeStructuredClone(item));
+  });
+  return Array.from(map.values());
+}
+function mergeProjectStateData(currentState, incomingState, pid){
+  const next = ensureEnhancedProjectState(mergePlainObject(currentState, incomingState), pid);
+  const current = currentState && typeof currentState === 'object' ? currentState : {};
+  const incoming = incomingState && typeof incomingState === 'object' ? incomingState : {};
+  next.partners = mergeRecordArrays(current.partners, incoming.partners, ['id','email','name','label']);
+  next.currentPartner = incoming.currentPartner || current.currentPartner || next.currentPartner || '';
+  next.availability = mergePlainObject(current.availability, incoming.availability);
+  next.calNotes = mergePlainObject(current.calNotes, incoming.calNotes);
+  next.meetings = mergeRecordArrays(current.meetings, incoming.meetings, ['id','date','time','title']);
+  next.documents = mergeRecordArrays(current.documents, incoming.documents, ['id','title','url','date']);
+  next.moms = mergeRecordArrays(current.moms, incoming.moms, ['id','title','date']);
+  next.collaborators = mergeRecordArrays(current.collaborators, incoming.collaborators, ['email','id','name']);
+  next.bookingRequests = mergeRecordArrays(current.bookingRequests, incoming.bookingRequests, ['id','email','name','requestedAt']);
+  next.projectMeta = mergePlainObject(current.projectMeta, incoming.projectMeta);
+  next.timeline = mergeRecordArrays(current.timeline, incoming.timeline, ['id','date','title']);
+  next.tasks = mergeRecordArrays(current.tasks, incoming.tasks, ['id','title','dueDate']);
+  next.notifications = mergeRecordArrays(current.notifications, incoming.notifications, ['id','title','createdAt']);
+  next.messages = mergeRecordArrays(current.messages, incoming.messages, ['id','subject','createdAt']);
+  return ensureEnhancedProjectState(next, pid);
+}
+function mergeProjectDataStore(currentStore, incomingStore){
+  const next = currentStore && typeof currentStore === 'object' ? safeStructuredClone(currentStore) : {};
+  const incoming = incomingStore && typeof incomingStore === 'object' ? incomingStore : {};
+  Object.keys(incoming).forEach(pid => {
+    next[pid] = mergeProjectStateData(next[pid], incoming[pid], pid);
+  });
+  return next;
+}
+function mergeAuthenticatedProjects(currentAuth, incomingAuth){
+  const next = currentAuth && typeof currentAuth === 'object' ? safeStructuredClone(currentAuth) : {};
+  if(incomingAuth && typeof incomingAuth === 'object'){
+    Object.keys(incomingAuth).forEach(pid => {
+      next[pid] = !!incomingAuth[pid] || !!next[pid];
+    });
+  }
+  return next;
+}
+function mergeAdminStateData(currentState, incomingState){
+  const current = currentState && typeof currentState === 'object' ? safeStructuredClone(currentState) : safeStructuredClone(DEFAULT_ADMIN_STATE);
+  const incoming = incomingState && typeof incomingState === 'object' ? incomingState : {};
+  const next = {
+    ...current,
+    ...incoming,
+    bookingConfig: mergePlainObject(current.bookingConfig, incoming.bookingConfig),
+    customProjects: mergePlainObject(current.customProjects, incoming.customProjects)
+  };
+  next.admins = mergeRecordArrays(current.admins, incoming.admins, ['email','id']);
+  next.bookingRequests = mergeRecordArrays(current.bookingRequests, incoming.bookingRequests, ['id','email','name','createdAt']);
+  if(Array.isArray(current.bookingConfig?.weekdays) || Array.isArray(incoming.bookingConfig?.weekdays)){
+    next.bookingConfig.weekdays = mergeUniqueNumberArray(current.bookingConfig?.weekdays, incoming.bookingConfig?.weekdays);
+  }
+  if(Array.isArray(current.bookingConfig?.durations) || Array.isArray(incoming.bookingConfig?.durations)){
+    next.bookingConfig.durations = mergeUniqueNumberArray(current.bookingConfig?.durations, incoming.bookingConfig?.durations);
+  }
+  return ensurePrimarySuperadminAccount(next);
+}
+function mergeSuperadminStateData(currentState, incomingState){
+  if(incomingState === undefined || incomingState === null){
+    return currentState === undefined ? null : currentState;
+  }
+  const current = currentState && typeof currentState === 'object' ? safeStructuredClone(currentState) : {};
+  const incoming = incomingState && typeof incomingState === 'object' ? incomingState : {};
+  const next = {...current, ...incoming};
+  next.projects = mergePlainObject(current.projects, incoming.projects);
+  Object.keys(next.projects || {}).forEach(pid => {
+    next.projects[pid] = mergePlainObject(current.projects && current.projects[pid], incoming.projects && incoming.projects[pid]);
+  });
+  next.admins = mergeRecordArrays(current.admins, incoming.admins, ['email','id']);
+  next.userAccounts = mergeRecordArrays(current.userAccounts, incoming.userAccounts, ['email','id']);
+  next.clients = mergeRecordArrays(current.clients, incoming.clients, ['email','id']);
+  next.bookingRequests = mergeRecordArrays(current.bookingRequests, incoming.bookingRequests, ['id','email','name','createdAt']);
+  next.meetings = mergeRecordArrays(current.meetings, incoming.meetings, ['id','projectId','date','time','title']);
+  next.availability = mergePlainObject(current.availability, incoming.availability);
+  if(Array.isArray(current.availability?.weekdays) || Array.isArray(incoming.availability?.weekdays)){
+    next.availability.weekdays = mergeUniqueNumberArray(current.availability?.weekdays, incoming.availability?.weekdays);
+  }
+  if(Array.isArray(current.availability?.durations) || Array.isArray(incoming.availability?.durations)){
+    next.availability.durations = mergeUniqueNumberArray(current.availability?.durations, incoming.availability?.durations);
+  }
+  if(Array.isArray(current.availability?.blockedDates) || Array.isArray(incoming.availability?.blockedDates)){
+    next.availability.blockedDates = mergeRecordArrays(current.availability?.blockedDates, incoming.availability?.blockedDates, ['date','id']);
+  }
+  return next;
+}
+
 function applyJsonBackupPayload(payload){
+  const hubWasOpen = document.getElementById('user-hub-page')?.classList.contains('show');
+  const profileEditWasOpen = document.getElementById('user-profile-edit-page')?.classList.contains('show');
+  const adminWasOpen = document.getElementById('admin-console')?.style.display === 'block';
   const data = payload && payload.backupType === JSON_BACKUP_TYPE ? (payload.data || {}) : payload;
   if(!data || typeof data !== 'object') throw new Error('INVALID_BACKUP');
   if(!('projectData' in data) && !('adminState' in data) && !('superadminState' in data) && !('authenticatedProjects' in data)) throw new Error('INVALID_BACKUP');
 
-  if('projectData' in data) localStorage.setItem('cesgs_hub_data', JSON.stringify(data.projectData || {}));
-  if('authenticatedProjects' in data) localStorage.setItem('cesgs_hub_auth', JSON.stringify(data.authenticatedProjects || {}));
-  if('adminState' in data) localStorage.setItem('cesgs_admin_state', JSON.stringify(data.adminState || DEFAULT_ADMIN_STATE));
-  if('superadminState' in data){
-    if(data.superadminState === null) localStorage.removeItem(SUPERADMIN_STORAGE_KEY);
-    else localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(data.superadminState));
-  }
+  const currentProjectStore = parseJSONSafe('cesgs_hub_data', projectData || {});
+  const currentAuthStore = parseJSONSafe('cesgs_hub_auth', authenticatedProjects || {});
+  const currentAdminStore = parseJSONSafe('cesgs_admin_state', adminState || DEFAULT_ADMIN_STATE);
+  const currentSuperStore = parseJSONSafe(SUPERADMIN_STORAGE_KEY, null);
+
+  const mergedProjectStore = ('projectData' in data) ? mergeProjectDataStore(currentProjectStore, data.projectData || {}) : currentProjectStore;
+  const mergedAuthStore = ('authenticatedProjects' in data) ? mergeAuthenticatedProjects(currentAuthStore, data.authenticatedProjects || {}) : currentAuthStore;
+  const mergedAdminStore = ('adminState' in data) ? mergeAdminStateData(currentAdminStore, data.adminState || DEFAULT_ADMIN_STATE) : currentAdminStore;
+  const mergedSuperStore = ('superadminState' in data) ? mergeSuperadminStateData(currentSuperStore, data.superadminState) : currentSuperStore;
+
+  localStorage.setItem('cesgs_hub_data', JSON.stringify(mergedProjectStore || {}));
+  localStorage.setItem('cesgs_hub_auth', JSON.stringify(mergedAuthStore || {}));
+  localStorage.setItem('cesgs_admin_state', JSON.stringify(mergedAdminStore || DEFAULT_ADMIN_STATE));
+  if(mergedSuperStore === null || mergedSuperStore === undefined) localStorage.removeItem(SUPERADMIN_STORAGE_KEY);
+  else localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(mergedSuperStore));
 
   loadAll();
   ensureAllProjectEnhancements();
@@ -6947,17 +7093,45 @@ function applyJsonBackupPayload(payload){
     .find(pid => pid && PROJECTS[pid] && (!currentUserSession || currentUserCanAccessProject(pid)));
 
   if(restoredUser){
-    const targetProject = preferredProject || getSessionProjects()[0];
-    if(targetProject) enterProject(targetProject);
-    else renderLanding();
+    const targetProject = preferredProject || getSessionProjects()[0] || null;
+    if(hubWasOpen || !targetProject){
+      const landing = document.getElementById('landing-page');
+      const sidebar = document.getElementById('sidebar');
+      const main = document.getElementById('main-content');
+      const hamburger = document.getElementById('hamburger-btn');
+      if(landing) landing.style.display='none';
+      if(sidebar) sidebar.style.display='none';
+      if(main) main.style.display='none';
+      if(hamburger) hamburger.style.display='none';
+      document.getElementById('user-hub-page')?.classList.add('show');
+      renderUserHubPage();
+    } else if(targetProject) {
+      enterProject(targetProject);
+    }
+    if(profileEditWasOpen){
+      renderUserProfileEditPage();
+      document.getElementById('user-profile-edit-page')?.classList.add('show');
+    }
+    if(adminWasOpen && (isSuperadminSession() || currentAdminEmail)) openAdminConsole();
   } else {
-    if(document.getElementById('app')) document.getElementById('app').style.display='none';
-    if(document.getElementById('landing')) document.getElementById('landing').style.display='block';
+    document.getElementById('user-hub-page')?.classList.remove('show');
+    document.getElementById('user-profile-edit-page')?.classList.remove('show');
+    const landing = document.getElementById('landing-page');
+    const sidebar = document.getElementById('sidebar');
+    const main = document.getElementById('main-content');
+    const hamburger = document.getElementById('hamburger-btn');
+    if(landing) landing.style.display='';
+    if(sidebar) sidebar.style.display='none';
+    if(main) main.style.display='none';
+    if(hamburger) hamburger.style.display='none';
     updateSidebarContext();
     renderLanding();
   }
+  syncCurrentUserProfileViews();
+  if(typeof renderUserProfileEditPage === 'function') renderUserProfileEditPage();
   saveAll();
 }
+
 async function handleJsonBackupImport(event){
   const file = event?.target?.files?.[0];
   if(!file) return;
@@ -6965,7 +7139,7 @@ async function handleJsonBackupImport(event){
     const text = await file.text();
     const payload = JSON.parse(text);
     applyJsonBackupPayload(payload);
-    toast('Backup JSON imported');
+    toast('Database JSON imported and merged');
   }catch(err){
     toast('Backup JSON is not valid');
   }finally{
@@ -6975,7 +7149,7 @@ async function handleJsonBackupImport(event){
 function renderBackupTools(){
   const role = currentUserSession?.role || 'User';
   return `
-    <div class="helper-text" style="margin-bottom:12px">Export atau import backup JSON dari browser ini. Fitur ini tersedia untuk semua role, dan file backup bisa dipakai untuk restore data saat file HTML dipindahkan ke device lain.</div>
+    <div class="helper-text" style="margin-bottom:12px">Export JSON akan menyimpan database lokal dari browser ini. Import JSON akan menggabungkan data backup ke database HTML ini agar proyek, akun, task, timeline, dokumen, dan konfigurasi ikut bertambah atau terbarui.</div>
     <div class="info-list" style="margin-bottom:14px">
       <div class="info-row"><span>Signed in as</span><strong>${escapeHtml(role)}</strong></div>
       <div class="info-row"><span>Active project</span><strong>${escapeHtml(PROJECTS[currentProjectId]?.name || currentProjectId || 'General workspace')}</strong></div>
@@ -6985,7 +7159,7 @@ function renderBackupTools(){
       <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
       <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
     </div>
-    <div class="helper-text" style="margin-top:12px">Import akan menimpa data lokal pada browser ini dengan isi file backup.</div>`;
+    <div class="helper-text" style="margin-top:12px">Import akan merge data dari file JSON ke database lokal browser ini. Jika ada item dengan ID atau email yang sama, data dari file import akan memperbarui item tersebut.</div>`;
 }
 function accountTypeFromRole(role){
   const normalized = String(role || '').toLowerCase();
