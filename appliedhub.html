@@ -1230,7 +1230,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span id="bk-org-duration-label">30 minutes · Online / Offline</span>
       </div>
-      <div class="bk-org-desc">Use this form to request a meeting with Applied Research CESGS. Choose one or more preferred schedules and review CESGS internal team availability directly in the calendar below. Client busy status is hidden on this landing page.</div>
+      <div class="bk-org-desc">Use this form to request a meeting with Applied Research CESGS. Choose one or more preferred schedules and review CESGS internal team availability directly in the calendar below. Booking requests from this landing page are addressed to the CESGS internal team only, and no confirmation email is sent back to the requester from the landing page.</div>
       <div class="bk-project-filter">
         <div class="bk-filter-label">Filter by project:</div>
         <div id="bk-project-pills"></div>
@@ -1289,12 +1289,6 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
           <div class="bk-field" id="bk-name-manual-wrap">
             <label>Full Name *</label>
             <input id="bk-name" type="text" placeholder="Your full name" class="bk-inp"/>
-          </div>
-          <div class="bk-field" id="bk-name-account-wrap" style="display:none">
-            <label>Account Holder *</label>
-            <div id="bk-name-account-checklist" class="bk-account-checklist"></div>
-            <select id="bk-name-account" class="bk-inp" multiple size="6" style="display:none"></select>
-            <div class="bk-inline-note">Anda bisa checklist lebih dari satu nama. Nama yang dicentang akan otomatis masuk ke booking ini.</div>
           </div>
           <div class="bk-field">
             <label>Email *</label>
@@ -2938,44 +2932,28 @@ function renderBookingAccountChecklist(){
 
 function syncBookingAccountFields(){
   const manualWrap=document.getElementById('bk-name-manual-wrap');
-  const accountWrap=document.getElementById('bk-name-account-wrap');
   const manualInput=document.getElementById('bk-name');
-  const accountSelect=document.getElementById('bk-name-account');
   const orgInput=document.getElementById('bk-org');
-  if(!manualWrap || !accountWrap || !manualInput || !accountSelect || !orgInput) return;
-  const inDashboard=!!currentUserSession;
-  if(!inDashboard){
-    manualWrap.style.display='block';
-    accountWrap.style.display='none';
-    accountSelect.innerHTML='';
-    renderBookingAccountChecklist();
+  const accountWrap=document.getElementById('bk-name-account-wrap');
+  const accountSelect=document.getElementById('bk-name-account');
+  if(manualWrap) manualWrap.style.display='block';
+  if(accountWrap) accountWrap.style.display='none';
+  if(accountSelect) accountSelect.innerHTML='';
+  if(manualInput){
     manualInput.readOnly=false;
-    orgInput.readOnly=false;
-    return;
+    if(currentUserSession && !manualInput.value.trim()) manualInput.value=String(currentUserSession.name||'').trim();
   }
-  const options=getAccountDirectoryOptions(currentProjectId,{includeClients:true,includeManagement:true});
-  manualWrap.style.display='none';
-  accountWrap.style.display='block';
-  accountSelect.innerHTML=options.map(opt=>`<option value="${escapeHtml(opt.value)}" data-institution="${escapeHtml(opt.institution)}">${escapeHtml(opt.label)}</option>`).join('');
-  const preferredName=String(currentUserSession.name||'').trim();
-  const defaultSelected=options.filter(opt=>opt.value===preferredName);
-  const selectedValues=new Set((defaultSelected.length?defaultSelected:[options[0]].filter(Boolean)).map(opt=>opt.value));
-  Array.from(accountSelect.options).forEach(opt=>{ opt.selected = selectedValues.has(opt.value); });
-  renderBookingAccountChecklist();
-  handleBookingAccountChange();
+  if(orgInput){
+    orgInput.readOnly=false;
+    if(currentUserSession && !orgInput.value.trim()) orgInput.value=String(currentUserSession.institution||'').trim();
+  }
 }
 
 function handleBookingAccountChange(){
-  const accountSelect=document.getElementById('bk-name-account');
   const manualInput=document.getElementById('bk-name');
   const orgInput=document.getElementById('bk-org');
-  if(!accountSelect || !manualInput || !orgInput) return;
-  const selectedOptions=Array.from(accountSelect.selectedOptions || []);
-  const selectedNames=selectedOptions.map(opt=>String(opt.value||'').trim()).filter(Boolean);
-  const institutions=[...new Set(selectedOptions.map(opt=>String(opt.getAttribute('data-institution') || '').trim()).filter(inst=>inst && inst!=='No institution'))];
-  manualInput.value=selectedNames.join(', ');
-  orgInput.value=institutions.join(', ');
-  orgInput.readOnly=selectedNames.length>0;
+  if(manualInput) manualInput.readOnly=false;
+  if(orgInput) orgInput.readOnly=false;
 }
 
 function getAllSyncedUsers(pid=currentProjectId,options={}){
@@ -3919,6 +3897,26 @@ const CESGS_TIMEZONE='Asia/Jakarta';
 const CESGS_TIMEZONE_LABEL='WIB (UTC+7)';
 const USER_TIMEZONE=(Intl.DateTimeFormat().resolvedOptions().timeZone||'Local time').replace(/_/g,' ');
 const BOOKING_RECIPIENT='adityabagas.official@gmail.com';
+
+function getBookingInternalRecipients(){
+  const unique=new Map();
+  (getUserAccounts()||[]).forEach(acc=>{
+    if(!(acc && acc.email) || !isManagementRole(acc.role)) return;
+    const email=String(acc.email||'').trim().toLowerCase();
+    if(!email || unique.has(email)) return;
+    unique.set(email,{email,name:String(acc.name||email).trim()||email});
+  });
+  (adminState.admins||[]).forEach(admin=>{
+    const email=String(admin&&admin.email||'').trim().toLowerCase();
+    if(!email || unique.has(email)) return;
+    unique.set(email,{email,name:String(admin&&admin.name||email).trim()||email});
+  });
+  if(!unique.size && BOOKING_RECIPIENT){
+    const fallback=String(BOOKING_RECIPIENT).trim().toLowerCase();
+    if(fallback) unique.set(fallback,{email:fallback,name:fallback});
+  }
+  return Array.from(unique.values());
+}
 let bkYear, bkMonth, bkSelectedDate=null, bkActiveFilter=null, bkSelectedPreferences=[];
 
 function getWibDateObject(dateKey,time){
@@ -4249,17 +4247,13 @@ function bkProceedToStep2(){
     <div>
       <div style="font-size:13px;font-weight:600;color:#2DC4A8">${bkSelectedPreferences.length} preferred schedule${bkSelectedPreferences.length>1?'s':''} selected</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;line-height:1.6">${prefList}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px">${bkMeetingDuration} minutes · Meeting request with the CESGS team · shown in ${USER_TIMEZONE}, received by CESGS in ${CESGS_TIMEZONE_LABEL}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px">${bkMeetingDuration} minutes · Meeting request for the CESGS internal team · shown in ${USER_TIMEZONE}, received by CESGS in ${CESGS_TIMEZONE_LABEL}</div>
     </div>`;
   bkGoStep(2);
 }
 
 function submitBooking(){
-  const accountSelect=document.getElementById('bk-name-account');
-  const selectedBookingNames=(accountSelect && accountSelect.parentElement && accountSelect.parentElement.style.display!=='none')
-    ? Array.from(accountSelect.selectedOptions || []).map(opt=>String(opt.value||'').trim()).filter(Boolean)
-    : [];
-  const name=(selectedBookingNames.length ? selectedBookingNames.join(', ') : document.getElementById('bk-name').value).trim();
+  const name=document.getElementById('bk-name').value.trim();
   const email=document.getElementById('bk-email').value.trim();
   const agenda=document.getElementById('bk-agenda').value.trim();
   if(!bkSelectedPreferences.length){toast('Please choose at least one preferred date and time');return}
@@ -4270,15 +4264,24 @@ function submitBooking(){
   const projVal=document.getElementById('bk-project-select').value;
   const projName=projVal&&PROJECTS[projVal]?PROJECTS[projVal].name:projVal==='umum'?'General Consultation':'—';
   const prefLines=bkSelectedPreferences.map((p,idx)=>formatPreferenceEmailLine(p.date,p.time,idx,bkMeetingDuration));
+  const internalRecipients=getBookingInternalRecipients();
+  const internalEmails=internalRecipients.map(item=>String(item.email||'').trim().toLowerCase()).filter(Boolean);
+  const primaryRecipient=internalEmails[0] || BOOKING_RECIPIENT;
+  const bccRecipients=internalEmails.slice(1);
   const requestRecord={id:Date.now(),requestedAt:new Date().toISOString(),name,email,org,agenda,duration:bkMeetingDuration,preferences:[...bkSelectedPreferences],project:projVal||'umum',projectName:projName,external:true,status:'requested'};
   adminState.bookingRequests.unshift(requestRecord);
   if(projVal&&PROJECTS[projVal]){const s=projectData[projVal]||(projectData[projVal]={partners:[],currentPartner:'',availability:{},calNotes:{},meetings:[],calendarEvents:[],documents:[...PROJECTS[projVal].seedDocs],moms:[],collaborators:[],bookingRequests:[]});if(!s.bookingRequests) s.bookingRequests=[];s.bookingRequests.unshift(requestRecord)}
   saveAll();
   const bookingSubject=`New Applied Research CESGS meeting request — ${name}`;
-  const bookingBody=`A new meeting request has been submitted to Applied Research CESGS.\n\nRequester name: ${name}\nRequester email: ${email}\nRequester timezone: ${USER_TIMEZONE}\nInstitution: ${org||'-'}\nProject: ${projName||'-'}\nPreferred duration: ${bkMeetingDuration} minutes\nPreferred schedule(s):\n${prefLines.join('\n')}\n\nAgenda / topic:\n${agenda}\n\nThe requester is copied on this email as confirmation.`;
-  window.location.href=`mailto:${encodeURIComponent(BOOKING_RECIPIENT)}?cc=${encodeURIComponent(email)}&subject=${encodeURIComponent(bookingSubject)}&body=${encodeURIComponent(bookingBody)}`;
-  document.getElementById('bk-success-sub').textContent=`Thank you, ${name}! Your request draft has been opened in your email app, with your local schedule and the CESGS WIB version included.`;
-  document.getElementById('bk-success-detail').innerHTML=`<div><b style="color:#0B8C7A">✉️ Sent to</b> &nbsp; ${BOOKING_RECIPIENT}</div><div><b style="color:#0B8C7A">📋 Confirmation copy</b> &nbsp; ${email} (in CC)</div><div><b style="color:#0B8C7A">🌍 Requester timezone</b> &nbsp; ${USER_TIMEZONE}</div><div><b style="color:#0B8C7A">⏱️ Preferred duration</b> &nbsp; ${bkMeetingDuration} minutes</div>${org?`<div><b style="color:#0B8C7A">🏛️ Institution</b> &nbsp; ${org}</div>`:''}<div><b style="color:#0B8C7A">📌 Project</b> &nbsp; ${projName||'—'}</div><div><b style="color:#0B8C7A">🗓️ Preferred schedule(s)</b><br/>${prefLines.map(line=>`<span style="display:block;margin-left:4px">${line}</span>`).join('')}</div><div><b style="color:#0B8C7A">📝 Agenda</b> &nbsp; ${agenda}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(45,196,168,0.2);font-size:11px;color:rgba(21,86,96,0.5)">This static HTML file opens a draft in the user's email app. Once that email is sent, CESGS receives the request and the requester receives a confirmation copy through CC.</div>`;
+  const bookingBody=`A new meeting request has been submitted to Applied Research CESGS.\n\nRequester name: ${name}\nRequester email: ${email}\nRequester timezone: ${USER_TIMEZONE}\nInstitution: ${org||'-'}\nProject: ${projName||'-'}\nPreferred duration: ${bkMeetingDuration} minutes\nPreferred schedule(s):\n${prefLines.join('\n')}\n\nAgenda / topic:\n${agenda}\n\nThis landing page sends the request to the CESGS internal team only. No confirmation email is sent automatically to the requester.`;
+  const mailParams=[
+    `subject=${encodeURIComponent(bookingSubject)}`,
+    `body=${encodeURIComponent(bookingBody)}`
+  ];
+  if(bccRecipients.length) mailParams.push(`bcc=${encodeURIComponent(bccRecipients.join(','))}`);
+  window.location.href=`mailto:${encodeURIComponent(primaryRecipient)}?${mailParams.join('&')}`;
+  document.getElementById('bk-success-sub').textContent=`Thank you, ${name}! Your request draft has been opened for the CESGS internal team. No confirmation email is sent automatically to your address from this landing page.`;
+  document.getElementById('bk-success-detail').innerHTML=`<div><b style="color:#0B8C7A">✉️ Primary recipient</b> &nbsp; ${primaryRecipient || '-'}</div><div><b style="color:#0B8C7A">👥 Internal CESGS recipients</b> &nbsp; ${internalEmails.length || 1} account(s)${bccRecipients.length ? ` <span style="font-size:11px;color:rgba(21,86,96,0.58)">(additional recipients added in BCC)</span>` : ''}</div><div><b style="color:#0B8C7A">📋 Requester email copy</b> &nbsp; Not sent from landing page</div><div><b style="color:#0B8C7A">🌍 Requester timezone</b> &nbsp; ${USER_TIMEZONE}</div><div><b style="color:#0B8C7A">⏱️ Preferred duration</b> &nbsp; ${bkMeetingDuration} minutes</div>${org?`<div><b style="color:#0B8C7A">🏛️ Institution</b> &nbsp; ${org}</div>`:''}<div><b style="color:#0B8C7A">📌 Project</b> &nbsp; ${projName||'—'}</div><div><b style="color:#0B8C7A">🗓️ Preferred schedule(s)</b><br/>${prefLines.map(line=>`<span style="display:block;margin-left:4px">${line}</span>`).join('')}</div><div><b style="color:#0B8C7A">📝 Agenda</b> &nbsp; ${agenda}</div><div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(45,196,168,0.2);font-size:11px;color:rgba(21,86,96,0.5)">This static HTML file opens a draft in the requester's email app. After the requester sends it, the email is addressed to CESGS internal recipients only, without CC to the requester.</div>`;
   bkGoStep(3);
 }
 
