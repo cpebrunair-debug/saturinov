@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rinov Hub</title>
+  <meta name="description" content="Pusat Navigasi Divisi Riset dan Inovasi CESGS untuk Applied Research dan Fundamental Research." />
+  <style>
+    :root{
+      --font-title: Helvetica, "Helvetica Neue", Arial, sans-serif;
+      --font-body: "Aptos Display", Aptos, "Segoe UI", Arial, sans-serif;
+      --bg-1:#f7fbff;
+      --bg-2:#edf7f4;
+      --surface:#ffffff;
+      --surface-soft:rgba(255,255,255,.78);
+      --text:#10263d;
+      --muted:#5c7189;
+      --line:rgba(16,38,61,.09);
+      --line-strong:rgba(16,38,61,.14);
+      --green:#148f84;
+      --green-soft:#e8f7f4;
+      --blue:#2b6fe5;
+      --blue-soft:#eaf1ff;
+      --gradient-main:linear-gradient(135deg,#148f84 0%,#2b6fe5 100%);
+      --shadow-lg:0 24px 60px rgba(19,47,84,.10);
+      --shadow-md:0 14px 36px rgba(19,47,84,.08);
+      --radius-xl:32px;
+      --radius-lg:26px;
+      --radius-md:20px;
+      --radius-sm:16px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:var(--font-body);
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(20,143,132,.12), transparent 34%),
+        radial-gradient(circle at top right, rgba(43,111,229,.10), transparent 32%),
+        linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 46%, #f9fbff 100%);
+      min-height:100vh;
+      overflow-y:auto;
+    }
+
+    a{color:inherit}
+
+    .page{
+      width:min(1160px, calc(100% - 32px));
+      margin:0 auto;
+      padding:28px 0 48px;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:18px;
+      align-items:stretch;
+      margin-bottom:22px;
+    }
+
+    .panel{
+      position:relative;
+      overflow:hidden;
+      border-radius:var(--radius-xl);
+      background:var(--surface-soft);
+      backdrop-filter:blur(14px);
+      border:1px solid rgba(255,255,255,.7);
+      box-shadow:var(--shadow-lg);
+    }
+
+    .hero-copy{
+      padding:32px;
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      background:
+        radial-gradient(circle at top left, rgba(20,143,132,.12), transparent 42%),
+        radial-gradient(circle at bottom right, rgba(43,111,229,.10), transparent 40%),
+        linear-gradient(180deg, rgba(255,255,255,.92) 0%, rgba(247,251,255,.92) 100%);
+    }
+
+    .hero-copy::after{
+      content:"";
+      position:absolute;
+      inset:auto -48px -62px auto;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(43,111,229,.12), transparent 70%);
+      pointer-events:none;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      width:max-content;
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(20,143,132,.10);
+      color:var(--green);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.16em;
+      text-transform:uppercase;
+      margin-bottom:18px;
+    }
+
+    .eyebrow::before{
+      content:"";
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:var(--gradient-main);
+      box-shadow:0 0 0 5px rgba(20,143,132,.08);
+    }
+
+    h1,h2,h3,h4{
+      font-family:var(--font-title);
+      letter-spacing:-.04em;
+      margin:0;
+    }
+
+    .hero-title{
+      font-size:clamp(2.4rem, 4.6vw, 4.8rem);
+      line-height:.98;
+      color:#0f2438;
+      max-width:9.5ch;
+    }
+
+    .gradient-text{
+      background:var(--gradient-main);
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
+    }
+
+    .hero-sub{
+      margin:18px 0 0;
+      max-width:680px;
+      font-size:16px;
+      line-height:1.9;
+      color:var(--muted);
+    }
+
+    .hero-sub strong{color:#1a2f46}
+
+    .hero-card{
+      padding:30px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:18px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(247,251,255,.92) 100%);
+    }
+
+    .hero-card h2{
+      font-size:clamp(1.9rem,3vw,2.8rem);
+      line-height:1.02;
+      color:#10263d;
+    }
+
+    .hero-card p{
+      margin:0;
+      font-size:15px;
+      line-height:1.8;
+      color:var(--muted);
+    }
+
+    .shortcut-list{
+      display:grid;
+      gap:12px;
+      margin:0;
+      padding:0;
+      list-style:none;
+    }
+
+    .shortcut-list li{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      font-size:14px;
+      line-height:1.75;
+      color:var(--muted);
+    }
+
+    .shortcut-list li::before{
+      content:"";
+      width:11px;
+      height:11px;
+      border-radius:50%;
+      margin-top:6px;
+      flex-shrink:0;
+      background:var(--gradient-main);
+      box-shadow:0 0 0 5px rgba(43,111,229,.08);
+    }
+
+    .cards{
+      display:grid;
+      gap:18px;
+    }
+
+    .nav-card{
+      display:block;
+      position:relative;
+      text-decoration:none;
+      border-radius:var(--radius-lg);
+      padding:28px;
+      background:rgba(255,255,255,.96);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow-md);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      overflow:hidden;
+    }
+
+    .nav-card::before{
+      content:"";
+      position:absolute;
+      inset:0 auto auto 0;
+      width:100%;
+      height:4px;
+      opacity:.95;
+    }
+
+    .nav-card.applied::before{background:linear-gradient(135deg,#148f84,#57d1c4)}
+    .nav-card.fundamental::before{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
+
+    .nav-card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 22px 46px rgba(19,47,84,.12);
+    }
+
+    .nav-card.applied:hover{border-color:rgba(20,143,132,.22)}
+    .nav-card.fundamental:hover{border-color:rgba(43,111,229,.24)}
+
+    .nav-card:focus-visible{
+      outline:3px solid rgba(43,111,229,.18);
+      outline-offset:3px;
+    }
+
+    .card-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      min-height:38px;
+      padding:0 16px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+    }
+
+    .badge.applied{background:var(--green-soft);color:var(--green)}
+    .badge.fundamental{background:var(--blue-soft);color:var(--blue)}
+
+    .icon{
+      width:76px;
+      height:76px;
+      border-radius:24px;
+      display:grid;
+      place-items:center;
+      color:#fff;
+      font-family:var(--font-title);
+      font-size:26px;
+      font-weight:800;
+      flex-shrink:0;
+      box-shadow:0 18px 34px rgba(19,47,84,.14);
+    }
+
+    .icon.applied{background:linear-gradient(135deg,#148f84,#57d1c4)}
+    .icon.fundamental{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
+
+    .nav-card h3{
+      font-size:clamp(2rem,3.6vw,3rem);
+      line-height:1.02;
+      color:#10263d;
+      margin-bottom:12px;
+    }
+
+    .nav-card p{
+      margin:0;
+      max-width:760px;
+      font-size:16px;
+      line-height:1.9;
+      color:var(--muted);
+    }
+
+    .hint{
+      margin-top:12px;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      font-size:13px;
+      font-weight:700;
+      color:#58708c;
+    }
+
+    .hint::after{
+      content:"↗";
+      font-size:15px;
+      color:#7b8ea3;
+    }
+
+    .collab-wrap{
+      margin-top:22px;
+      display:grid;
+      gap:18px;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .collab-card{
+      border-radius:var(--radius-lg);
+      padding:26px;
+      background:rgba(255,255,255,.94);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow-md);
+    }
+
+    .collab-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .collab-card h4{
+      font-size:1.8rem;
+      line-height:1.06;
+      color:#10263d;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      min-height:34px;
+      padding:0 12px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+    }
+
+    .pill.applied{background:var(--green-soft);color:var(--green)}
+    .pill.fundamental{background:var(--blue-soft);color:var(--blue)}
+
+    .logo-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+      gap:12px;
+    }
+
+    .logo-item{
+      min-height:84px;
+      border-radius:20px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,#fff 0%, #f8fbff 100%);
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:12px;
+      font-family:var(--font-title);
+      font-size:1.15rem;
+      font-weight:800;
+      letter-spacing:-.03em;
+      color:#18314a;
+    }
+
+    .logo-item small{
+      display:block;
+      margin-top:4px;
+      font-family:var(--font-body);
+      font-size:11px;
+      letter-spacing:0;
+      font-weight:700;
+      color:var(--muted);
+    }
+
+    .footer-note{
+      margin-top:18px;
+      border-radius:22px;
+      padding:18px 20px;
+      background:linear-gradient(135deg, rgba(20,143,132,.08), rgba(43,111,229,.06));
+      border:1px solid rgba(16,38,61,.06);
+      font-size:13px;
+      line-height:1.8;
+      color:var(--muted);
+    }
+
+    .footer-note strong{color:#10263d}
+
+    @media (max-width: 980px){
+      .page{width:min(100% - 24px, 980px); padding:18px 0 36px}
+      .hero{grid-template-columns:1fr}
+      .hero-copy,.hero-card,.nav-card,.collab-card{padding:24px}
+      .collab-wrap{grid-template-columns:1fr}
+    }
+
+    @media (max-width: 640px){
+      .page{width:min(100% - 18px, 640px); padding:14px 0 26px}
+      .hero{gap:14px; margin-bottom:16px}
+      .panel,.nav-card,.collab-card,.footer-note{border-radius:22px}
+      .hero-copy,.hero-card,.nav-card,.collab-card{padding:20px}
+      .hero-title{max-width:12ch}
+      .hero-sub,.hero-card p,.nav-card p{font-size:14px; line-height:1.8}
+      .card-top,.collab-head{align-items:flex-start}
+      .icon{width:64px;height:64px;border-radius:20px;font-size:24px}
+      .badge{font-size:11px;padding:0 14px}
+      .logo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .logo-item{min-height:76px;font-size:1.05rem}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Selamat Datang di Rinov Hub</div>
+        <h1 class="hero-title">Pusat Navigasi <span class="gradient-text">Divisi Riset dan Inovasi</span></h1>
+        <p class="hero-sub">
+          Divisi Riset dan Inovasi CESGS menaungi dua jalur utama. <strong>Fundamental Research</strong> berfokus pada jurnal, artikel ilmiah, dan aktivitas riset kolaboratif berbasis publikasi ilmiah. <strong>Applied Research</strong> berfokus pada consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
+        </p>
+      </div>
+
+    </section>
+
+    <section class="cards" aria-label="Menu dashboard riset">
+      <a class="nav-card applied" href="https://cpebrunair-debug.github.io/project-hub/CESGS_PROJECT_HUB_ONEFILE" aria-label="Masuk ke dashboard Applied Research">
+        <div class="card-top">
+          <div class="badge applied">Applied Research</div>
+          <div class="icon applied">A</div>
+        </div>
+        <h3>Applied Research</h3>
+        <p>
+          Jalur applied untuk consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
+        </p>
+        <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+      </a>
+
+      <a class="nav-card fundamental" href="https://cpebrunair-debug.github.io/dashboardfundamental/research-hub-light-sync-accounts-proof" aria-label="Masuk ke dashboard Fundamental Research">
+        <div class="card-top">
+          <div class="badge fundamental">Fundamental Research</div>
+          <div class="icon fundamental">F</div>
+        </div>
+        <h3>Fundamental Research</h3>
+        <p>
+          Jalur fundamental untuk jurnal, artikel ilmiah, dan berbagai aktivitas riset kolaboratif berbasis publikasi ilmiah.
+        </p>
+        <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+      </a>
+    </section>
+
+    <section class="collab-wrap" aria-label="Leading collaborator">
+      <article class="collab-card">
+        <div class="collab-head">
+          <h4>Leading Collaborator</h4>
+          <div class="pill applied">Applied</div>
+        </div>
+        <div class="logo-grid">
+          <div class="logo-item">PLN</div>
+          <div class="logo-item">Bank Indonesia</div>
+          <div class="logo-item">Indosat</div>
+        </div>
+      </article>
+
+      <article class="collab-card">
+        <div class="collab-head">
+          <h4>Leading Collaborator</h4>
+          <div class="pill fundamental">Fundamental</div>
+        </div>
+        <div class="logo-grid">
+          <div class="logo-item">UGM</div>
+          <div class="logo-item">UI</div>
+          <div class="logo-item">ITB</div>
+          <div class="logo-item">ITS</div>
+          <div class="logo-item">UM</div>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer-note">
+      <strong>Catatan:</strong> setiap kartu sekarang langsung mengarah ke dashboard tujuan dalam tab yang sama.
+    </div>
+  </main>
+</body>
+</html>
