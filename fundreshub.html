@@ -373,6 +373,29 @@ body {
 
 .role-item:hover { background: rgba(79,142,247,0.08); color: var(--text2); }
 
+.login-data-tools {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.login-data-btn {
+  justify-content: center;
+  width: 100%;
+}
+
+.login-data-note {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text3);
+}
+
+.login-data-note strong {
+  color: var(--text2);
+}
+
 .role-badge {
   font-size: 10px;
   font-weight: 600;
@@ -2465,6 +2488,19 @@ body::after {
           <i class="fas fa-sign-in-alt"></i> Masuk
         </button>
 
+        <div class="login-data-tools">
+          <button class="btn btn-secondary login-data-btn" type="button" onclick="exportAppData()">
+            <i class="fas fa-file-export"></i> Export JSON
+          </button>
+          <button class="btn btn-secondary login-data-btn" type="button" onclick="triggerImportJson()">
+            <i class="fas fa-file-import"></i> Import JSON
+          </button>
+        </div>
+        <input type="file" id="import-json-input" accept="application/json,.json" hidden>
+        <div class="login-data-note">
+          <strong>Backup data:</strong> export akan menyimpan seluruh data yang terekam. Import akan <strong>menambahkan/menggabungkan</strong> data JSON ke data yang sudah ada, bukan menghapus semuanya.
+        </div>
+
         <div class="role-hints">
           <div class="role-hints-title"><i class="fas fa-key"></i> Quick Login Demo</div>
           <div class="role-list">
@@ -3171,10 +3207,10 @@ const USERS = {
 };
 
 const PROJECTS = [
-  { id:1, title:'Sustainability Index di Kawasan Perkotaan', type:'Journal Paper', status:'In Progress', progress:65, journal:'Sustainability (Q1)', deadline:'2025-08-30', authors:['Researcher 01','Project Manager 01'], chapters:['Pendahuluan','Tinjauan Pustaka','Metodologi','Hasil & Pembahasan','Kesimpulan'], color:'blue' },
-  { id:2, title:'Urban Heat Island Effect Surabaya', type:'Journal Paper', status:'Review', progress:88, journal:'Urban Climate (Q2)', deadline:'2025-06-15', authors:['Researcher 01','Supervisor 01'], chapters:['Introduction','Literature Review','Methods','Results','Discussion','Conclusion'], color:'purple' },
-  { id:3, title:'Strategi Adaptasi Perubahan Iklim', type:'Grant Research', status:'Draft', progress:30, journal:'DIKTI Grant 2025', deadline:'2025-12-31', authors:['Supervisor 01','Researcher 01','Project Manager 01'], chapters:['Latar Belakang','Kajian Teori','Metodologi Penelitian','Rencana Anggaran','Output & Outcome'], color:'green' },
-  { id:4, title:'Biodiversitas Mangrove Pesisir Timur', type:'Conference Paper', status:'Submitted', progress:100, journal:'ICEF 2025 Conference', deadline:'2025-05-01', authors:['Proof Reader 01'], chapters:['Introduction','Methods','Results','Conclusion'], color:'yellow' },
+  { id:1, title:'Sustainability Index di Kawasan Perkotaan', type:'Journal Paper', status:'In Progress', progress:65, journal:'Sustainability (Q1)', deadline:'2025-08-30', authors:['Researcher 01','Project Manager 01'], chapters:['Pendahuluan','Tinjauan Pustaka','Metodologi','Hasil & Pembahasan','Kesimpulan'], color:'blue', isActive:true },
+  { id:2, title:'Urban Heat Island Effect Surabaya', type:'Journal Paper', status:'Review', progress:88, journal:'Urban Climate (Q2)', deadline:'2025-06-15', authors:['Researcher 01','Supervisor 01'], chapters:['Introduction','Literature Review','Methods','Results','Discussion','Conclusion'], color:'purple', isActive:true },
+  { id:3, title:'Strategi Adaptasi Perubahan Iklim', type:'Grant Research', status:'Draft', progress:30, journal:'DIKTI Grant 2025', deadline:'2025-12-31', authors:['Supervisor 01','Researcher 01','Project Manager 01'], chapters:['Latar Belakang','Kajian Teori','Metodologi Penelitian','Rencana Anggaran','Output & Outcome'], color:'green', isActive:true },
+  { id:4, title:'Biodiversitas Mangrove Pesisir Timur', type:'Conference Paper', status:'Submitted', progress:100, journal:'ICEF 2025 Conference', deadline:'2025-05-01', authors:['Proof Reader 01'], chapters:['Introduction','Methods','Results','Conclusion'], color:'yellow', isActive:true },
 ];
 
 const TASKS = [
@@ -3321,6 +3357,7 @@ function hydrateAppState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (!saved) {
+      normalizeProjects();
       rebuildAccountsFromUsers();
       return;
     }
@@ -3338,16 +3375,39 @@ function hydrateAppState() {
     if (saved.MEETINGS) overwriteArray(MEETINGS, saved.MEETINGS);
     if (saved.CALENDAR_EVENTS) overwriteObject(CALENDAR_EVENTS, saved.CALENDAR_EVENTS);
     if (saved.CHAT_MESSAGES) overwriteObject(CHAT_MESSAGES, saved.CHAT_MESSAGES);
+    normalizeProjects();
     rebuildAccountsFromUsers();
   } catch (error) {
     console.warn('Gagal memuat state tersimpan:', error);
     resetStateFromDefaults();
+    normalizeProjects();
     rebuildAccountsFromUsers();
   }
 }
 
+function getSerializableState() {
+  return {
+    meta: {
+      app: 'CESGS Research Hub',
+      storageKey: STORAGE_KEY,
+      exportedAt: new Date().toISOString(),
+      version: 1
+    },
+    USERS,
+    PROJECTS,
+    TASKS,
+    MILESTONES,
+    REFERENCES,
+    PROOF_DOCS,
+    CHAT_MESSAGES,
+    MEETINGS,
+    CALENDAR_EVENTS
+  };
+}
+
 function persistAppState() {
   try {
+    normalizeProjects();
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       USERS,
       PROJECTS,
@@ -3362,6 +3422,193 @@ function persistAppState() {
   } catch (error) {
     console.warn('Gagal menyimpan state:', error);
   }
+}
+
+function exportAppData() {
+  try {
+    persistAppState();
+    const payload = getSerializableState();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.href = URL.createObjectURL(blob);
+    link.download = `cesgs-research-hub-${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 500);
+    showToast('Export JSON berhasil diunduh.');
+  } catch (error) {
+    console.warn('Gagal export JSON:', error);
+    showToast('Export JSON gagal. Periksa console browser.');
+  }
+}
+
+function triggerImportJson() {
+  document.getElementById('import-json-input')?.click();
+}
+
+function createMergeKey(item, fallbackLabel = 'item') {
+  if (!item || typeof item !== 'object') return `${fallbackLabel}:${String(item)}`;
+  const candidates = ['id', 'email', 'title', 'name', 'date'];
+  for (const key of candidates) {
+    if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
+      return `${key}:${String(item[key])}`;
+    }
+  }
+  return `${fallbackLabel}:${JSON.stringify(item)}`;
+}
+
+function mergeArrayData(target, incoming, fallbackLabel) {
+  if (!Array.isArray(incoming)) return { added: 0, updated: 0 };
+  const indexMap = new Map(target.map((item, index) => [createMergeKey(item, fallbackLabel), index]));
+  let added = 0;
+  let updated = 0;
+  incoming.forEach(item => {
+    const key = createMergeKey(item, fallbackLabel);
+    if (indexMap.has(key)) {
+      target[indexMap.get(key)] = item;
+      updated += 1;
+    } else {
+      target.push(item);
+      indexMap.set(key, target.length - 1);
+      added += 1;
+    }
+  });
+  return { added, updated };
+}
+
+function mergeUsersData(incomingUsers) {
+  if (!incomingUsers || typeof incomingUsers !== 'object') return { added: 0, updated: 0 };
+  let added = 0;
+  let updated = 0;
+  Object.entries(incomingUsers).forEach(([email, user]) => {
+    const mergedUser = { ...(USERS[email] || {}), ...user };
+    if (!mergedUser.initials) mergedUser.initials = computeInitials(mergedUser.name || email);
+    if (USERS[email]) updated += 1;
+    else added += 1;
+    USERS[email] = mergedUser;
+  });
+  return { added, updated };
+}
+
+function mergeCalendarEvents(incomingCalendar) {
+  if (!incomingCalendar || typeof incomingCalendar !== 'object') return { added: 0, updated: 0 };
+  let added = 0;
+  let updated = 0;
+  Object.entries(incomingCalendar).forEach(([date, events]) => {
+    if (!Array.isArray(events)) return;
+    if (!Array.isArray(CALENDAR_EVENTS[date])) {
+      CALENDAR_EVENTS[date] = events;
+      added += events.length;
+      return;
+    }
+    const existing = CALENDAR_EVENTS[date];
+    const map = new Map(existing.map((event, index) => [`${event.title || ''}|${event.type || ''}`, index]));
+    events.forEach(event => {
+      const key = `${event.title || ''}|${event.type || ''}`;
+      if (map.has(key)) {
+        existing[map.get(key)] = event;
+        updated += 1;
+      } else {
+        existing.push(event);
+        map.set(key, existing.length - 1);
+        added += 1;
+      }
+    });
+  });
+  return { added, updated };
+}
+
+function mergeChatMessages(incomingMessages) {
+  if (!incomingMessages || typeof incomingMessages !== 'object') return { added: 0, updated: 0 };
+  let added = 0;
+  let updated = 0;
+  Object.entries(incomingMessages).forEach(([channel, messages]) => {
+    if (!Array.isArray(messages)) return;
+    if (!Array.isArray(CHAT_MESSAGES[channel])) {
+      CHAT_MESSAGES[channel] = messages;
+      added += messages.length;
+      return;
+    }
+    const existing = CHAT_MESSAGES[channel];
+    const map = new Map(existing.map((message, index) => [`${message.from || ''}|${message.time || ''}|${message.text || ''}|${Boolean(message.mine)}`, index]));
+    messages.forEach(message => {
+      const key = `${message.from || ''}|${message.time || ''}|${message.text || ''}|${Boolean(message.mine)}`;
+      if (map.has(key)) {
+        existing[map.get(key)] = message;
+        updated += 1;
+      } else {
+        existing.push(message);
+        map.set(key, existing.length - 1);
+        added += 1;
+      }
+    });
+  });
+  return { added, updated };
+}
+
+function applyImportedState(payload) {
+  const data = payload?.state && typeof payload.state === 'object' ? payload.state : payload;
+  if (!data || typeof data !== 'object') {
+    throw new Error('Format JSON tidak dikenali.');
+  }
+
+  const summary = { added: 0, updated: 0 };
+  const tally = result => {
+    summary.added += result.added || 0;
+    summary.updated += result.updated || 0;
+  };
+
+  tally(mergeUsersData(data.USERS));
+  tally(mergeArrayData(PROJECTS, data.PROJECTS, 'project'));
+  tally(mergeArrayData(TASKS, data.TASKS, 'task'));
+  tally(mergeArrayData(MILESTONES, data.MILESTONES, 'milestone'));
+  tally(mergeArrayData(REFERENCES, data.REFERENCES, 'reference'));
+  tally(mergeArrayData(PROOF_DOCS, data.PROOF_DOCS, 'proof'));
+  tally(mergeArrayData(MEETINGS, data.MEETINGS, 'meeting'));
+  tally(mergeCalendarEvents(data.CALENDAR_EVENTS));
+  tally(mergeChatMessages(data.CHAT_MESSAGES));
+
+  normalizeProjects();
+  rebuildAccountsFromUsers();
+  persistAppState();
+  populateDynamicOptions();
+  updateStaticBindings();
+
+  if (currentUser && USERS[currentUser.email]) {
+    currentUser = { email: currentUser.email, ...USERS[currentUser.email] };
+    if (document.getElementById('sidebar-avatar')) document.getElementById('sidebar-avatar').textContent = currentUser.initials;
+    if (document.getElementById('sidebar-name')) document.getElementById('sidebar-name').textContent = currentUser.name;
+    if (document.getElementById('sidebar-role')) document.getElementById('sidebar-role').textContent = getRoleLabel(currentUser.role);
+    showSection(currentSection);
+  }
+
+  return summary;
+}
+
+function handleImportJson(event) {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = loadEvent => {
+    try {
+      const payload = JSON.parse(loadEvent.target?.result || '{}');
+      const summary = applyImportedState(payload);
+      showToast(`Import JSON berhasil. ${summary.added} data baru ditambahkan, ${summary.updated} data diperbarui.`);
+    } catch (error) {
+      console.warn('Gagal import JSON:', error);
+      showToast('Import JSON gagal. Pastikan file JSON valid.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.onerror = () => {
+    showToast('File JSON tidak dapat dibaca.');
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 function syncUserNameReferences(oldName, newName) {
@@ -3410,7 +3657,7 @@ function populateDynamicOptions() {
 
   const taskProject = document.getElementById('task-project');
   if (taskProject) {
-    taskProject.innerHTML = PROJECTS.map(project => `<option>${project.title}</option>`).join('');
+    taskProject.innerHTML = getActiveProjectOptions().map(project => `<option>${project.title}</option>`).join('');
   }
 
   const projectAuthors = document.getElementById('project-authors');
@@ -3435,6 +3682,39 @@ function updateStaticBindings() {
   if (notifReplyText && researcher) {
     notifReplyText.textContent = `${researcher.name} membalas pesan Anda di diskusi Paper A`;
   }
+}
+
+function normalizeProject(project) {
+  if (!project || typeof project !== 'object') return project;
+  if (project.isActive === undefined) project.isActive = true;
+  if (!Array.isArray(project.authors)) project.authors = [];
+  if (!Array.isArray(project.chapters) || !project.chapters.length) {
+    project.chapters = getDefaultChaptersByType(project.type || 'Journal Paper');
+  }
+  return project;
+}
+
+function normalizeProjects() {
+  PROJECTS.forEach(normalizeProject);
+}
+
+function getVisibleProjects() {
+  normalizeProjects();
+  return currentUser?.role === 'superadmin' ? PROJECTS : PROJECTS.filter(project => project.isActive !== false);
+}
+
+function getActiveProjectOptions() {
+  normalizeProjects();
+  return PROJECTS.filter(project => project.isActive !== false);
+}
+
+function getProjectById(id) {
+  normalizeProjects();
+  return PROJECTS.find(project => String(project.id) === String(id));
+}
+
+function canManageProjectState() {
+  return currentUser?.role === 'superadmin';
 }
 
 hydrateAppState();
@@ -3877,7 +4157,7 @@ function renderProofreaderDashboard() {
 function renderDashboard() {
   const u = currentUser;
   if (u.role === 'proofreader') return renderProofreaderDashboard();
-  const isManagement = u.role === 'superadmin' || u.role === 'pm';
+  const visibleProjects = getVisibleProjects();
 
   return `
     <div class="welcome-header">
@@ -3888,9 +4168,9 @@ function renderDashboard() {
     <div class="grid-4" style="margin-bottom:24px;">
       <div class="stat-card sc-blue" onclick="showSection('projects')">
         <div class="sc-icon"><i class="fas fa-book-open"></i></div>
-        <div class="sc-value">${PROJECTS.length}</div>
+        <div class="sc-value">${visibleProjects.length}</div>
         <div class="sc-label">Total Project</div>
-        <div class="sc-trend up"><i class="fas fa-arrow-up"></i> 2 bulan ini</div>
+        <div class="sc-trend up"><i class="fas fa-arrow-up"></i> ${u.role === 'superadmin' ? 'termasuk yang nonaktif' : 'siap dikerjakan'}</div>
       </div>
       <div class="stat-card sc-purple" onclick="showSection('tasks')">
         <div class="sc-icon"><i class="fas fa-tasks"></i></div>
@@ -3918,20 +4198,20 @@ function renderDashboard() {
           <div class="card-title"><i class="fas fa-project-diagram" style="color:var(--accent);margin-right:8px;"></i>Project Aktif</div>
           <button class="card-action" onclick="showSection('projects')">Lihat Semua →</button>
         </div>
-        ${PROJECTS.map(p => `
-          <div class="project-item" onclick="openProjectDetail(${p.id})">
+        ${visibleProjects.length ? visibleProjects.map(p => `
+          <div class="project-item" onclick="openProjectDetail(${p.id})" style="opacity:${p.isActive === false ? '0.72' : '1'};">
             <div class="project-icon pi-${p.color}"><i class="fas fa-file-alt"></i></div>
             <div class="project-info">
               <div class="project-name">${p.title.length > 40 ? p.title.substring(0,40)+'...' : p.title}</div>
-              <div class="project-meta">${p.type} • ${p.authors.length} author</div>
+              <div class="project-meta">${p.type} • ${p.authors.length} author${p.isActive === false ? ' • Nonaktif' : ''}</div>
               <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill ${p.progress >= 80 ? 'green' : p.progress >= 50 ? '' : 'yellow'}" style="width:${p.progress}%"></div></div>
             </div>
             <div class="project-status">
-              <span class="badge ${getStatusBadge(p.status)}">${p.status}</span>
+              <span class="badge ${p.isActive === false ? 'badge-gray' : getStatusBadge(p.status)}">${p.isActive === false ? 'Nonaktif' : p.status}</span>
               <div style="font-size:11px;color:var(--text3);margin-top:4px;">${p.progress}%</div>
             </div>
           </div>
-        `).join('')}
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-folder-open"></i><p>Belum ada project yang aktif untuk ditampilkan.</p></div>`}
       </div>
 
       <div class="card">
@@ -4000,11 +4280,13 @@ function renderDashboard() {
 // RENDER: PROJECTS
 // ======================================================
 function renderProjects() {
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  const projects = getVisibleProjects();
   return `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap;">
       <div>
         <div class="section-title">Project & Paper</div>
-        <div class="section-sub">Semua akun dapat menambah dan mengedit project penelitian.</div>
+        <div class="section-sub">${isSuperAdmin ? 'Superadmin dapat menambah, mengedit, mengaktifkan, menonaktifkan, dan menghapus project.' : 'Project nonaktif disembunyikan dari pengguna selain superadmin.'}</div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-accent" onclick="openAddProjectModal()"><i class="fas fa-plus"></i> Tambah Project</button>
@@ -4012,15 +4294,18 @@ function renderProjects() {
     </div>
 
     <div class="grid-2">
-      ${PROJECTS.map(p => `
-        <div class="card" style="cursor:pointer;" onclick="openProjectDetail(${p.id})">
+      ${projects.length ? projects.map(p => `
+        <div class="card" style="cursor:pointer;opacity:${p.isActive === false ? '0.76' : '1'};border-style:${p.isActive === false ? 'dashed' : 'solid'};" onclick="openProjectDetail(${p.id})">
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
             <div class="project-icon pi-${p.color}" style="width:44px;height:44px;border-radius:10px;"><i class="fas fa-file-alt"></i></div>
             <div style="flex:1;">
               <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${p.title}</div>
               <div style="font-size:12px;color:var(--text3);">${p.type} • ${p.journal}</div>
             </div>
-            <span class="badge ${getStatusBadge(p.status)}">${p.status}</span>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+              <span class="badge ${getStatusBadge(p.status)}">${p.status}</span>
+              <span class="badge ${p.isActive === false ? 'badge-gray' : 'badge-green'}">${p.isActive === false ? 'Nonaktif' : 'Aktif'}</span>
+            </div>
           </div>
           <div style="margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:6px;">
@@ -4034,27 +4319,38 @@ function renderProjects() {
             <div style="font-size:12px;color:var(--text3);flex:1;">
               <i class="fas fa-users"></i> ${p.authors.join(', ').substring(0,60)}
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
               <div style="font-size:11px;color:var(--text3);">
                 <i class="fas fa-calendar"></i> ${p.deadline}
               </div>
               <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openEditProjectModal(${p.id})"><i class="fas fa-edit"></i> Edit</button>
+              ${isSuperAdmin ? `
+                <button class="btn btn-xs ${p.isActive === false ? 'btn-success' : 'btn-warning'}" onclick="event.stopPropagation();toggleProjectActive(${p.id})">
+                  <i class="fas ${p.isActive === false ? 'fa-toggle-on' : 'fa-toggle-off'}"></i> ${p.isActive === false ? 'Aktifkan' : 'Nonaktifkan'}
+                </button>
+                <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteProject(${p.id})"><i class="fas fa-trash"></i> Hapus</button>
+              ` : ''}
             </div>
           </div>
         </div>
-      `).join('')}
+      `).join('') : `<div class="card" style="grid-column:1 / -1;"><div class="empty-state"><i class="fas fa-folder-open"></i><p>Tidak ada project yang dapat ditampilkan.</p></div></div>`}
     </div>
   `;
 }
 
 function openProjectDetail(id) {
-  const p = PROJECTS.find(x => x.id === id);
+  const p = getProjectById(id);
   if (!p) return;
+  if (currentUser?.role !== 'superadmin' && p.isActive === false) {
+    showToast('Project ini sedang dinonaktifkan oleh superadmin.');
+    return;
+  }
   document.getElementById('modal-project-title').textContent = p.title;
   document.getElementById('modal-project-body').innerHTML = `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
       <span class="badge ${getStatusBadge(p.status)}">${p.status}</span>
       <span class="badge badge-blue">${p.type}</span>
+      <span class="badge ${p.isActive === false ? 'badge-gray' : 'badge-green'}">${p.isActive === false ? 'Nonaktif' : 'Aktif'}</span>
       <span class="badge badge-gray"><i class="fas fa-calendar"></i> Deadline: ${p.deadline}</span>
     </div>
 
@@ -4120,6 +4416,7 @@ function openProjectDetail(id) {
 
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
       <button class="btn btn-secondary" onclick="openEditProjectModal(${p.id})"><i class="fas fa-edit"></i> Edit Project</button>
+      ${canManageProjectState() ? `<button class="btn ${p.isActive === false ? 'btn-success' : 'btn-warning'}" onclick="toggleProjectActive(${p.id})"><i class="fas ${p.isActive === false ? 'fa-toggle-on' : 'fa-toggle-off'}"></i> ${p.isActive === false ? 'Aktifkan' : 'Nonaktifkan'}</button><button class="btn btn-danger" onclick="deleteProject(${p.id})"><i class="fas fa-trash"></i> Hapus</button>` : ''}
       <button class="btn btn-secondary" onclick="openModal('modal-meeting')"><i class="fas fa-calendar-plus"></i> Book Meeting</button>
       <button class="btn btn-accent" onclick="showSection('brainstorm')"><i class="fas fa-robot"></i> AI Brainstorm</button>
     </div>
@@ -4135,7 +4432,7 @@ function renderChapters() {
     <div class="section-title">Penulisan Bab</div>
     <div class="section-sub">Pembagian dan status penulisan setiap bab</div>
 
-    ${PROJECTS.filter(p => p.type !== 'Grant Research').map(p => `
+    ${getVisibleProjects().filter(p => p.type !== 'Grant Research').map(p => `
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header">
           <div>
@@ -4582,13 +4879,13 @@ function renderTracking() {
           <tr><th>Judul Paper</th><th>Target Jurnal</th><th>Authors</th><th>Submit Date</th><th>Status</th><th>Aksi</th></tr>
         </thead>
         <tbody>
-          ${PROJECTS.map(p => `
+          ${getVisibleProjects().map(p => `
             <tr onclick="openProjectDetail(${p.id})" style="cursor:pointer;">
               <td><div style="font-weight:600;font-size:13px;">${p.title.substring(0,40)}...</div><div style="font-size:11px;color:var(--text3);">${p.type}</div></td>
               <td style="font-size:13px;">${p.journal}</td>
               <td style="font-size:12px;color:var(--text3);">${p.authors.length} author</td>
               <td style="font-size:12px;color:var(--text3);">${p.deadline}</td>
-              <td><span class="badge ${getStatusBadge(p.status)}">${p.status}</span></td>
+              <td><div style="display:flex;gap:6px;flex-wrap:wrap;"><span class="badge ${getStatusBadge(p.status)}">${p.status}</span><span class="badge ${p.isActive === false ? 'badge-gray' : 'badge-green'}">${p.isActive === false ? 'Nonaktif' : 'Aktif'}</span></div></td>
               <td><button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openProjectDetail(${p.id})">Detail</button></td>
             </tr>
           `).join('')}
@@ -4727,7 +5024,7 @@ function openAddProjectModal() {
 }
 
 function openEditProjectModal(id) {
-  const project = PROJECTS.find(item => item.id === id);
+  const project = getProjectById(id);
   if (!project) return;
   document.getElementById('project-form-title').textContent = 'Edit Project';
   document.getElementById('project-id').value = project.id;
@@ -4767,11 +5064,12 @@ function saveProject() {
     authors: authors.length ? authors : [currentUser?.name || 'Tim'],
     chapters: getDefaultChaptersByType(type),
     color,
-    description
+    description,
+    isActive: true
   };
 
   if (projectId) {
-    const existing = PROJECTS.find(item => String(item.id) === String(projectId));
+    const existing = getProjectById(projectId);
     if (existing) {
       const currentChapters = Array.isArray(existing.chapters) && existing.chapters.length ? existing.chapters : getDefaultChaptersByType(type);
       Object.assign(existing, payload, { chapters: currentChapters });
@@ -4785,6 +5083,48 @@ function saveProject() {
   closeModal('modal-add-project');
   showToast(projectId ? 'Project berhasil diperbarui.' : 'Project baru berhasil ditambahkan.');
   if (currentUser) showSection(currentSection);
+}
+
+
+function toggleProjectActive(id) {
+  const project = getProjectById(id);
+  if (!project) return;
+  setProjectActiveState(id, project.isActive === false);
+}
+
+function setProjectActiveState(id, isActive) {
+  if (!canManageProjectState()) {
+    showToast('Hanya superadmin yang dapat mengubah status project.');
+    return;
+  }
+  const project = getProjectById(id);
+  if (!project) return;
+  project.isActive = Boolean(isActive);
+  persistAppState();
+  populateDynamicOptions();
+  showToast(project.isActive ? 'Project berhasil diaktifkan.' : 'Project berhasil dinonaktifkan.');
+  if (document.getElementById('modal-project')?.classList.contains('open')) {
+    openProjectDetail(id);
+  }
+  if (currentUser) showSection(currentSection);
+}
+
+function deleteProject(id) {
+  if (!canManageProjectState()) {
+    showToast('Hanya superadmin yang dapat menghapus project.');
+    return;
+  }
+  const project = getProjectById(id);
+  if (!project) return;
+  if (!confirm(`Hapus project "${project.title}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+  const index = PROJECTS.findIndex(item => String(item.id) === String(id));
+  if (index === -1) return;
+  PROJECTS.splice(index, 1);
+  persistAppState();
+  populateDynamicOptions();
+  closeModal('modal-project');
+  showToast('Project berhasil dihapus.');
+  if (currentUser) showSection(currentSection === 'dashboard' ? 'projects' : currentSection);
 }
 
 function saveProofreadRequest() {
@@ -5133,7 +5473,7 @@ function renderProfile() {
 
         <div class="divider"></div>
         <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Project Aktif</div>
-        ${PROJECTS.filter(project => project.authors.includes(u.name)).slice(0,3).map(p=>`
+        ${getVisibleProjects().filter(project => project.authors.includes(u.name)).slice(0,3).map(p=>`
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <div class="project-icon pi-blue" style="width:28px;height:28px;border-radius:6px;font-size:12px;"><i class="fas fa-file-alt"></i></div>
             <div style="font-size:12px;flex:1;">${p.title.substring(0,40)}...</div>
@@ -5455,6 +5795,11 @@ document.addEventListener('click', e => {
     panel.classList.remove('open');
   }
 });
+
+const importJsonInput = document.getElementById('import-json-input');
+if (importJsonInput) {
+  importJsonInput.addEventListener('change', handleImportJson);
+}
 
 // Enter to login
 document.getElementById('login-password').addEventListener('keydown', e => {
