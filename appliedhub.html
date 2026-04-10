@@ -2931,22 +2931,29 @@ function renderBookingAccountChecklist(){
 }
 
 function syncBookingAccountFields(){
+  syncCurrentUserSessionFromAccountStore();
   const manualWrap=document.getElementById('bk-name-manual-wrap');
-  const manualInput=document.getElementById('bk-name');
-  const orgInput=document.getElementById('bk-org');
   const accountWrap=document.getElementById('bk-name-account-wrap');
+  const manualInput=document.getElementById('bk-name');
   const accountSelect=document.getElementById('bk-name-account');
-  if(manualWrap) manualWrap.style.display='block';
-  if(accountWrap) accountWrap.style.display='none';
-  if(accountSelect) accountSelect.innerHTML='';
-  if(manualInput){
+  const orgInput=document.getElementById('bk-org');
+  if(!manualWrap || !accountWrap || !manualInput || !accountSelect || !orgInput) return;
+  const inDashboard=!!currentUserSession;
+  if(!inDashboard){
+    manualWrap.style.display='block';
+    accountWrap.style.display='none';
+    accountSelect.innerHTML='';
     manualInput.readOnly=false;
-    if(currentUserSession && !manualInput.value.trim()) manualInput.value=String(currentUserSession.name||'').trim();
-  }
-  if(orgInput){
     orgInput.readOnly=false;
-    if(currentUserSession && !orgInput.value.trim()) orgInput.value=String(currentUserSession.institution||'').trim();
+    return;
   }
+  manualWrap.style.display='block';
+  accountWrap.style.display='none';
+  accountSelect.innerHTML='';
+  manualInput.readOnly=false;
+  orgInput.readOnly=false;
+  if(!manualInput.value.trim()) manualInput.value=String(currentUserSession.name||'').trim();
+  if(!orgInput.value.trim()) orgInput.value=String(currentUserSession.institution||'').trim();
 }
 
 function handleBookingAccountChange(){
@@ -5205,8 +5212,8 @@ function getRecentMessages(state, limit){
   return [...(state.messages||[])].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))).slice(0, limit || 4);
 }
 
-function getCurrentAccountProfile(){
-  const email = currentUserEmail();
+function getCurrentAccountProfile(emailOverride){
+  const email = String(emailOverride || currentUserEmail() || currentUserSession?.email || '').toLowerCase();
   if(!email) return currentUserSession || null;
   const pools = [
     ...(Array.isArray(adminState?.admins) ? adminState.admins : []),
@@ -5219,29 +5226,57 @@ function getCurrentAccountProfile(){
   const found = pools.find(acc => String(acc?.email || '').toLowerCase() === email);
   return found ? normalizeUserSession({...found}) : (currentUserSession || null);
 }
+function syncCurrentUserSessionFromAccountStore(emailOverride){
+  const email = String(emailOverride || currentUserEmail() || currentUserSession?.email || '').toLowerCase();
+  if(!email) return currentUserSession || null;
+  const stored = getCurrentAccountProfile(email);
+  if(!stored){
+    if(currentUserSession && String(currentUserSession.email || '').toLowerCase() === email){
+      try{ localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession)); }catch(e){}
+    }
+    return currentUserSession || null;
+  }
+  currentUserSession = normalizeUserSession({
+    ...(currentUserSession || {}),
+    ...stored,
+    email
+  });
+  try{ localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession)); }catch(e){}
+  return currentUserSession;
+}
 function updateStoredAccountProfile(email, fields){
   const normalizedEmail = String(email || '').toLowerCase();
   if(!normalizedEmail) return false;
+  const normalizedFields = {
+    ...fields,
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'name') ? {name:String(fields.name || '').trim()} : {}),
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'cv') ? {cv:String(fields.cv || '').trim()} : {}),
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'institution') ? {institution:String(fields.institution || '').trim()} : {}),
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'profileLink') ? {profileLink:sanitizeProfileLink(fields.profileLink || '')} : {}),
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'photoUrl') ? {photoUrl:sanitizeMediaUrl(fields.photoUrl || '')} : {}),
+    ...(Object.prototype.hasOwnProperty.call(fields || {}, 'projects') ? {projects:Array.isArray(fields.projects) ? fields.projects.filter(pid => !!PROJECTS[pid]) : []} : {})
+  };
   let updated = false;
   (adminState.admins || []).forEach(adm => {
     if(String(adm.email || '').toLowerCase() === normalizedEmail){
-      Object.assign(adm, fields);
+      Object.assign(adm, normalizedFields);
       updated = true;
     }
   });
   const superState = parseJSONSafe(SUPERADMIN_STORAGE_KEY, {}) || {};
   if(!Array.isArray(superState.userAccounts)) superState.userAccounts = [];
+  if(!Array.isArray(superState.clients)) superState.clients = [];
   ['userAccounts','clients'].forEach(pool => {
     if(!Array.isArray(superState[pool])) return;
     superState[pool].forEach(acc => {
       if(String(acc.email || '').toLowerCase() === normalizedEmail){
-        Object.assign(acc, fields);
+        Object.assign(acc, normalizedFields);
         updated = true;
       }
     });
   });
   if(!updated && currentUserSession && String(currentUserSession.email || '').toLowerCase() === normalizedEmail){
-    const base = getCurrentAccountProfile() || currentUserSession;
+    const base = getCurrentAccountProfile(normalizedEmail) || currentUserSession;
     superState.userAccounts.unshift({
       id:`u-${Date.now()}`,
       name:base.name || currentUserName(),
@@ -5252,15 +5287,15 @@ function updateStoredAccountProfile(email, fields){
       institution:String(base.institution || '').trim(),
       status:'active',
       createdAt:new Date().toISOString().slice(0,10),
-      ...fields
+      ...normalizedFields
     });
     updated = true;
   }
   localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(superState));
-  if(currentUserSession && String(currentUserSession.email || '').toLowerCase() === normalizedEmail){
-    currentUserSession = normalizeUserSession({...activeUser, ...fields});
+  if(updated){
+    syncCurrentUserSessionFromAccountStore(normalizedEmail);
+    saveAll();
   }
-  if(updated) saveAll();
   return updated;
 }
 function saveCurrentUserCv(){
@@ -5377,6 +5412,7 @@ function getAssignableTargetsForProject(pid){
   });
 }
 function updateSidebarContext(){
+  syncCurrentUserSessionFromAccountStore();
   const state = currentProjectId ? ensureProjectStateById(currentProjectId) : null;
   const statusEl = document.getElementById('sidebar-project-status');
   if (statusEl && state) statusEl.textContent = `${state.projectMeta.status || 'Active'}${state.projectMeta.estimatedDeadline ? ' · ETA ' + state.projectMeta.estimatedDeadline : ''}`;
@@ -5665,6 +5701,7 @@ function renderProfileInternalCalendar(){
 }
 
 function renderProfilePage(){
+  syncCurrentUserSessionFromAccountStore();
   const state = getState(); if(!state) return;
   const progress = calculateProjectProgress(state);
   const switcher = document.getElementById('profile-project-switcher');
@@ -7118,6 +7155,24 @@ function saveManagedAccount(){
   }
 
   saveAll();
+  const currentSessionEmail = String(currentUserSession?.email || '').toLowerCase();
+  const touchesCurrentSession = !!currentSessionEmail && (currentSessionEmail === email || (originalRow && currentSessionEmail === originalRow.matchEmail));
+  if(touchesCurrentSession){
+    currentUserSession = normalizeUserSession({
+      ...(currentUserSession || {}),
+      name,
+      email,
+      password,
+      role:type === 'admin' ? ((originalRow && originalRow.locked) ? 'Superadmin' : 'Admin') : accountRoleLabel(type),
+      projects,
+      canManage:type !== 'client',
+      cv,
+      institution,
+      profileLink,
+      photoUrl
+    });
+    syncCurrentUserSessionFromAccountStore(email);
+  }
   populateScheduleOwnerOptions();
   renderAccountManagementPage();
   updateSidebarContext();
@@ -7307,7 +7362,17 @@ function saveManagedAccountProfileEdit(){
       primaryAdmin.institution = institution;
       primaryAdmin.profileLink = profileLink;
       primaryAdmin.photoUrl = photoUrl;
+      const currentSessionEmail = String(currentUserSession?.email || '').toLowerCase();
+      if(currentSessionEmail && currentSessionEmail === originalRow.matchEmail){
+        currentUserSession = normalizeUserSession({
+          ...(currentUserSession || {}),
+          ...primaryAdmin,
+          email: primaryAdmin.email,
+          canManage: true
+        });
+      }
       saveAll();
+      syncCurrentUserSessionFromAccountStore(originalRow.matchEmail);
       renderAccountManagementPage();
       renderManagedAccountProfilePage();
       updateSidebarContext();
@@ -8140,7 +8205,7 @@ function saveUserProfileEditPage(){
 }
 
 function renderUserHubPage(){
-  const user=currentUserSession;
+  const user=syncCurrentUserSessionFromAccountStore() || currentUserSession;
   if(!user){hubLogout();return;}
   const isSA=isSuperadminSession();
 
@@ -8318,6 +8383,7 @@ window.addEventListener('storage', (e) => {
   if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data'].includes(e.key)) return;
   const adminOpen = document.getElementById('admin-console') && document.getElementById('admin-console').style.display === 'block';
   loadAll();
+  syncCurrentUserSessionFromAccountStore();
   renderLanding();
   if (adminOpen) renderAdminConsole();
   if (currentProjectId) {
