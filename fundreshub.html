@@ -662,6 +662,18 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbar-data-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-data-btn {
+  white-space: nowrap;
 }
 
 .topbar-btn {
@@ -2488,18 +2500,7 @@ body::after {
           <i class="fas fa-sign-in-alt"></i> Masuk
         </button>
 
-        <div class="login-data-tools">
-          <button class="btn btn-secondary login-data-btn" type="button" onclick="exportAppData()">
-            <i class="fas fa-file-export"></i> Export JSON
-          </button>
-          <button class="btn btn-secondary login-data-btn" type="button" onclick="triggerImportJson()">
-            <i class="fas fa-file-import"></i> Import JSON
-          </button>
-        </div>
         <input type="file" id="import-json-input" accept="application/json,.json" hidden>
-        <div class="login-data-note">
-          <strong>Backup data:</strong> export akan menyimpan seluruh data yang terekam. Import akan <strong>menambahkan/menggabungkan</strong> data JSON ke data yang sudah ada, bukan menghapus semuanya.
-        </div>
 
         <div class="role-hints">
           <div class="role-hints-title"><i class="fas fa-key"></i> Quick Login Demo</div>
@@ -2630,6 +2631,14 @@ body::after {
         <div class="topbar-breadcrumb" id="topbar-breadcrumb">Selamat datang di CESGS Research Hub</div>
       </div>
       <div class="topbar-right">
+        <div class="topbar-data-tools">
+          <button class="btn btn-secondary btn-sm topbar-data-btn" type="button" onclick="exportAppData()" title="Export semua data ke file JSON">
+            <i class="fas fa-file-export"></i> Export JSON
+          </button>
+          <button class="btn btn-secondary btn-sm topbar-data-btn" type="button" onclick="triggerImportJson()" title="Import JSON akan menggabungkan data, bukan menghapus semuanya">
+            <i class="fas fa-file-import"></i> Import JSON
+          </button>
+        </div>
         <div class="topbar-btn" onclick="toggleNotif()">
           <i class="fas fa-bell"></i>
           <span class="notif-dot"></span>
