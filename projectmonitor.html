@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Project Monitoring Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f0faf8;--bg2:#ffffff;--bg3:#f5fdfb;--bg4:#e8f7f3;
+  --surface:rgba(11,140,122,0.04);--surface2:rgba(11,140,122,0.08);--surface3:rgba(11,140,122,0.13);
+  --border:rgba(11,140,122,0.12);--border2:rgba(11,140,122,0.25);
+  --text:#0d2e28;--text2:rgba(13,46,40,0.65);--text3:rgba(13,46,40,0.4);
+  --teal:#0B8C7A;--teal2:#2DC4A8;--teal-bg:rgba(11,140,122,0.1);
+  --blue:#3B82F6;--blue-bg:rgba(59,130,246,0.12);
+  --gold:#F59E0B;--gold-bg:rgba(245,158,11,0.12);
+  --green:#10B981;--green-bg:rgba(16,185,129,0.12);
+  --red:#EF4444;--red-bg:rgba(239,68,68,0.12);
+  --purple:#8B5CF6;--purple-bg:rgba(139,92,246,0.12);
+  --radius:14px;--radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#c8f0e8 0%,#e2f9f4 30%,#f0faf8 60%,#ffffff 100%);background-attachment:fixed;color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ══ SIDEBAR ══ */
+.sidebar{position:fixed;top:0;left:0;height:100vh;width:260px;background:linear-gradient(180deg,#e2f9f4 0%,#f0faf8 50%,#ffffff 100%);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform 0.3s}
+.s-logo{padding:24px 22px 20px;border-bottom:1px solid var(--border)}
+.s-logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--teal2));display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.s-logo-icon svg{width:18px;height:18px}
+.s-logo-tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--teal2);font-weight:600}
+.s-logo-name{font-family:'Fraunces',serif;font-size:18px;color:var(--text);margin-top:2px}
+.s-logo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+.s-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.s-section{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);font-weight:600;padding:16px 12px 6px}
+.s-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;width:100%;text-align:left;transition:all 0.15s;margin-bottom:2px;font-family:'DM Sans',sans-serif}
+.s-item:hover{background:var(--surface2);color:var(--text)}
+.s-item.active{background:linear-gradient(135deg,rgba(11,140,122,0.2),rgba(45,196,168,0.1));color:var(--teal2);border:1px solid rgba(45,196,168,0.15)}
+.s-item svg{width:16px;height:16px;flex-shrink:0;opacity:0.6}
+.s-item.active svg{opacity:1}
+.s-count{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px;background:var(--surface2);color:var(--text3);font-weight:600}
+.s-item.active .s-count{background:rgba(45,196,168,0.15);color:var(--teal2)}
+
+.s-footer{padding:16px 18px;border-top:1px solid var(--border)}
+.s-collab-link{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--radius-sm);background:linear-gradient(135deg,rgba(11,140,122,0.15),rgba(59,130,246,0.1));border:1px solid rgba(45,196,168,0.15);color:var(--teal2);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-decoration:none}
+.s-collab-link:hover{background:linear-gradient(135deg,rgba(11,140,122,0.25),rgba(59,130,246,0.15));transform:translateY(-1px)}
+
+/* ══ MAIN ══ */
+.main{margin-left:260px;padding:28px 32px;min-height:100vh}
+.page{display:none}.page.active{display:block;animation:fadeUp 0.3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ══ PAGE HEADER ══ */
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.ph-left{}.ph-eyebrow{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal2);font-weight:600;margin-bottom:4px}
+.ph-title{font-family:'Fraunces',serif;font-size:28px;font-weight:600;line-height:1.1}
+.ph-sub{font-size:13px;color:var(--text3);margin-top:6px;max-width:420px;line-height:1.5}
+
+/* ══ STAT CARDS ══ */
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.2s}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.stat-card.active{border-color:rgba(45,196,168,0.3);background:var(--bg3)}
+.sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.sc-change{font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px}
+.sc-num{font-family:'Fraunces',serif;font-size:32px;font-weight:600;line-height:1}
+.sc-label{font-size:12px;color:var(--text3);margin-top:4px}
+.sc-bar{position:absolute;bottom:0;left:0;right:0;height:3px}
+
+/* ══ BUTTONS ══ */
+.btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;border:none}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:linear-gradient(135deg,var(--teal),var(--teal2));color:#fff}.btn-primary:hover{opacity:0.9}
+.btn-outline{background:none;border:1px solid var(--border2);color:var(--text2)}.btn-outline:hover{border-color:var(--teal2);color:var(--teal2)}
+.btn-ghost{background:none;border:none;color:var(--text3);padding:6px 10px;border-radius:6px}.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{height:30px;padding:0 12px;font-size:12px}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid transparent}.btn-danger:hover{background:var(--red);color:#fff}
+
+/* ══ BADGES ══ */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-granted{background:var(--green-bg);color:var(--green)}
+.badge-applied{background:var(--blue-bg);color:var(--blue)}
+.badge-progress{background:var(--gold-bg);color:var(--gold)}
+.badge-rejected{background:var(--red-bg);color:var(--red)}
+.badge-upcoming{background:var(--purple-bg);color:var(--purple)}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ══ PROJECT TABLE ══ */
+.p-table{width:100%;border-collapse:separate;border-spacing:0}
+.p-table th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-weight:600;padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg3)}
+.p-table td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text2);vertical-align:middle}
+.p-table tr{transition:background 0.15s;cursor:pointer}
+.p-table tbody tr:hover{background:var(--surface)}
+.p-title-cell{display:flex;align-items:center;gap:12px}
+.p-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.p-name{font-weight:600;color:var(--text);font-size:14px}
+.p-funder{font-size:11px;color:var(--text3)}
+.p-budget{font-family:'Fraunces',serif;font-weight:600;color:var(--text)}
+.p-link-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--teal2);transition:all 0.15s;font-size:12px}
+.p-link-btn:hover{background:var(--teal-bg);border-color:var(--teal)}
+
+/* ══ KANBAN ══ */
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+.k-col{background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);min-height:300px}
+.k-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.k-head-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.k-head-count{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
+.k-body{padding:10px}
+.k-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px;cursor:pointer;transition:all 0.15s}
+.k-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.k-card-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px}
+.k-card-sub{font-size:11px;color:var(--text3);margin-bottom:10px}
+.k-card-footer{display:flex;align-items:center;justify-content:space-between}
+.k-card-budget{font-family:'Fraunces',serif;font-size:14px;font-weight:600}
+.k-card-collab{width:22px;height:22px;border-radius:50%;background:var(--teal-bg);border:2px solid var(--bg3);display:flex;align-items:center;justify-content:center}
+.k-card-collab svg{width:10px;height:10px;color:var(--teal2)}
+
+/* ══ FORMS ══ */
+.inp{height:40px;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:0 14px;font-size:13px;font-family:'DM Sans',sans-serif;width:100%;outline:none;transition:border-color 0.15s;background:var(--bg3);color:var(--text)}
+.inp:focus{border-color:var(--teal2)}.inp::placeholder{color:var(--text3)}
+.textarea{border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;font-family:'DM Sans',sans-serif;width:100%;min-height:80px;resize:vertical;outline:none;line-height:1.6;background:var(--bg3);color:var(--text)}.textarea:focus{border-color:var(--teal2)}.textarea::placeholder{color:var(--text3)}
+.inp-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.form-row{margin-bottom:16px}
+select.inp{appearance:auto}
+
+/* ══ OVERLAY/MODAL ══ */
+.overlay{position:fixed;inset:0;background:rgba(13,46,40,0.4);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:200}
+.overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:520px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.4)}
+.modal-lg{width:640px}
+.modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-head-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600}
+.modal-close{width:28px;height:28px;border-radius:8px;border:none;background:var(--surface2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text3)}.modal-close:hover{background:var(--red-bg);color:var(--red)}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* ══ CHARTS AREA ══ */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+.chart-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.donut-container{display:flex;align-items:center;gap:24px}
+.donut-legend{display:flex;flex-direction:column;gap:8px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.legend-val{margin-left:auto;font-weight:600;color:var(--text);font-family:'Fraunces',serif}
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.bar-label{font-size:12px;color:var(--text3);width:80px;flex-shrink:0}
+.bar-track{flex:1;height:24px;background:var(--surface);border-radius:6px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:6px;transition:width 0.6s;display:flex;align-items:center;padding-left:8px;font-size:11px;font-weight:600;color:#fff;min-width:30px}
+.bar-val{font-size:12px;font-weight:600;color:var(--text);width:36px;text-align:right;flex-shrink:0}
+
+/* ══ SEARCH / FILTER ══ */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.search-box{position:relative;flex:1;min-width:200px}
+.search-box input{width:100%;height:38px;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:0 14px 0 36px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg2);color:var(--text);outline:none}
+.search-box input:focus{border-color:var(--teal2)}
+.search-box input::placeholder{color:var(--text3)}
+.search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);width:14px;height:14px}
+.view-toggle{display:flex;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden}
+.vt-btn{height:36px;padding:0 14px;border:none;background:none;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.vt-btn:hover{color:var(--text)}.vt-btn.active{background:var(--surface2);color:var(--teal2)}
+.vt-btn+.vt-btn{border-left:1px solid var(--border2)}
+
+/* ══ DETAIL PANEL ══ */
+.detail-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px}
+.dp-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px}
+.dp-title{font-family:'Fraunces',serif;font-size:24px;font-weight:600}
+.dp-meta{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap}
+.dp-meta-item{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.dp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.dp-field{background:var(--bg3);border-radius:var(--radius-sm);padding:16px}
+.dp-field-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:6px}
+.dp-field-val{font-size:15px;font-weight:600;color:var(--text)}
+.dp-notes{background:var(--bg3);border-radius:var(--radius-sm);padding:16px}
+
+/* ══ TOAST ══ */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:12px 24px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;z-index:999;transition:transform 0.3s;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ══ HAMBURGER ══ */
+.hamburger{display:none;position:fixed;top:14px;left:14px;z-index:150;width:36px;height:36px;border-radius:8px;border:none;background:var(--bg2);border:1px solid var(--border);cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.hamburger span{width:18px;height:2px;background:var(--text);border-radius:2px}
+@media(max-width:768px){
+  .hamburger{display:flex}
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:20px 14px;padding-top:56px}
+  .stat-row{grid-template-columns:repeat(2,1fr)}
+  .kanban{grid-template-columns:1fr 1fr}
+  .chart-grid{grid-template-columns:1fr}
+  .dp-grid{grid-template-columns:1fr}
+}
+@media(max-width:500px){
+  .kanban{grid-template-columns:1fr}
+  .stat-row{grid-template-columns:1fr}
+}
+
+/* ══ SCHEDULE LAYOUT ══ */
+.sched-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+.sched-main{min-width:0}
+.sched-side{}
+@media(max-width:900px){.sched-layout{grid-template-columns:1fr}.sched-side{}}
+
+/* ══ CALENDAR ══ */
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:6px}
+.cal-weekday{text-align:center;font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;letter-spacing:0.5px}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-day{min-height:70px;border-radius:8px;padding:6px;position:relative;cursor:pointer;border:1px solid transparent;transition:all 0.15s;background:var(--bg3)}
+.cal-day:hover{border-color:var(--border2);background:var(--surface2)}
+.cal-day.today{border-color:var(--teal2);background:rgba(11,140,122,0.08)}
+.cal-day.other-month{opacity:0.35}
+.cal-day-num{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px}
+.cal-day.today .cal-day-num{color:var(--teal);background:var(--teal);color:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px}
+.cal-dot{font-size:10px;padding:1px 5px;border-radius:4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ══ MILESTONE ══ */
+.ms-type-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.ms-done{opacity:0.5;text-decoration:line-through}
+.upcoming-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.upcoming-item:last-child{border-bottom:none}
+.upcoming-badge{min-width:44px;height:44px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:var(--bg3)}
+.upcoming-badge .day{font-size:18px;font-weight:700;line-height:1;font-family:Fraunces,serif}
+
+/* ══ TIMELINE (Detail page) ══ */
+.timeline-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-top:16px}
+.timeline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.tl-list{position:relative;padding-left:24px}
+.tl-list::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border2);border-radius:2px}
+.tl-item{position:relative;padding-bottom:20px}
+.tl-item:last-child{padding-bottom:0}
+.tl-dot{position:absolute;left:-20px;top:2px;width:16px;height:16px;border-radius:50%;border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;font-size:8px;z-index:1}
+.tl-content{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.tl-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.tl-meta{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tl-overdue{border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.04)}
+.tl-urgent{border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.04)}
+
+/* ══ PROGRESS BAR ══ */
+.prog-row{margin-bottom:14px}
+.prog-label{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:5px}
+.prog-track{height:8px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.prog-fill{height:100%;border-radius:99px;transition:width 0.5s}
+
+/* ══ NOTIF BANNER ══ */
+.notif-banner{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:var(--radius);padding:14px 18px;display:flex;align-items:flex-start;gap:12px}
+.notif-banner-urgent{background:linear-gradient(135deg,#fff1f2,#fce7e7);border-color:#fca5a5}
+
+
+/* ══ TEAM MEMBERS ══ */
+.member-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
+.member-avatar{width:28px;height:28px;border-radius:50%;background:var(--teal-bg);border:2px solid rgba(11,140,122,0.2);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--teal);flex-shrink:0}
+.member-chip{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:5px 10px 5px 6px;font-size:12px}
+.member-chip-name{font-weight:600;color:var(--text)}
+.member-chip-email{color:var(--text3);font-size:11px}
+.notify-member-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.notify-member-row:last-child{border-bottom:none}
+.email-preview{background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #a7f3d0;border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:#065f46;margin-top:8px}
+.email-preview-subject{font-weight:700;margin-bottom:4px}
+.email-preview-body{color:#047857;line-height:1.5;white-space:pre-line}
+
+/* ══ DOCUMENTS ══ */
+.doc-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-top:16px}
+.doc-section-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.doc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.doc-item{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px}
+.doc-item-icon{font-size:18px;flex-shrink:0}
+.doc-item-info{flex:1;min-width:0}
+.doc-item-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-item-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.doc-item-actions{display:flex;gap:4px;flex-shrink:0}
+.doc-add-row{display:flex;gap:8px;margin-top:4px}
+.doc-tab{padding:5px 14px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:none;color:var(--text3);font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.doc-tab.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.doc-empty{text-align:center;color:var(--text3);font-size:12px;padding:20px;background:var(--bg3);border-radius:var(--radius-sm);border:1px dashed var(--border2)}
+
+/* ══ REVENUE TARGET PANEL ══ */
+.rev-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;margin-bottom:20px}
+.rev-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.rev-panel-title{font-family:Fraunces,serif;font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}
+.rev-main{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:16px;align-items:center;margin-bottom:18px}
+@media(max-width:768px){.rev-main{grid-template-columns:1fr 1fr}}
+.rev-kpi{background:var(--bg3);border-radius:var(--radius-sm);padding:14px 16px;border:1px solid var(--border)}
+.rev-kpi-label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:6px}
+.rev-kpi-val{font-family:Fraunces,serif;font-size:22px;font-weight:600;line-height:1}
+.rev-kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.rev-big-bar{margin-bottom:10px}
+.rev-big-track{height:16px;background:var(--surface2);border-radius:99px;overflow:hidden;position:relative}
+.rev-big-fill{height:100%;border-radius:99px;transition:width 0.7s cubic-bezier(.4,0,.2,1);position:relative;display:flex;align-items:center;justify-content:flex-end;padding-right:8px}
+.rev-big-fill span{font-size:10px;font-weight:700;color:#fff;white-space:nowrap}
+.rev-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.rev-cat-item{background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border)}
+.rev-cat-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.rev-cat-track{height:7px;background:var(--surface2);border-radius:99px;overflow:hidden;margin-bottom:5px}
+.rev-cat-fill{height:100%;border-radius:99px;transition:width 0.6s}
+.rev-cat-nums{display:flex;justify-content:space-between;font-size:10px;color:var(--text3)}
+.rev-year-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.rev-year-tab{padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:none;color:var(--text3);font-family:DM Sans,sans-serif;transition:all 0.15s}
+.rev-year-tab.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+.rev-over{color:var(--green)!important}
+.rev-under{color:var(--red)!important}
+
+/* ══ EXPORT / IMPORT ══ */
+.io-bar{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.io-bar-label{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);font-weight:600;margin-bottom:2px}
+.io-btn-row{display:flex;gap:6px}
+.btn-io{flex:1;height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.btn-io-export{background:linear-gradient(135deg,rgba(11,140,122,0.15),rgba(45,196,168,0.08));border:1px solid rgba(45,196,168,0.3);color:var(--teal)}
+.btn-io-export:hover{background:linear-gradient(135deg,rgba(11,140,122,0.25),rgba(45,196,168,0.15))}
+.btn-io-import{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);color:var(--blue)}
+.btn-io-import:hover{background:rgba(59,130,246,0.15)}
+.io-hint{font-size:10px;color:var(--text3);line-height:1.4;margin-top:4px}
+
+/* ══ IMPORT MODAL ══ */
+.imp-drop{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3)}
+.imp-drop:hover,.imp-drop.drag{border-color:var(--teal2);background:var(--teal-bg)}
+.imp-drop-icon{font-size:32px;margin-bottom:8px}
+.imp-drop-text{font-size:13px;font-weight:600;color:var(--text2)}
+.imp-drop-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.imp-preview{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-top:14px;display:none}
+.imp-preview-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.imp-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.imp-stat{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;text-align:center;border:1px solid var(--border)}
+.imp-stat-num{font-family:Fraunces,serif;font-size:20px;font-weight:600;color:var(--teal2)}
+.imp-stat-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.imp-mode-row{display:flex;gap:12px;margin-top:8px}
+.imp-mode-opt{flex:1;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;transition:all 0.15s}
+.imp-mode-opt.selected{border-color:var(--teal2);background:var(--teal-bg)}
+.imp-mode-opt input{display:none}
+.imp-mode-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.imp-mode-desc{font-size:10px;color:var(--text3);line-height:1.4}
+
+
+
+/* ══ LOGIN ══ */
+.app-hidden{display:none!important}
+body.login-active{overflow:auto}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:36px 24px;position:relative}
+.login-layout{width:min(980px,100%);display:grid;grid-template-columns:1fr 0.95fr;gap:22px;align-items:stretch}
+.login-brand,.login-card{background:rgba(255,255,255,0.78);backdrop-filter:blur(14px);border:1px solid rgba(11,140,122,0.16);border-radius:24px;box-shadow:0 24px 60px rgba(13,46,40,0.10)}
+.login-brand{padding:38px 34px;position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(11,140,122,0.14),rgba(45,196,168,0.10),rgba(255,255,255,0.9))}
+.login-brand::after{content:'';position:absolute;right:-80px;bottom:-80px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(45,196,168,0.24),rgba(45,196,168,0));pointer-events:none}
+.login-tag{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:99px;background:rgba(11,140,122,0.10);color:var(--teal);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:18px}
+.login-brand-title{font-family:'Fraunces',serif;font-size:42px;line-height:1.05;font-weight:600;margin-bottom:12px;max-width:520px}
+.login-brand-sub{font-size:14px;line-height:1.7;color:var(--text2);max-width:520px;margin-bottom:26px}
+.login-brand-points{display:grid;gap:10px}
+.login-brand-point{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,0.64);border:1px solid rgba(11,140,122,0.12)}
+.login-brand-icon{width:30px;height:30px;border-radius:10px;background:var(--teal-bg);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.login-brand-point strong{display:block;font-size:13px;color:var(--text);margin-bottom:2px}
+.login-brand-point span{display:block;font-size:12px;color:var(--text3);line-height:1.5}
+.login-card{padding:30px 28px;display:flex;flex-direction:column;justify-content:center}
+.login-card-top{margin-bottom:18px}
+.login-card-title{font-family:'Fraunces',serif;font-size:28px;font-weight:600;line-height:1.1;margin-bottom:8px}
+.login-card-sub{font-size:13px;color:var(--text3);line-height:1.6}
+.login-form{display:flex;flex-direction:column;gap:14px}
+.login-form .inp{height:46px;background:#fff}
+.login-submit{height:46px;justify-content:center;font-size:14px}
+.login-quick{margin-top:16px;padding-top:16px;border-top:1px solid rgba(11,140,122,0.12)}
+.login-quick-label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);font-weight:700;margin-bottom:10px}
+.login-quick-list{display:grid;gap:8px}
+.quick-login-btn{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:14px;border:1px solid rgba(11,140,122,0.14);background:rgba(11,140,122,0.05);cursor:pointer;transition:all 0.15s;color:var(--text);font-family:'DM Sans',sans-serif;text-align:left}
+.quick-login-btn:hover{transform:translateY(-1px);border-color:rgba(11,140,122,0.28);background:rgba(11,140,122,0.09)}
+.quick-login-num{width:28px;height:28px;border-radius:10px;background:#fff;border:1px solid rgba(11,140,122,0.14);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--teal);flex-shrink:0}
+.quick-login-text{min-width:0}
+.quick-login-title{font-size:12px;font-weight:700;color:var(--text)}
+.quick-login-email{font-size:11px;color:var(--text3);word-break:break-word;margin-top:2px}
+.login-error{display:none;margin-bottom:2px;padding:11px 13px;border-radius:12px;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.18);color:#b91c1c;font-size:12px;font-weight:600}
+.login-error.show{display:block}
+.session-pill{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:rgba(11,140,122,0.08);border:1px solid rgba(11,140,122,0.14);font-size:11px;color:var(--text2);margin-top:10px}
+.session-pill::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(16,185,129,0.12)}
+@media(max-width:920px){
+  .login-layout{grid-template-columns:1fr}
+  .login-brand-title{font-size:34px}
+}
+@media(max-width:560px){
+  .login-screen{padding:20px 14px}
+  .login-brand,.login-card{padding:22px 18px;border-radius:20px}
+}
+
+</style>
+</head>
+<body>
+
+
+<div id="login-screen" class="login-screen">
+  <div class="login-layout">
+    <section class="login-brand">
+      <div class="login-tag">CESGS · UNAIR</div>
+      <div class="login-brand-title">Project Monitoring Dashboard</div>
+      <div class="login-brand-sub">Satu portal untuk memantau project, milestone, dokumen, dan target revenue dalam satu tampilan.</div>
+      <div class="login-brand-points">
+        <div class="login-brand-point">
+          <div class="login-brand-icon">📊</div>
+          <div>
+            <strong>Monitoring proyek</strong>
+            <span>Lihat status project aktif, pipeline, dan progress dalam satu dashboard.</span>
+          </div>
+        </div>
+        <div class="login-brand-point">
+          <div class="login-brand-icon">📅</div>
+          <div>
+            <strong>Milestone & deadline</strong>
+            <span>Pantau jadwal penting, upcoming milestone, dan progress tiap project.</span>
+          </div>
+        </div>
+        <div class="login-brand-point">
+          <div class="login-brand-icon">💰</div>
+          <div>
+            <strong>Revenue tracking</strong>
+            <span>Monitor target tahunan dan realisasi revenue dari project granted.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-card">
+      <div class="login-card-top">
+        <div class="login-card-title">Login</div>
+        <div class="login-card-sub">Masuk untuk membuka dashboard.</div>
+      </div>
+      <div id="login-error" class="login-error"></div>
+      <form class="login-form" onsubmit="handleDirectorLogin(event)">
+        <div>
+          <label class="inp-label">Email</label>
+          <input class="inp" id="login-email" type="email" placeholder="nama@domain.ac.id" autocomplete="username"/>
+        </div>
+        <div>
+          <label class="inp-label">Password</label>
+          <input class="inp" id="login-password" type="password" placeholder="Masukkan password" autocomplete="current-password"/>
+        </div>
+        <button class="btn btn-primary login-submit" type="submit">Masuk ke Dashboard</button>
+      </form>
+      <div class="login-quick">
+        <div class="login-quick-label">Quick Login</div>
+        <div class="login-quick-list">
+          <button type="button" class="quick-login-btn" onclick="quickLogin('iman.harymawan@feb.unair.ac.id')">
+            <div class="quick-login-num">1</div>
+            <div class="quick-login-text">
+              <div class="quick-login-title">Akun 1</div>
+              <div class="quick-login-email">iman.harymawan@feb.unair.ac.id</div>
+            </div>
+          </button>
+          <button type="button" class="quick-login-btn" onclick="quickLogin('bakdiyatulmukarromah@cesgs.or.id')">
+            <div class="quick-login-num">2</div>
+            <div class="quick-login-text">
+              <div class="quick-login-title">Akun 2</div>
+              <div class="quick-login-email">bakdiyatulmukarromah@cesgs.or.id</div>
+            </div>
+          </button>
+          <button type="button" class="quick-login-btn" onclick="quickLogin('rosyadatul@gmail.com')">
+            <div class="quick-login-num">3</div>
+            <div class="quick-login-text">
+              <div class="quick-login-title">Akun 3</div>
+              <div class="quick-login-email">rosyadatul@gmail.com</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="app-shell" class="app-hidden">
+<button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')"><span></span><span></span><span></span></button>
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar" id="sidebar">
+  <div class="s-logo">
+    <div class="s-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+    <div class="s-logo-tag">CESGS · UNAIR</div>
+    <div class="s-logo-name">Project Tracker</div>
+    <div class="s-logo-sub">Management Dashboard</div>
+  </div>
+  <div class="s-nav">
+    <div class="s-section">Main</div>
+    <button class="s-item active" onclick="nav('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="s-item" onclick="nav('projects')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      All Projects <span class="s-count" id="sc-all">0</span>
+    </button>
+
+    <div class="s-section">By Status</div>
+    <button class="s-item" onclick="nav('projects','granted')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Granted <span class="s-count" id="sc-granted">0</span>
+    </button>
+    <button class="s-item" onclick="nav('projects','applied')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Applied <span class="s-count" id="sc-applied">0</span>
+    </button>
+    <button class="s-item" onclick="nav('projects','progress')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+      In Progress <span class="s-count" id="sc-progress">0</span>
+    </button>
+    <button class="s-item" onclick="nav('projects','rejected')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      Rejected <span class="s-count" id="sc-rejected">0</span>
+    </button>
+
+    <div class="s-section">Planning</div>
+    <button class="s-item" onclick="nav('schedule')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Schedule <span class="s-count" id="sc-deadlines" style="background:#fef3c7;color:#d97706">0</span>
+    </button>
+
+    <div class="s-section">Analytics</div>
+    <button class="s-item" onclick="nav('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Statistics
+    </button>
+  </div>
+  <div class="s-footer">
+    <a class="s-collab-link" id="collab-hub-link" onclick="openCollabHub()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Open CollabHub →
+    </a>
+
+    <div id="director-session" class="session-pill" style="display:none"></div>
+    <button class="btn btn-sm btn-outline" id="logout-btn" onclick="logoutDirector()" style="width:100%;justify-content:center;margin-top:8px;display:none">Logout</button>
+
+    <div class="io-bar">
+      <div class="io-bar-label">💾 Data Backup</div>
+      <div class="io-btn-row">
+        <button class="btn-io btn-io-export" onclick="exportJSON()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export JSON
+        </button>
+        <button class="btn-io btn-io-import" onclick="openImportModal()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import JSON
+        </button>
+      </div>
+      <div class="io-hint">💡 Simpan file JSON ke folder OneDrive di PC Anda agar otomatis tersync ke cloud.</div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+<!-- ═══ PAGE: DASHBOARD ═══ -->
+<div class="page active" id="page-dashboard">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eyebrow">Overview</div>
+      <div class="ph-title">Project Dashboard</div>
+      <div class="ph-sub">Monitoring seluruh proyek penelitian dan kerjasama CESGS — Universitas Airlangga.</div>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Project
+    </button>
+  </div>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <!-- Revenue Target Panel -->
+  <div id="revenue-panel-dashboard"></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal2)" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        Status Distribution
+      </div>
+      <div class="donut-container">
+        <svg id="donut-chart" width="140" height="140" viewBox="0 0 140 140"></svg>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal2)" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Budget by Status (Rp)
+      </div>
+      <div id="budget-bars"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:600">Recent Projects <span id="recent-year-label" style="font-size:12px;font-weight:400;color:var(--text3)"></span></div>
+    <button class="btn-ghost" onclick="nav('projects')" style="font-size:12px;color:var(--teal2)">View all →</button>
+  </div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+    <table class="p-table" id="recent-table"><thead><tr>
+      <th>Project</th><th>Status</th><th>Funder/Partner</th><th>Budget</th><th>Date</th><th></th>
+    </tr></thead><tbody id="recent-tbody"></tbody></table>
+  </div>
+</div>
+
+<!-- ═══ PAGE: PROJECTS ═══ -->
+<div class="page" id="page-projects">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eyebrow" id="proj-eyebrow">All Projects</div>
+      <div class="ph-title" id="proj-title">Project List</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="openAddModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Project
+      </button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" placeholder="Search projects..." oninput="renderProjectsView()"/>
+    </div>
+    <div class="view-toggle">
+      <button class="vt-btn active" id="vt-table" onclick="setView('table')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Table
+      </button>
+      <button class="vt-btn" id="vt-kanban" onclick="setView('kanban')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="10" y1="3" x2="10" y2="21"/><line x1="16" y1="3" x2="16" y2="15"/></svg>
+        Kanban
+      </button>
+    </div>
+  </div>
+
+  <div id="projects-table-container" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+    <table class="p-table"><thead><tr>
+      <th>Project</th><th>Status</th><th>Funder/Partner</th><th>Budget</th><th>Date</th><th>Collab</th><th></th>
+    </tr></thead><tbody id="projects-tbody"></tbody></table>
+  </div>
+
+  <div id="projects-kanban-container" style="display:none"></div>
+</div>
+
+<!-- ═══ PAGE: STATS ═══ -->
+<div class="page" id="page-stats">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eyebrow">Analytics</div>
+      <div class="ph-title">Project Statistics</div>
+      <div class="ph-sub">Rekap dan analisis performa proyek CESGS.</div>
+    </div>
+  </div>
+
+  <div class="stat-row" id="stats-stat-row"></div>
+
+  <!-- Revenue Target Panel (Stats) -->
+  <div id="revenue-panel-stats" style="margin-bottom:20px"></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">📊 Status Distribution</div>
+      <div class="donut-container">
+        <svg id="stats-donut" width="160" height="160" viewBox="0 0 160 160"></svg>
+        <div class="donut-legend" id="stats-donut-legend"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">💰 Total Budget by Status</div>
+      <div id="stats-budget-bars"></div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">🏢 Projects by Funder/Partner</div>
+      <div id="stats-funder-bars"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">📅 Projects by Year</div>
+      <div id="stats-year-bars"></div>
+    </div>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:24px">
+    <div class="chart-title">📋 Full Project Summary</div>
+    <div style="overflow-x:auto">
+      <table class="p-table"><thead><tr>
+        <th>Project</th><th>Status</th><th>Funder</th><th>Budget</th><th>Start</th><th>End</th><th>Collab</th>
+      </tr></thead><tbody id="stats-full-table"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PAGE: DETAIL ═══ -->
+<div class="page" id="page-detail">
+  <div style="margin-bottom:16px">
+    <button class="btn btn-ghost" onclick="nav('projects')" style="color:var(--teal2)">← Back to Projects</button>
+  </div>
+  <div class="detail-panel" id="detail-panel"></div>
+  <div id="detail-timeline-section"></div>
+  <div id="detail-docs-section"></div>
+</div>
+
+<!-- ═══ PAGE: SCHEDULE ═══ -->
+<div class="page" id="page-schedule">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eyebrow">Planning</div>
+      <div class="ph-title">Schedule &amp; Deadlines</div>
+      <div class="ph-sub">Semua milestone dan deadline proyek CESGS dalam satu tampilan.</div>
+    </div>
+    <button class="btn btn-primary" onclick="openMilestoneModal(null,null)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Milestone
+    </button>
+  </div>
+  <div id="deadline-banner" style="margin-bottom:16px"></div>
+  <div class="sched-layout">
+    <div class="sched-main">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <button class="btn btn-ghost" onclick="calMonth(-1)">&#8249; Prev</button>
+          <div style="font-family:Fraunces,serif;font-size:18px;font-weight:600" id="cal-month-label"></div>
+          <button class="btn btn-ghost" onclick="calMonth(1)">Next &#8250;</button>
+        </div>
+        <div id="calendar-grid"></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-size:14px;font-weight:600">All Milestones</div>
+        <table class="p-table"><thead><tr>
+          <th>Milestone</th><th>Project</th><th>Type</th><th>Date</th><th>Status</th><th></th>
+        </tr></thead><tbody id="milestones-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="sched-side">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">&#x1F514; Upcoming (30 days)</div>
+        <div id="upcoming-list"></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:14px">&#x1F4CA; Progress per Project</div>
+        <div id="project-progress-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ══ ADD/EDIT MODAL ══ -->
+<div class="overlay" id="ov-project">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div class="modal-head-title" id="modal-title">Add New Project</div>
+      <button class="modal-close" onclick="closeOv('ov-project')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row"><label class="inp-label">Project Title *</label><input class="inp" id="f-title" placeholder="Kajian PLTS Terapung"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row">
+          <label class="inp-label">Status *</label>
+          <select class="inp" id="f-status">
+            <option value="applied">Applied</option>
+            <option value="progress">In Progress / Upcoming</option>
+            <option value="granted">Granted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-row"><label class="inp-label">Category</label>
+          <select class="inp" id="f-category">
+            <option value="research">Research</option>
+            <option value="consulting">Consulting</option>
+            <option value="capacity_building">Capacity Building</option>
+            <option value="community_service">Community Service</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row"><label class="inp-label">Funder / Partner *</label><input class="inp" id="f-funder" placeholder="PLN, Bank Indonesia, EU..."/></div>
+        <div class="form-row"><label class="inp-label">Budget (Rp)</label><input class="inp" id="f-budget" type="number" placeholder="500000000"/></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row"><label class="inp-label">Start Date</label><input class="inp" type="date" id="f-start"/></div>
+        <div class="form-row"><label class="inp-label">End Date</label><input class="inp" type="date" id="f-end"/></div>
+      </div>
+      <div class="form-row"><label class="inp-label">Principal Investigator / PIC</label><input class="inp" id="f-pic" placeholder="Dr. Ahmad..."/></div>
+      <div class="form-row"><label class="inp-label">Description / Notes</label><textarea class="textarea" id="f-notes" placeholder="Deskripsi singkat proyek..."></textarea></div>
+      <div class="form-row">
+        <label class="inp-label">Link to CollabHub Project</label>
+        <select class="inp" id="f-collab">
+          <option value="">— None (no collaboration hub) —</option>
+          <option value="plts">PLTS Terapung (PLN)</option>
+          <option value="bi">Blue Building (Bank Indonesia)</option>
+          <option value="cbhe">CBHE Erasmus+</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="inp-label">Team Members</label>
+        <div id="members-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+        <button type="button" class="btn btn-sm btn-outline" onclick="addMemberRow()" style="width:100%;justify-content:center">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tambah Anggota
+        </button>
+      </div>
+      <div class="form-row">
+        <label class="inp-label">📎 Dokumen Proyek</label>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button type="button" class="doc-tab active" id="doc-tab-link" onclick="switchDocTab('link')">🔗 Link URL</button>
+          <button type="button" class="doc-tab" id="doc-tab-upload" onclick="switchDocTab('upload')">📁 Upload File</button>
+        </div>
+        <div id="doc-input-link">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <input class="inp" id="doc-link-name" placeholder="Nama dokumen" style="height:36px"/>
+            <input class="inp" id="doc-link-url" placeholder="https://..." style="height:36px"/>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline" onclick="addDocLink()" style="width:100%;justify-content:center">+ Tambah Link</button>
+        </div>
+        <div id="doc-input-upload" style="display:none">
+          <input type="file" id="doc-file-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.zip" style="display:none" onchange="handleFileUpload(event)"/>
+          <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('doc-file-input').click()" style="width:100%;justify-content:center">📁 Pilih File</button>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:center">PDF, Word, Excel, PPT, Gambar, ZIP — disimpan sebagai referensi nama file</div>
+        </div>
+        <div id="doc-modal-list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOv('ov-project')">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveProject()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ MILESTONE MODAL ══ -->
+<div class="overlay" id="ov-milestone">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-title" id="ms-modal-title">Add Milestone</div>
+      <button class="modal-close" onclick="closeOv('ov-milestone')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="inp-label">Project *</label>
+        <select class="inp" id="ms-project" onchange="updateNotifyList()"></select>
+      </div>
+      <div class="form-row">
+        <label class="inp-label">Milestone Title *</label>
+        <input class="inp" id="ms-title" placeholder="Submit Proposal, Kick-off Meeting..."/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row">
+          <label class="inp-label">Type</label>
+          <select class="inp" id="ms-type">
+            <option value="deadline">📅 Deadline</option>
+            <option value="submission">📤 Submission</option>
+            <option value="meeting">🤝 Meeting</option>
+            <option value="report">📋 Report</option>
+            <option value="payment">💰 Payment</option>
+            <option value="milestone">🏁 Milestone</option>
+            <option value="review">🔍 Review</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="inp-label">Date *</label>
+          <input class="inp" type="date" id="ms-date"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="inp-label">Notes</label>
+        <textarea class="textarea" id="ms-notes" placeholder="Catatan tambahan..." style="min-height:60px"></textarea>
+      </div>
+      <div class="form-row">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2)">
+          <input type="checkbox" id="ms-done" style="width:16px;height:16px;accent-color:var(--teal)"/>
+          Mark as completed
+        </label>
+      </div>
+      <div class="form-row" id="ms-notify-section">
+        <label class="inp-label" style="display:flex;align-items:center;gap:6px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+          Notifikasi Email ke Team
+        </label>
+        <div id="ms-notify-list" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;min-height:40px;font-size:12px;color:var(--text3)">
+          Pilih project dulu untuk melihat anggota tim.
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">✉ Email akan dikirim ke anggota yang dicentang saat milestone disimpan.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOv('ov-milestone')">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="ms-delete-btn" onclick="deleteMilestone()" style="display:none">Delete</button>
+      <button class="btn btn-primary" onclick="saveMilestone()">Save Milestone</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ REVENUE TARGET MODAL ══ -->
+<div class="overlay" id="ov-target">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-title">Set Revenue Target</div>
+      <button class="modal-close" onclick="closeOv('ov-target')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="inp-label">Tahun</label>
+        <select class="inp" id="tgt-year"></select>
+      </div>
+      <div class="form-row">
+        <label class="inp-label">Target Total Revenue (Rp)</label>
+        <input class="inp" type="number" id="tgt-total" placeholder="5000000000"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Contoh: 5000000000 = Rp 5 Miliar</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-top:4px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px">Target per Kategori (opsional)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="form-row"><label class="inp-label">🔬 Research</label><input class="inp" type="number" id="tgt-research" placeholder="0"/></div>
+          <div class="form-row"><label class="inp-label">💼 Consulting</label><input class="inp" type="number" id="tgt-consulting" placeholder="0"/></div>
+          <div class="form-row"><label class="inp-label">🎓 Capacity Building</label><input class="inp" type="number" id="tgt-capacity_building" placeholder="0"/></div>
+          <div class="form-row"><label class="inp-label">🤝 Community Service</label><input class="inp" type="number" id="tgt-community_service" placeholder="0"/></div>
+          <div class="form-row"><label class="inp-label">📎 Other</label><input class="inp" type="number" id="tgt-other" placeholder="0"/></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOv('ov-target')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTarget()">Simpan Target</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ IMPORT MODAL ══ -->
+<div class="overlay" id="ov-import">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-head-title">📂 Import Data dari JSON</div>
+      <button class="modal-close" onclick="closeOv('ov-import')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Drop zone -->
+      <div class="imp-drop" id="imp-drop" onclick="document.getElementById('imp-file-input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleImpDrop(event)">
+        <div class="imp-drop-icon">📄</div>
+        <div class="imp-drop-text">Klik atau drag &amp; drop file JSON</div>
+        <div class="imp-drop-sub">Format: file export dari dashboard ini (.json)</div>
+      </div>
+      <input type="file" id="imp-file-input" accept=".json" style="display:none" onchange="handleImpFile(event)">
+
+      <!-- Preview setelah file dipilih -->
+      <div class="imp-preview" id="imp-preview">
+        <div class="imp-preview-title">
+          <span id="imp-file-name-label"></span>
+          <button class="btn btn-sm btn-ghost" onclick="resetImport()" style="margin-left:auto;font-size:11px;color:var(--text3)">✕ Ganti file</button>
+        </div>
+        <div class="imp-stat-row">
+          <div class="imp-stat"><div class="imp-stat-num" id="imp-count-projects">0</div><div class="imp-stat-lbl">Proyek</div></div>
+          <div class="imp-stat"><div class="imp-stat-num" id="imp-count-milestones">0</div><div class="imp-stat-lbl">Milestone</div></div>
+          <div class="imp-stat"><div class="imp-stat-num" id="imp-count-targets">0</div><div class="imp-stat-lbl">Target Tahun</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px" id="imp-export-info"></div>
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">Mode Import:</div>
+        <div class="imp-mode-row">
+          <label class="imp-mode-opt selected" id="imp-opt-replace" onclick="selectImpMode('replace')">
+            <input type="radio" name="imp-mode" value="replace" checked>
+            <div class="imp-mode-title">🔄 Ganti Semua</div>
+            <div class="imp-mode-desc">Hapus data lokal, ganti dengan data dari file. Cocok untuk restore backup.</div>
+          </label>
+          <label class="imp-mode-opt" id="imp-opt-merge" onclick="selectImpMode('merge')">
+            <input type="radio" name="imp-mode" value="merge">
+            <div class="imp-mode-title">➕ Gabungkan</div>
+            <div class="imp-mode-desc">Tambahkan proyek baru dari file, data lokal tetap ada. Cocok untuk sync antar perangkat.</div>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOv('ov-import')">Batal</button>
+      <button class="btn btn-primary" id="imp-confirm-btn" onclick="confirmImport()" style="display:none">Import Data</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="imp-file-input-hidden" accept=".json" style="display:none">
+
+<div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+
+
+/* ═══════════════════════════════════
+   LOGIN GATE
+═══════════════════════════════════ */
+const DIRECTOR_PASSWORD = 'CESGS2026';
+const DIRECTOR_EMAILS = [
+  'iman.harymawan@feb.unair.ac.id',
+  'bakdiyatulmukarromah@cesgs.or.id',
+  'rosyadatul@gmail.com'
+];
+let appInitialized = false;
+
+function normalizeEmail(email){
+  return (email || '').trim().toLowerCase();
+}
+
+function setLoginError(message){
+  const errorEl = document.getElementById('login-error');
+  if(!errorEl) return;
+  if(message){
+    errorEl.textContent = message;
+    errorEl.classList.add('show');
+  } else {
+    errorEl.textContent = '';
+    errorEl.classList.remove('show');
+  }
+}
+
+function getStoredDirectorAuth(){
+  try {
+    return JSON.parse(sessionStorage.getItem('cesgs_director_auth') || 'null');
+  } catch(e){
+    return null;
+  }
+}
+
+function isDirectorAuthenticated(){
+  const auth = getStoredDirectorAuth();
+  if(!auth || !auth.email) return false;
+  return DIRECTOR_EMAILS.includes(normalizeEmail(auth.email));
+}
+
+function updateDirectorSessionUI(){
+  const auth = getStoredDirectorAuth();
+  const badge = document.getElementById('director-session');
+  const logoutBtn = document.getElementById('logout-btn');
+  if(!badge || !logoutBtn) return;
+  if(auth && isDirectorAuthenticated()){
+    badge.style.display = 'flex';
+    logoutBtn.style.display = 'inline-flex';
+    badge.innerHTML = '<span style="font-weight:700;color:var(--text)">Signed in</span><span style="color:var(--text3)">' + auth.email + '</span>';
+  } else {
+    badge.style.display = 'none';
+    logoutBtn.style.display = 'none';
+    badge.textContent = '';
+  }
+}
+
+function initApp(){
+  if(!appInitialized){
+    load();
+    seedIfEmpty();
+    appInitialized = true;
+  }
+  renderDashboard();
+  checkNotifications();
+  updateDirectorSessionUI();
+}
+
+function applyAuthState(){
+  const loginScreen = document.getElementById('login-screen');
+  const appShell = document.getElementById('app-shell');
+  const authed = isDirectorAuthenticated();
+  if(loginScreen) loginScreen.style.display = authed ? 'none' : 'flex';
+  if(appShell) appShell.classList.toggle('app-hidden', !authed);
+  document.body.classList.toggle('login-active', !authed);
+  updateDirectorSessionUI();
+}
+
+function quickLogin(email){
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  if(emailInput) emailInput.value = email;
+  if(passInput) passInput.value = DIRECTOR_PASSWORD;
+  setLoginError('');
+  handleDirectorLogin();
+}
+
+function handleDirectorLogin(event){
+  if(event) event.preventDefault();
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const email = normalizeEmail(emailInput ? emailInput.value : '');
+  const password = passInput ? passInput.value : '';
+
+  if(!email || !password){
+    setLoginError('Silakan isi email dan password terlebih dahulu.');
+    return;
+  }
+  if(!DIRECTOR_EMAILS.includes(email)){
+    setLoginError('Email ini belum terdaftar.');
+    return;
+  }
+  if(password !== DIRECTOR_PASSWORD){
+    setLoginError('Password yang Anda masukkan belum sesuai.');
+    return;
+  }
+
+  sessionStorage.setItem('cesgs_director_auth', JSON.stringify({
+    email,
+    loggedInAt: new Date().toISOString()
+  }));
+  try{ localStorage.setItem('cesgs_last_director_email', email); }catch(e){}
+  setLoginError('');
+  if(passInput) passInput.value = '';
+  applyAuthState();
+  initApp();
+  toast('Login berhasil');
+}
+
+function logoutDirector(){
+  sessionStorage.removeItem('cesgs_director_auth');
+  applyAuthState();
+  const passInput = document.getElementById('login-password');
+  if(passInput) passInput.value = '';
+  setLoginError('');
+  const emailInput = document.getElementById('login-email');
+  if(emailInput) setTimeout(()=>emailInput.focus(), 50);
+}
+
+function bootstrapDirectorLogin(){
+  const emailInput = document.getElementById('login-email');
+  try{
+    const lastEmail = localStorage.getItem('cesgs_last_director_email');
+    if(emailInput && lastEmail) emailInput.value = lastEmail;
+  }catch(e){}
+  applyAuthState();
+  if(isDirectorAuthenticated()) initApp();
+  else if(emailInput) emailInput.focus();
+}
+
+/* ═══════════════════════════════════
+   STATE
+═══════════════════════════════════ */
+const STATUS_CONFIG={
+  granted:{label:'Granted',color:'var(--green)',bg:'var(--green-bg)',badge:'badge-granted',icon:'✅'},
+  applied:{label:'Applied',color:'var(--blue)',bg:'var(--blue-bg)',badge:'badge-applied',icon:'📨'},
+  progress:{label:'In Progress',color:'var(--gold)',bg:'var(--gold-bg)',badge:'badge-progress',icon:'⏳'},
+  rejected:{label:'Rejected',color:'var(--red)',bg:'var(--red-bg)',badge:'badge-rejected',icon:'❌'}
+};
+const CAT_ICONS={research:'🔬',consulting:'💼',capacity_building:'🎓',community_service:'🤝',other:'📎'};
+
+let projects=[];
+let currentView='table';
+let currentFilter=null;
+let editingId=null;
+
+// Load from localStorage
+function load(){try{const d=localStorage.getItem('cesgs_tracker');if(d)projects=JSON.parse(d)}catch(e){} loadMs(); loadTargets();}
+function save(){try{localStorage.setItem('cesgs_tracker',JSON.stringify(projects))}catch(e){}}
+
+// Seed data
+function seedIfEmpty(){
+  if(projects.length) return;
+  projects=[
+    {id:1,title:'Kajian PLTS Terapung',status:'progress',category:'research',funder:'PLN',budget:750000000,start:'2026-01-15',end:'2026-12-31',pic:'Dr. Ahmad Fauzi',notes:'Studi kelayakan PLTS terapung di waduk Jawa Timur.',collab:'plts',createdAt:'2026-01-10'},
+    {id:2,title:'Blue Building Bank Indonesia',status:'progress',category:'consulting',funder:'Bank Indonesia',budget:500000000,start:'2026-02-01',end:'2026-11-30',pic:'Dr. Rina Kartika',notes:'Konsultasi desain bangunan ramah lingkungan untuk kantor BI Surabaya.',collab:'bi',createdAt:'2026-01-20'},
+    {id:3,title:'CBHE Erasmus+ Programme',status:'granted',category:'capacity_building',funder:'European Commission',budget:1200000000,start:'2026-03-01',end:'2028-02-28',pic:'Prof. Budi Santoso',notes:'Capacity Building for Higher Education — kerjasama dengan universitas Eropa.',collab:'cbhe',createdAt:'2025-09-15'},
+    {id:4,title:'Carbon Credit Assessment Surabaya',status:'applied',category:'research',funder:'World Bank',budget:300000000,start:'',end:'',pic:'Dr. Siti Nurjannah',notes:'Proposal assessment karbon kredit untuk area metropolitan Surabaya.',collab:'',createdAt:'2026-03-01'},
+    {id:5,title:'ESG Rating Framework Indonesia',status:'applied',category:'research',funder:'OJK',budget:200000000,start:'',end:'',pic:'Dr. Ahmad Fauzi',notes:'Pengembangan framework rating ESG untuk perusahaan Indonesia.',collab:'',createdAt:'2026-02-15'},
+    {id:6,title:'Mangrove Restoration Impact Study',status:'granted',category:'research',funder:'UNDP',budget:450000000,start:'2025-06-01',end:'2026-05-31',pic:'Prof. Budi Santoso',notes:'Studi dampak restorasi mangrove di pesisir Jawa Timur.',collab:'',createdAt:'2025-04-10'},
+    {id:7,title:'Green Campus Certification UNAIR',status:'rejected',category:'consulting',funder:'Kementerian PUPR',budget:150000000,start:'',end:'',pic:'Dr. Rina Kartika',notes:'Proposal ditolak karena anggaran tidak mencukupi. Akan diajukan ulang 2027.',collab:'',createdAt:'2025-11-01'},
+    {id:8,title:'Circular Economy for SMEs',status:'rejected',category:'community_service',funder:'JICA',budget:180000000,start:'',end:'',pic:'Dr. Siti Nurjannah',notes:'Tidak lolos seleksi tahap 2. Feedback: perlu lebih fokus pada sektor prioritas.',collab:'',createdAt:'2026-01-05'},
+  ];
+  save();
+}
+
+/* ═══════════════════════════════════
+   HELPERS
+═══════════════════════════════════ */
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
+function openOv(id){document.getElementById(id).classList.add('show')}
+function closeOv(id){document.getElementById(id).classList.remove('show')}
+document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show')})});
+function fmtMoney(n){if(!n)return'—';if(n>=1e9)return'Rp '+((n/1e9).toFixed(1))+'B';if(n>=1e6)return'Rp '+((n/1e6).toFixed(0))+'M';return'Rp '+n.toLocaleString('id-ID')}
+function fmtDate(d){if(!d)return'—';const[y,m,dd]=d.split('-');const mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${parseInt(dd)} ${mos[parseInt(m)-1]} ${y}`}
+function getFiltered(statusFilter){
+  let list=projects;
+  if(statusFilter) list=list.filter(p=>p.status===statusFilter);
+  const q=(document.getElementById('search-input')?.value||'').toLowerCase();
+  if(q) list=list.filter(p=>(p.title+' '+p.funder+' '+p.pic+' '+p.notes).toLowerCase().includes(q));
+  return list;
+}
+
+/* ═══════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════ */
+function nav(page, filter){
+  currentFilter=filter||null;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.s-item').forEach(b=>b.classList.remove('active'));
+  const map={dashboard:0,projects:1,schedule:7,stats:9};
+  const filterMap={granted:3,applied:4,progress:5,rejected:6};
+  const idx=filter?filterMap[filter]:map[page];
+  document.querySelectorAll('.s-item')[idx]?.classList.add('active');
+
+  if(page==='dashboard') renderDashboard();
+  if(page==='projects') renderProjectsView();
+  if(page==='stats') renderStats();
+  if(page==='schedule') renderSchedule();
+  if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
+}
+
+/* ═══════════════════════════════════
+   SIDEBAR COUNTS
+═══════════════════════════════════ */
+function updateCounts(){
+  document.getElementById('sc-all').textContent=projects.length;
+  ['granted','applied','progress','rejected'].forEach(s=>{
+    document.getElementById('sc-'+s).textContent=projects.filter(p=>p.status===s).length;
+  });
+}
+
+/* ═══════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════ */
+function getProjectsByYear(year){
+  const y=String(year);
+  return projects.filter(p=>(p.start||p.createdAt||'').slice(0,4)===y);
+}
+
+function renderDashboard(){
+  updateCounts();
+  const yearProjects=getProjectsByYear(activeTargetYear);
+
+  // Stat cards — filter tahun aktif
+  const counts={all:yearProjects.length,granted:0,applied:0,progress:0,rejected:0};
+  yearProjects.forEach(p=>{counts[p.status]++;});
+  const statRow=document.getElementById('stat-row');
+  statRow.innerHTML=[
+    {label:'Total '+activeTargetYear,num:counts.all,icon:'📊',color:'var(--teal2)',bg:'var(--teal-bg)',bar:'var(--teal2)',filter:null},
+    {label:'Granted',num:counts.granted,icon:'✅',color:'var(--green)',bg:'var(--green-bg)',bar:'var(--green)',filter:'granted'},
+    {label:'Applied',num:counts.applied,icon:'📨',color:'var(--blue)',bg:'var(--blue-bg)',bar:'var(--blue)',filter:'applied'},
+    {label:'In Progress',num:counts.progress,icon:'⏳',color:'var(--gold)',bg:'var(--gold-bg)',bar:'var(--gold)',filter:'progress'},
+    {label:'Rejected',num:counts.rejected,icon:'❌',color:'var(--red)',bg:'var(--red-bg)',bar:'var(--red)',filter:'rejected'},
+  ].map(s=>`<div class="stat-card" onclick="${s.filter?`nav('projects','${s.filter}')`:'javascript:void(0)'}" style="cursor:${s.filter?'pointer':'default'}">
+    <div class="sc-top"><div class="sc-icon" style="background:${s.bg};color:${s.color}">${s.icon}</div></div>
+    <div class="sc-num" style="color:${s.color}">${s.num}</div>
+    <div class="sc-label">${s.label}</div>
+    <div class="sc-bar" style="background:${s.bar}"></div>
+  </div>`).join('');
+
+  // Revenue panel
+  buildRevenuePanel('revenue-panel-dashboard', true);
+  // Donut chart — filter tahun
+  renderDonut('donut-chart','donut-legend',counts,130);
+  // Budget bars — filter tahun
+  renderBudgetBars('budget-bars',yearProjects);
+  // Recent table — filter tahun
+  renderRecentTable(yearProjects);
+}
+
+/* ═══════════════════════════════════
+   DONUT CHART
+═══════════════════════════════════ */
+function renderDonut(svgId,legendId,counts,size){
+  const data=[
+    {label:'Granted',val:counts.granted,color:'#10B981'},
+    {label:'Applied',val:counts.applied,color:'#3B82F6'},
+    {label:'In Progress',val:counts.progress,color:'#F59E0B'},
+    {label:'Rejected',val:counts.rejected,color:'#EF4444'},
+  ].filter(d=>d.val>0);
+  const total=data.reduce((s,d)=>s+d.val,0)||1;
+  const cx=size/2,cy=size/2,r=size*0.38,sw=size*0.12;
+  let cumAngle=-90;
+  const paths=data.map(d=>{
+    const angle=(d.val/total)*360;
+    const startAngle=cumAngle;
+    cumAngle+=angle;
+    const endAngle=cumAngle;
+    const large=angle>180?1:0;
+    const sr=startAngle*Math.PI/180,er=endAngle*Math.PI/180;
+    const x1=cx+r*Math.cos(sr),y1=cy+r*Math.sin(sr);
+    const x2=cx+r*Math.cos(er),y2=cy+r*Math.sin(er);
+    return`<path d="M${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2}" fill="none" stroke="${d.color}" stroke-width="${sw}" stroke-linecap="round"/>`;
+  }).join('');
+  const svg=document.getElementById(svgId);
+  svg.setAttribute('width',size);svg.setAttribute('height',size);svg.setAttribute('viewBox',`0 0 ${size} ${size}`);
+  svg.innerHTML=paths+`<text x="${cx}" y="${cy-4}" text-anchor="middle" fill="var(--text)" font-family="Fraunces,serif" font-size="${size*0.18}" font-weight="600">${total}</text><text x="${cx}" y="${cy+12}" text-anchor="middle" fill="var(--text3)" font-size="${size*0.065}">projects</text>`;
+  document.getElementById(legendId).innerHTML=data.map(d=>`<div class="legend-item"><div class="legend-dot" style="background:${d.color}"></div>${d.label}<div class="legend-val">${d.val}</div></div>`).join('');
+}
+
+/* ═══════════════════════════════════
+   BUDGET BARS
+═══════════════════════════════════ */
+function renderBudgetBars(containerId, list){
+  const src = list || projects;
+  const byStatus={granted:0,applied:0,progress:0,rejected:0};
+  src.forEach(p=>{byStatus[p.status]+=(p.budget||0)});
+  const max=Math.max(...Object.values(byStatus),1);
+  const el=document.getElementById(containerId);
+  el.innerHTML=[
+    {label:'Granted',val:byStatus.granted,color:'#10B981'},
+    {label:'Applied',val:byStatus.applied,color:'#3B82F6'},
+    {label:'Progress',val:byStatus.progress,color:'#F59E0B'},
+    {label:'Rejected',val:byStatus.rejected,color:'#EF4444'},
+  ].map(b=>`<div class="bar-row">
+    <div class="bar-label">${b.label}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(b.val/max)*100}%;background:${b.color}">${b.val>0?fmtMoney(b.val):''}</div></div>
+  </div>`).join('');
+}
+
+/* ═══════════════════════════════════
+   RECENT TABLE (Dashboard)
+═══════════════════════════════════ */
+function renderRecentTable(list){
+  const src = list || projects;
+  const lbl = document.getElementById('recent-year-label');
+  if(lbl) lbl.textContent = '— ' + activeTargetYear;
+  const recent=[...src].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,5);
+  const tbody = document.getElementById('recent-tbody');
+  if(!recent.length){
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Tidak ada proyek di tahun ${activeTargetYear}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML=recent.map(p=>projectRow(p,false)).join('');
+}
+
+/* ═══════════════════════════════════
+   PROJECT ROW
+═══════════════════════════════════ */
+function projectRow(p,showCollab=true){
+  const sc=STATUS_CONFIG[p.status];
+  const catIcon=CAT_ICONS[p.category]||'📎';
+  return`<tr onclick="showDetail(${p.id})">
+    <td><div class="p-title-cell"><div class="p-avatar" style="background:${sc.bg}">${catIcon}</div><div><div class="p-name">${p.title}</div><div class="p-funder">${p.pic||''}</div></div></div></td>
+    <td><span class="badge ${sc.badge}">${sc.label}</span></td>
+    <td style="color:var(--text2)">${p.funder}</td>
+    <td><div class="p-budget">${fmtMoney(p.budget)}</div></td>
+    <td style="color:var(--text3);font-size:12px">${fmtDate(p.start||p.createdAt)}</td>
+    ${showCollab?`<td>${p.collab?`<button class="p-link-btn" onclick="event.stopPropagation();openCollabHub('${p.collab}')" title="Open CollabHub">🔗</button>`:''}</td>`:''}
+    <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();openEditModal(${p.id})" style="font-size:11px">Edit</button></td>
+  </tr>`;
+}
+
+/* ═══════════════════════════════════
+   PROJECTS VIEW (Table + Kanban)
+═══════════════════════════════════ */
+function setView(v){
+  currentView=v;
+  document.getElementById('vt-table').classList.toggle('active',v==='table');
+  document.getElementById('vt-kanban').classList.toggle('active',v==='kanban');
+  renderProjectsView();
+}
+
+function renderProjectsView(){
+  const f=currentFilter;
+  const sc=f?STATUS_CONFIG[f]:null;
+  document.getElementById('proj-eyebrow').textContent=sc?sc.label:'All Projects';
+  document.getElementById('proj-title').textContent=sc?`${sc.label} Projects`:'Project List';
+
+  if(currentView==='table'){
+    document.getElementById('projects-table-container').style.display='';
+    document.getElementById('projects-kanban-container').style.display='none';
+    const list=getFiltered(f);
+    document.getElementById('projects-tbody').innerHTML=list.length?list.map(p=>projectRow(p)).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:48px">No projects found.</td></tr>`;
+  } else {
+    document.getElementById('projects-table-container').style.display='none';
+    document.getElementById('projects-kanban-container').style.display='';
+    renderKanban();
+  }
+  updateCounts();
+}
+
+function renderKanban(){
+  const q=(document.getElementById('search-input')?.value||'').toLowerCase();
+  const statuses=currentFilter?[currentFilter]:['applied','progress','granted','rejected'];
+  const el=document.getElementById('projects-kanban-container');
+  el.innerHTML=`<div class="kanban">${statuses.map(s=>{
+    const sc=STATUS_CONFIG[s];
+    const list=projects.filter(p=>p.status===s&&(!q||(p.title+' '+p.funder).toLowerCase().includes(q)));
+    return`<div class="k-col">
+      <div class="k-head">
+        <div class="k-head-title"><span style="color:${sc.color}">${sc.icon}</span> ${sc.label}</div>
+        <div class="k-head-count" style="background:${sc.bg};color:${sc.color}">${list.length}</div>
+      </div>
+      <div class="k-body">${list.map(p=>`<div class="k-card" onclick="showDetail(${p.id})">
+        <div class="k-card-title">${p.title}</div>
+        <div class="k-card-sub">${p.funder}${p.pic?' · '+p.pic:''}</div>
+        <div class="k-card-footer">
+          <div class="k-card-budget" style="color:${sc.color}">${fmtMoney(p.budget)}</div>
+          ${p.collab?`<div class="k-card-collab" onclick="event.stopPropagation();openCollabHub('${p.collab}')" title="CollabHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>`:''}
+        </div>
+      </div>`).join('')||`<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px">Empty</div>`}
+      </div>
+    </div>`}).join('')}</div>`;
+}
+
+/* ═══════════════════════════════════
+   PROJECT DETAIL
+═══════════════════════════════════ */
+function showDetail(id){
+  const p=projects.find(x=>x.id===id);if(!p)return;
+  const sc=STATUS_CONFIG[p.status];
+  const catIcon=CAT_ICONS[p.category]||'📎';
+  const panel=document.getElementById('detail-panel');
+  panel.innerHTML=`
+    <div class="dp-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <div class="p-avatar" style="background:${sc.bg};width:48px;height:48px;font-size:22px;border-radius:12px;display:flex;align-items:center;justify-content:center">${catIcon}</div>
+          <div><div class="dp-title">${p.title}</div>
+          <div class="dp-meta">
+            <span class="badge ${sc.badge}">${sc.label}</span>
+            <div class="dp-meta-item">🏢 ${p.funder}</div>
+            <div class="dp-meta-item">👤 ${p.pic||'—'}</div>
+          </div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${p.collab?`<button class="btn btn-sm btn-outline" onclick="openCollabHub('${p.collab}')" style="color:var(--teal2);border-color:rgba(45,196,168,0.3)">🔗 Open CollabHub</button>`:''}
+        <button class="btn btn-sm btn-outline" onclick="openEditModal(${p.id})">✏️ Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id})">🗑️ Delete</button>
+      </div>
+    </div>
+    <div class="dp-grid">
+      <div class="dp-field"><div class="dp-field-label">Budget</div><div class="dp-field-val" style="color:${sc.color}">${fmtMoney(p.budget)}</div></div>
+      <div class="dp-field"><div class="dp-field-label">Start Date</div><div class="dp-field-val">${fmtDate(p.start)}</div></div>
+      <div class="dp-field"><div class="dp-field-label">End Date</div><div class="dp-field-val">${fmtDate(p.end)}</div></div>
+      <div class="dp-field"><div class="dp-field-label">Category</div><div class="dp-field-val">${catIcon} ${p.category?.replace('_',' ')||'—'}</div></div>
+      <div class="dp-field"><div class="dp-field-label">CollabHub</div><div class="dp-field-val">${p.collab?`<button class="btn btn-sm btn-outline" onclick="openCollabHub('${p.collab}')" style="color:var(--teal2);border-color:rgba(45,196,168,0.3)">${{plts:'PLTS Terapung',bi:'Blue Building',cbhe:'CBHE Erasmus+'}[p.collab]}</button>`:'Not linked'}</div></div>
+      <div class="dp-field"><div class="dp-field-label">Added</div><div class="dp-field-val">${fmtDate(p.createdAt)}</div></div>
+    </div>
+    ${p.notes?`<div class="dp-notes"><div class="dp-field-label">Notes</div><div style="font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-line;margin-top:8px">${p.notes}</div></div>`:''}`;
+  document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+  renderDetailTimeline(p.id);
+  renderDetailDocs(p);
+}
+
+/* ═══════════════════════════════════
+   ADD / EDIT
+═══════════════════════════════════ */
+function openAddModal(){
+  editingId=null;
+  document.getElementById('modal-title').textContent='Add New Project';
+  document.getElementById('modal-save-btn').textContent='Save Project';
+  ['f-title','f-funder','f-budget','f-start','f-end','f-pic','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-status').value='applied';
+  document.getElementById('f-category').value='research';
+  document.getElementById('f-collab').value='';
+  populateMembersForm([]);
+  populateDocsModal([]);
+  switchDocTab('link');
+  openOv('ov-project');
+}
+function openEditModal(id){
+  const p=projects.find(x=>x.id===id);if(!p)return;
+  editingId=id;
+  document.getElementById('modal-title').textContent='Edit Project';
+  document.getElementById('modal-save-btn').textContent='Update Project';
+  document.getElementById('f-title').value=p.title||'';
+  document.getElementById('f-status').value=p.status||'applied';
+  document.getElementById('f-category').value=p.category||'research';
+  document.getElementById('f-funder').value=p.funder||'';
+  document.getElementById('f-budget').value=p.budget||'';
+  document.getElementById('f-start').value=p.start||'';
+  document.getElementById('f-end').value=p.end||'';
+  document.getElementById('f-pic').value=p.pic||'';
+  document.getElementById('f-notes').value=p.notes||'';
+  document.getElementById('f-collab').value=p.collab||'';
+  populateMembersForm(p.members||[]);
+  populateDocsModal(p.docs||[]);
+  switchDocTab('link');
+  openOv('ov-project');
+}
+function saveProject(){
+  const title=document.getElementById('f-title').value.trim();
+  const funder=document.getElementById('f-funder').value.trim();
+  if(!title||!funder){toast('Fill in title and funder');return}
+  const data={
+    title,funder,
+    status:document.getElementById('f-status').value,
+    category:document.getElementById('f-category').value,
+    budget:parseInt(document.getElementById('f-budget').value)||0,
+    start:document.getElementById('f-start').value,
+    end:document.getElementById('f-end').value,
+    pic:document.getElementById('f-pic').value.trim(),
+    notes:document.getElementById('f-notes').value.trim(),
+    collab:document.getElementById('f-collab').value,
+    members:getMembersFromForm(),
+    docs: getDocsFromModal(),
+  };
+  if(editingId){
+    const idx=projects.findIndex(p=>p.id===editingId);
+    if(idx>=0) projects[idx]={...projects[idx],...data};
+    toast('Project updated!');
+  } else {
+    data.id=Date.now();
+    data.createdAt=new Date().toISOString().split('T')[0];
+    projects.push(data);
+    toast('Project added!');
+  }
+  closeOv('ov-project');save();
+  renderDashboard();
+  if(document.getElementById('page-projects').classList.contains('active')) renderProjectsView();
+}
+function deleteProject(id){
+  if(!confirm('Delete this project?'))return;
+  projects=projects.filter(p=>p.id!==id);save();
+  nav('projects');toast('Project deleted');
+}
+
+/* ═══════════════════════════════════
+   STATISTICS
+═══════════════════════════════════ */
+function renderStats(){
+  updateCounts();
+  buildRevenuePanel('revenue-panel-stats', false);
+  const yearProjects=getProjectsByYear(activeTargetYear);
+  const counts={granted:0,applied:0,progress:0,rejected:0};
+  let totalBudget=0;
+  yearProjects.forEach(p=>{counts[p.status]++;totalBudget+=p.budget||0});
+
+  // Stat row — filter tahun
+  const successRate=yearProjects.length?(counts.granted/yearProjects.length*100).toFixed(0):0;
+  document.getElementById('stats-stat-row').innerHTML=[
+    {label:'Total '+activeTargetYear,num:yearProjects.length,icon:'📊',color:'var(--teal2)',bg:'var(--teal-bg)'},
+    {label:'Total Budget',num:fmtMoney(totalBudget),icon:'💰',color:'var(--gold)',bg:'var(--gold-bg)'},
+    {label:'Success Rate',num:successRate+'%',icon:'🎯',color:'var(--green)',bg:'var(--green-bg)'},
+    {label:'Active (Progress)',num:counts.progress,icon:'⏳',color:'var(--blue)',bg:'var(--blue-bg)'},
+    {label:'Partners',num:new Set(yearProjects.map(p=>p.funder)).size,icon:'🤝',color:'var(--purple)',bg:'var(--purple-bg)'},
+  ].map(s=>`<div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:${s.bg}">${s.icon}</div></div><div class="sc-num" style="color:${s.color};font-size:${typeof s.num==='string'&&s.num.length>4?'22px':'32px'}">${s.num}</div><div class="sc-label">${s.label}</div></div>`).join('');
+
+  // Donut — filter tahun
+  renderDonut('stats-donut','stats-donut-legend',counts,150);
+  // Budget bars — filter tahun
+  renderBudgetBars('stats-budget-bars',yearProjects);
+
+  // Funder bars — filter tahun
+  const byFunder={};
+  yearProjects.forEach(p=>{byFunder[p.funder]=(byFunder[p.funder]||0)+1});
+  const funderEntries=Object.entries(byFunder).sort((a,b)=>b[1]-a[1]);
+  const funderMax=Math.max(...funderEntries.map(e=>e[1]),1);
+  const funderColors=['#2DC4A8','#3B82F6','#F59E0B','#8B5CF6','#EF4444','#10B981','#EC4899'];
+  document.getElementById('stats-funder-bars').innerHTML=funderEntries.map((e,i)=>`<div class="bar-row">
+    <div class="bar-label">${e[0].length>12?e[0].slice(0,12)+'…':e[0]}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(e[1]/funderMax)*100}%;background:${funderColors[i%funderColors.length]}">${e[1]}</div></div>
+    <div class="bar-val">${e[1]}</div>
+  </div>`).join('');
+
+  // Year bars — semua projects untuk perbandingan antar tahun
+  const byYear={};
+  projects.forEach(p=>{const y=(p.start||p.createdAt||'').slice(0,4);if(y)byYear[y]=(byYear[y]||0)+1});
+  const yearEntries=Object.entries(byYear).sort();
+  const yearMax=Math.max(...yearEntries.map(e=>e[1]),1);
+  document.getElementById('stats-year-bars').innerHTML=yearEntries.map(e=>`<div class="bar-row">
+    <div class="bar-label">${e[0]}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${(e[1]/yearMax)*100}%;background:var(--teal2)">${e[1]}</div></div>
+    <div class="bar-val">${e[1]}</div>
+  </div>`).join('');
+
+  // Full table — filter tahun
+  document.getElementById('stats-full-table').innerHTML=yearProjects.length ? yearProjects.map(p=>{
+    const sc=STATUS_CONFIG[p.status];
+    return`<tr onclick="showDetail(${p.id})" style="cursor:pointer">
+      <td style="font-weight:600;color:var(--text)">${p.title}</td>
+      <td><span class="badge ${sc.badge}">${sc.label}</span></td>
+      <td style="color:var(--text2)">${p.funder}</td>
+      <td style="font-family:'Fraunces',serif;font-weight:600">${fmtMoney(p.budget)}</td>
+      <td style="color:var(--text3);font-size:12px">${fmtDate(p.start)}</td>
+      <td style="color:var(--text3);font-size:12px">${fmtDate(p.end)}</td>
+      <td style="text-align:center">${p.collab?'🔗':''} ${(p.docs&&p.docs.length)?`<span style="color:var(--teal2);font-size:11px">📎${p.docs.length}</span>`:''}</td>
+    </tr>`}).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:32px">Tidak ada proyek di tahun '+activeTargetYear+'</td></tr>';
+}
+
+/* ═══════════════════════════════════
+   COLLABHUB LINK
+═══════════════════════════════════ */
+function openCollabHub(projectId){
+  window.open('https://cpebrunair-debug.github.io/project-hub/cesgs_hub%20(2).html','_blank');
+}
+
+/* ═══════════════════════════════════
+   REVENUE TARGETS
+═══════════════════════════════════ */
+let revenueTargets = {};   // { "2026": { total: 5e9, research: 2e9, ... }, ... }
+let activeTargetYear = new Date().getFullYear();
+
+const CAT_LIST = [
+  {key:'research',      label:'Research',         icon:'🔬', color:'#0B8C7A'},
+  {key:'consulting',    label:'Consulting',        icon:'💼', color:'#3B82F6'},
+  {key:'capacity_building', label:'Capacity Building', icon:'🎓', color:'#8B5CF6'},
+  {key:'community_service', label:'Community Service', icon:'🤝', color:'#F59E0B'},
+  {key:'other',         label:'Other',             icon:'📎', color:'#EC4899'},
+];
+
+function loadTargets(){ try{ const d=localStorage.getItem('cesgs_targets'); if(d) revenueTargets=JSON.parse(d); }catch(e){} }
+function saveTargets(){ try{ localStorage.setItem('cesgs_targets',JSON.stringify(revenueTargets)); }catch(e){} }
+
+function getRevenueForYear(year){
+  // Only count GRANTED projects as actual revenue
+  const y = String(year);
+  let total=0, byCat={};
+  projects.forEach(p=>{
+    if(p.status!=='granted') return;
+    const projYear = (p.start||p.createdAt||'').slice(0,4);
+    if(projYear !== y) return;
+    total += (p.budget||0);
+    byCat[p.category] = (byCat[p.category]||0) + (p.budget||0);
+  });
+  return {total, byCat};
+}
+
+function getAllYears(){
+  const years = new Set();
+  const thisYear = new Date().getFullYear();
+  years.add(thisYear); years.add(thisYear-1); years.add(thisYear+1);
+  projects.forEach(p=>{ const y=(p.start||p.createdAt||'').slice(0,4); if(y) years.add(parseInt(y)); });
+  Object.keys(revenueTargets).forEach(y=>years.add(parseInt(y)));
+  return [...years].sort((a,b)=>b-a);
+}
+
+function buildRevenuePanel(containerId, compact){
+  const el = document.getElementById(containerId); if(!el) return;
+  const years = getAllYears();
+  const tgt = revenueTargets[activeTargetYear] || {};
+  const {total: actual, byCat: actualByCat} = getRevenueForYear(activeTargetYear);
+  const target = tgt.total || 0;
+  const pct = target ? Math.min(Math.round(actual/target*100),999) : null;
+  const over = target && actual >= target;
+
+  // Status breakdown (granted vs active)
+  let granted=0, active=0, applied=0, totalPipeline=0;
+  projects.forEach(p=>{
+    if(p.status==='rejected') return;
+    const y=(p.start||p.createdAt||'').slice(0,4);
+    if(y !== String(activeTargetYear)) return;
+    if(p.status==='granted') granted+=(p.budget||0);
+    else if(p.status==='progress') active+=(p.budget||0);
+    else if(p.status==='applied') applied+=(p.budget||0);
+    totalPipeline+=(p.budget||0);
+  });
+
+  let html = `<div class="rev-panel">
+    <div class="rev-panel-head">
+      <div class="rev-panel-title">💰 Revenue Target & Progress</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="rev-year-tabs">${years.map(y=>`<button class="rev-year-tab${y===activeTargetYear?' active':''}" onclick="setTargetYear(${y})">${y}</button>`).join('')}</div>
+        <button class="btn btn-sm btn-outline" onclick="openTargetModal()" style="color:var(--teal);border-color:rgba(11,140,122,0.3)">⚙ Set Target</button>
+      </div>
+    </div>`;
+
+  // KPI row
+  html += `<div class="rev-main">
+    <div class="rev-kpi">
+      <div class="rev-kpi-label">Actual Revenue (Granted)</div>
+      <div class="rev-kpi-val" style="color:var(--teal)">${fmtMoney(actual)||'Rp 0'}</div>
+      <div class="rev-kpi-sub">${projects.filter(p=>p.status==='granted'&&(p.start||p.createdAt||'').slice(0,4)===String(activeTargetYear)).length} proyek granted</div>
+    </div>
+    <div class="rev-kpi">
+      <div class="rev-kpi-label">Target ${activeTargetYear}</div>
+      <div class="rev-kpi-val" style="color:${target?'var(--text)':'var(--text3)'}">${target?fmtMoney(target):'Belum diset'}</div>
+      <div class="rev-kpi-sub">${target?`Sisa: ${fmtMoney(Math.max(0,target-actual))}`:' '}</div>
+    </div>
+    <div class="rev-kpi">
+      <div class="rev-kpi-label">Progress</div>
+      <div class="rev-kpi-val ${over?'rev-over':''}" style="${!target?'color:var(--text3)':''}">${pct!==null?pct+'%':'—'}</div>
+      <div class="rev-kpi-sub" style="${over?'color:var(--green)':actual?'color:var(--gold)':''}">
+        ${over?'🎉 Target tercapai!':pct!==null?`${100-pct}% lagi`:'Set target untuk tracking'}
+      </div>
+    </div>
+    <div class="rev-kpi" style="min-width:140px">
+      <div class="rev-kpi-label">Pipeline ${activeTargetYear}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+        <div style="font-size:11px;color:var(--green);font-weight:600">✅ Granted: ${fmtMoney(granted)||'Rp 0'}</div>
+        <div style="font-size:11px;color:var(--gold);font-weight:600">⏳ In Progress: ${fmtMoney(active)||'Rp 0'}</div>
+        <div style="font-size:11px;color:var(--blue);font-weight:600">📨 Applied: ${fmtMoney(applied)||'Rp 0'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;border-top:1px solid var(--border);padding-top:2px">Total: ${fmtMoney(totalPipeline)||'Rp 0'}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Main progress bar
+  if(target){
+    const barW = Math.min(pct,100);
+    const barColor = pct>=100?'#10B981':pct>=70?'#0B8C7A':pct>=40?'#F59E0B':'#EF4444';
+    html += `<div class="rev-big-bar">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px">
+        <span>Rp 0</span><span style="font-weight:600;color:${barColor}">${pct}%</span><span>${fmtMoney(target)}</span>
+      </div>
+      <div class="rev-big-track">
+        <div class="rev-big-fill" style="width:${barW}%;background:linear-gradient(90deg,${barColor}cc,${barColor})">
+          ${pct>15?`<span>${fmtMoney(actual)}</span>`:''}
+        </div>
+      </div>
+      ${pct<=15&&actual?`<div style="font-size:11px;color:var(--text3);margin-top:3px;text-align:left;padding-left:${barW}%">${fmtMoney(actual)}</div>`:''}
+    </div>`;
+  }
+
+  // Category breakdown
+  if(!compact){
+    html += `<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;margin-top:4px">Breakdown per Kategori</div>
+    <div class="rev-cat-grid">`;
+    CAT_LIST.forEach(cat=>{
+      const catActual = actualByCat[cat.key] || 0;
+      const catTarget = tgt[cat.key] || 0;
+      const catPct = catTarget ? Math.min(Math.round(catActual/catTarget*100),100) : null;
+      html += `<div class="rev-cat-item">
+        <div class="rev-cat-label">
+          <span>${cat.icon} ${cat.label}</span>
+          <span style="color:${catPct!==null?(catPct>=100?'var(--green)':'var(--text2)'):'var(--text3)'};font-weight:700">${catPct!==null?catPct+'%':'—'}</span>
+        </div>
+        <div class="rev-cat-track"><div class="rev-cat-fill" style="width:${catPct??0}%;background:${cat.color}"></div></div>
+        <div class="rev-cat-nums">
+          <span style="color:${cat.color};font-weight:600">${fmtMoney(catActual)||'Rp 0'}</span>
+          <span>${catTarget?'/ '+fmtMoney(catTarget):'no target'}</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function setTargetYear(y){
+  activeTargetYear = y;
+  // Re-render dashboard completely so all stats/charts follow the year
+  if(document.getElementById('page-dashboard').classList.contains('active')){
+    renderDashboard();
+  } else {
+    buildRevenuePanel('revenue-panel-dashboard', true);
+  }
+  // Stats page
+  if(document.getElementById('page-stats').classList.contains('active')){
+    renderStats();
+  } else {
+    buildRevenuePanel('revenue-panel-stats', false);
+  }
+}
+
+function openTargetModal(){
+  const years = getAllYears();
+  const sel = document.getElementById('tgt-year');
+  sel.innerHTML = years.map(y=>`<option value="${y}" ${y===activeTargetYear?'selected':''}>${y}</option>`).join('');
+  const tgt = revenueTargets[activeTargetYear] || {};
+  document.getElementById('tgt-total').value = tgt.total || '';
+  ['research','consulting','capacity_building','community_service','other'].forEach(k=>{
+    document.getElementById('tgt-'+k).value = tgt[k] || '';
+  });
+  openOv('ov-target');
+}
+
+function saveTarget(){
+  const year = parseInt(document.getElementById('tgt-year').value);
+  const total = parseInt(document.getElementById('tgt-total').value) || 0;
+  if(!total){ toast('Masukkan target total revenue'); return; }
+  revenueTargets[year] = { total };
+  ['research','consulting','capacity_building','community_service','other'].forEach(k=>{
+    const v = parseInt(document.getElementById('tgt-'+k).value) || 0;
+    if(v) revenueTargets[year][k] = v;
+  });
+  saveTargets();
+  activeTargetYear = year;
+  closeOv('ov-target');
+  toast('✅ Target disimpan!');
+  buildRevenuePanel('revenue-panel-dashboard', true);
+  buildRevenuePanel('revenue-panel-stats', false);
+}
+
+/* ═══════════════════════════════════
+   MILESTONES STATE
+═══════════════════════════════════ */
+let milestones = [];
+let editingMsId = null;
+let calYear = new Date().getFullYear();
+let calMonthIdx = new Date().getMonth();
+
+const MS_TYPES = {
+  deadline:   {label:'Deadline',    icon:'📅', color:'#EF4444', bg:'rgba(239,68,68,0.1)'},
+  submission: {label:'Submission',  icon:'📤', color:'#3B82F6', bg:'rgba(59,130,246,0.1)'},
+  meeting:    {label:'Meeting',     icon:'🤝', color:'#8B5CF6', bg:'rgba(139,92,246,0.1)'},
+  report:     {label:'Report',      icon:'📋', color:'#F59E0B', bg:'rgba(245,158,11,0.1)'},
+  payment:    {label:'Payment',     icon:'💰', color:'#10B981', bg:'rgba(16,185,129,0.1)'},
+  milestone:  {label:'Milestone',   icon:'🏁', color:'#0B8C7A', bg:'rgba(11,140,122,0.1)'},
+  review:     {label:'Review',      icon:'🔍', color:'#EC4899', bg:'rgba(236,72,153,0.1)'},
+};
+
+function loadMs(){try{const d=localStorage.getItem('cesgs_milestones');if(d)milestones=JSON.parse(d)}catch(e){}}
+function saveMs(){try{localStorage.setItem('cesgs_milestones',JSON.stringify(milestones))}catch(e){}}
+
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  return Math.round((d-today)/(1000*60*60*24));
+}
+
+function updateDeadlineCount(){
+  const urgent = milestones.filter(m=>!m.done && daysUntil(m.date)!==null && daysUntil(m.date)>=0 && daysUntil(m.date)<=7);
+  const el = document.getElementById('sc-deadlines');
+  if(el){ el.textContent = urgent.length; el.style.display = urgent.length?'':'none'; }
+}
+
+/* ═══════════════════════════════════
+   SCHEDULE PAGE
+═══════════════════════════════════ */
+function renderSchedule(){
+  updateDeadlineCount();
+  renderDeadlineBanner();
+  renderCalendar();
+  renderMilestonesTable();
+  renderUpcoming();
+  renderProjectProgress();
+}
+
+function renderDeadlineBanner(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const urgent = milestones.filter(m=>{
+    if(m.done) return false;
+    const d = daysUntil(m.date);
+    return d !== null && d >= 0 && d <= 7;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+  const overdue = milestones.filter(m=>!m.done && daysUntil(m.date) !== null && daysUntil(m.date)<0);
+  const el = document.getElementById('deadline-banner');
+  let html = '';
+  if(overdue.length){
+    html += `<div class="notif-banner notif-banner-urgent" style="margin-bottom:10px">
+      <div style="font-size:20px;flex-shrink:0">🚨</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:4px">${overdue.length} Milestone Overdue!</div>
+        <div style="font-size:12px;color:#7f1d1d">${overdue.map(m=>{const p=projects.find(x=>x.id===m.projectId);return`<b>${m.title}</b> (${p?p.title:'?'}) — ${fmtDate(m.date)}`}).join(' &nbsp;·&nbsp; ')}</div>
+      </div>
+    </div>`;
+  }
+  if(urgent.length){
+    html += `<div class="notif-banner">
+      <div style="font-size:20px;flex-shrink:0">⏰</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:4px">H-7: ${urgent.length} deadline dalam 7 hari ke depan</div>
+        <div style="font-size:12px;color:#78350f">${urgent.map(m=>{const d=daysUntil(m.date);const p=projects.find(x=>x.id===m.projectId);return`<b>${m.title}</b> (${p?p.title:'?'}) — ${d===0?'Hari ini':'H-'+d}`}).join(' &nbsp;·&nbsp; ')}</div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderCalendar(){
+  const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  document.getElementById('cal-month-label').textContent = months[calMonthIdx]+' '+calYear;
+  const today = new Date();
+  const firstDay = new Date(calYear, calMonthIdx, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonthIdx+1, 0).getDate();
+  const daysInPrev = new Date(calYear, calMonthIdx, 0).getDate();
+  const weekDays = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  let html = '<div class="cal-weekdays">' + weekDays.map(d=>`<div class="cal-weekday">${d}</div>`).join('') + '</div>';
+  html += '<div class="cal-days">';
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  for(let i=0;i<totalCells;i++){
+    let day, month=calMonthIdx, year=calYear, otherMonth=false;
+    if(i<firstDay){ day=daysInPrev-(firstDay-1-i); month=calMonthIdx-1; if(month<0){month=11;year=calYear-1;} otherMonth=true; }
+    else if(i>=firstDay+daysInMonth){ day=i-firstDay-daysInMonth+1; month=calMonthIdx+1; if(month>11){month=0;year=calYear+1;} otherMonth=true; }
+    else{ day=i-firstDay+1; }
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const isToday = today.getFullYear()===year && today.getMonth()===month && today.getDate()===day;
+    const dayMs = milestones.filter(m=>m.date===dateStr);
+    html += `<div class="cal-day${otherMonth?' other-month':''}${isToday?' today':''}" onclick="calDayClick('${dateStr}')">
+      <div class="cal-day-num">${day}</div>
+      ${dayMs.slice(0,3).map(m=>{const t=MS_TYPES[m.type]||MS_TYPES.deadline;return`<div class="cal-dot" style="background:${t.bg};color:${t.color}" title="${m.title}">${t.icon} ${m.title.slice(0,10)}</div>`}).join('')}
+      ${dayMs.length>3?`<div style="font-size:10px;color:var(--text3)">+${dayMs.length-3} more</div>`:''}
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('calendar-grid').innerHTML = html;
+}
+
+function calMonth(dir){
+  calMonthIdx += dir;
+  if(calMonthIdx>11){calMonthIdx=0;calYear++;}
+  if(calMonthIdx<0){calMonthIdx=11;calYear--;}
+  renderCalendar();
+}
+
+function calDayClick(dateStr){
+  openMilestoneModal(null, dateStr);
+}
+
+function renderMilestonesTable(){
+  const sorted = [...milestones].sort((a,b)=>a.date.localeCompare(b.date));
+  const tbody = document.getElementById('milestones-tbody');
+  if(!sorted.length){ tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:40px">Belum ada milestone. Klik "Add Milestone" untuk memulai.</td></tr>`; return; }
+  tbody.innerHTML = sorted.map(m=>{
+    const p = projects.find(x=>x.id===m.projectId);
+    const t = MS_TYPES[m.type]||MS_TYPES.deadline;
+    const d = daysUntil(m.date);
+    let dayLabel = '';
+    if(!m.done && d!==null){ if(d<0) dayLabel=`<span style="color:var(--red);font-size:11px;font-weight:600">Overdue ${Math.abs(d)}d</span>`; else if(d===0) dayLabel=`<span style="color:var(--red);font-size:11px;font-weight:600">Hari ini!</span>`; else if(d<=7) dayLabel=`<span style="color:#d97706;font-size:11px;font-weight:600">H-${d}</span>`; }
+    return`<tr class="${m.done?'ms-done':''}" onclick="openMilestoneModal(${m.id}, null)" style="cursor:pointer">
+      <td><div style="font-weight:600;color:var(--text)">${m.title}</div>${m.notes?`<div style="font-size:11px;color:var(--text3)">${m.notes}</div>`:''}</td>
+      <td style="font-size:12px;color:var(--text2)">${p?p.title:'—'}</td>
+      <td><span class="ms-type-pill" style="background:${t.bg};color:${t.color}">${t.icon} ${t.label}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${fmtDate(m.date)} ${dayLabel}</td>
+      <td>${m.done?`<span style="color:var(--green);font-size:12px;font-weight:600">✅ Done</span>`:`<span style="color:var(--text3);font-size:12px">Pending</span>`}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();toggleMsDone(${m.id})" style="font-size:11px">${m.done?'Undo':'Done'}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderUpcoming(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const in30 = new Date(today); in30.setDate(in30.getDate()+30);
+  const upcoming = milestones.filter(m=>{
+    if(m.done) return false;
+    const d = new Date(m.date); d.setHours(0,0,0,0);
+    return d >= today && d <= in30;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+  const el = document.getElementById('upcoming-list');
+  if(!upcoming.length){ el.innerHTML=`<div style="color:var(--text3);font-size:12px;padding:8px 0">Tidak ada deadline dalam 30 hari ke depan.</div>`; return; }
+  el.innerHTML = upcoming.map(m=>{
+    const p = projects.find(x=>x.id===m.projectId);
+    const t = MS_TYPES[m.type]||MS_TYPES.deadline;
+    const d = daysUntil(m.date);
+    const dayParts = m.date.split('-');
+    const bgColor = d<=3?'#fef2f2':d<=7?'#fffbeb':'var(--bg3)';
+    const borderColor = d<=3?'#fca5a5':d<=7?'#fcd34d':'rgba(11,140,122,0.22)';
+    return`<div class="upcoming-item">
+      <div class="upcoming-badge" style="background:${bgColor};border:1px solid ${d<=7?'#fcd34d':'rgba(11,140,122,0.22)'}">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(dayParts[1])-1]}</div>
+        <div class="day" style="color:${d<=3?'#dc2626':d<=7?'#d97706':'var(--text)'}">${parseInt(dayParts[2])}</div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${m.title}</div>
+        <div style="font-size:11px;color:var(--text3)">${p?p.title:'?'} · <span style="background:${t.bg};color:${t.color};padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">${t.icon} ${t.label}</span></div>
+        ${d===0?`<div style="font-size:11px;color:var(--red);font-weight:600">Hari ini!</div>`:d<=7?`<div style="font-size:11px;color:#d97706;font-weight:600">H-${d}</div>`:`<div style="font-size:11px;color:var(--text3)">${d} hari lagi</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProjectProgress(){
+  const el = document.getElementById('project-progress-list');
+  if(!projects.length){ el.innerHTML='<div style="color:var(--text3);font-size:12px">Belum ada proyek.</div>'; return; }
+  el.innerHTML = projects.map(p=>{
+    const pMs = milestones.filter(m=>m.projectId===p.id);
+    const done = pMs.filter(m=>m.done).length;
+    const total = pMs.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const sc = STATUS_CONFIG[p.status];
+    const upcoming = pMs.filter(m=>!m.done && daysUntil(m.date)!==null && daysUntil(m.date)>=0 && daysUntil(m.date)<=7);
+    return`<div class="prog-row">
+      <div class="prog-label">
+        <span style="font-size:12px;font-weight:600;color:var(--text)">${p.title.slice(0,22)}${p.title.length>22?'…':''}</span>
+        <span style="font-size:11px;color:var(--text3)">${done}/${total} ${upcoming.length?`<span style="color:#d97706;font-weight:700">⚡${upcoming.length}</span>`:''}</span>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" style="width:${pct}%;background:${sc.color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════
+   MILESTONE MODAL
+═══════════════════════════════════ */
+function openMilestoneModal(msId, prefillDate){
+  editingMsId = msId;
+  // Populate project dropdown
+  const sel = document.getElementById('ms-project');
+  sel.innerHTML = projects.map(p=>`<option value="${p.id}">${p.title}</option>`).join('');
+  if(msId){
+    const m = milestones.find(x=>x.id===msId); if(!m) return;
+    document.getElementById('ms-modal-title').textContent = 'Edit Milestone';
+    document.getElementById('ms-delete-btn').style.display = '';
+    sel.value = m.projectId;
+    document.getElementById('ms-title').value = m.title||'';
+    document.getElementById('ms-type').value = m.type||'deadline';
+    document.getElementById('ms-date').value = m.date||'';
+    document.getElementById('ms-notes').value = m.notes||'';
+    document.getElementById('ms-done').checked = m.done||false;
+  } else {
+    document.getElementById('ms-modal-title').textContent = 'Add Milestone';
+    document.getElementById('ms-delete-btn').style.display = 'none';
+    document.getElementById('ms-title').value = '';
+    document.getElementById('ms-type').value = 'deadline';
+    document.getElementById('ms-date').value = prefillDate||'';
+    document.getElementById('ms-notes').value = '';
+    document.getElementById('ms-done').checked = false;
+  }
+  updateNotifyList();
+  openOv('ov-milestone');
+}
+
+function saveMilestone(){
+  const title = document.getElementById('ms-title').value.trim();
+  const date = document.getElementById('ms-date').value;
+  const projectId = parseInt(document.getElementById('ms-project').value);
+  if(!title||!date||!projectId){ toast('Isi judul, project, dan tanggal'); return; }
+  const data = {
+    title, date, projectId,
+    type: document.getElementById('ms-type').value,
+    notes: document.getElementById('ms-notes').value.trim(),
+    done: document.getElementById('ms-done').checked,
+  };
+  if(editingMsId){
+    const idx = milestones.findIndex(m=>m.id===editingMsId);
+    if(idx>=0) milestones[idx] = {...milestones[idx], ...data};
+    toast('Milestone updated!');
+  } else {
+    data.id = Date.now();
+    milestones.push(data);
+    toast('Milestone added!');
+  }
+  const _proj = projects.find(x=>x.id===data.projectId);
+  const _shouldNotify = getCheckedEmails().length > 0;
+  closeOv('ov-milestone');
+  saveMs();
+  renderSchedule();
+  if(_shouldNotify && _proj) sendEmailNotifications(data, _proj);
+  updateDeadlineCount();
+  // Re-render timeline if on detail page
+  const detailActive = document.getElementById('page-detail').classList.contains('active');
+  if(detailActive) renderDetailTimeline(projectId);
+}
+
+function deleteMilestone(){
+  if(!editingMsId) return;
+  if(!confirm('Hapus milestone ini?')) return;
+  const m = milestones.find(x=>x.id===editingMsId);
+  milestones = milestones.filter(x=>x.id!==editingMsId);
+  closeOv('ov-milestone');
+  saveMs(); toast('Milestone deleted');
+  renderSchedule(); updateDeadlineCount();
+  if(m) renderDetailTimeline(m.projectId);
+}
+
+function toggleMsDone(id){
+  const m = milestones.find(x=>x.id===id);
+  if(m){ m.done=!m.done; saveMs(); renderSchedule(); updateDeadlineCount(); toast(m.done?'✅ Marked done':'↩ Marked pending'); }
+}
+
+/* ═══════════════════════════════════
+   TIMELINE IN DETAIL PAGE
+═══════════════════════════════════ */
+function renderDetailTimeline(projectId){
+  const el = document.getElementById('detail-timeline-section');
+  if(!el) return;
+  const pMs = milestones.filter(m=>m.projectId===projectId).sort((a,b)=>a.date.localeCompare(b.date));
+  const done = pMs.filter(m=>m.done).length;
+  const pct = pMs.length ? Math.round(done/pMs.length*100) : 0;
+  let html = `<div class="timeline-wrap">
+    <div class="timeline-header">
+      <div style="font-family:Fraunces,serif;font-size:18px;font-weight:600">Timeline & Milestones</div>
+      <button class="btn btn-sm btn-primary" onclick="openMilestoneModal(null,null);document.getElementById('ms-project').value=${projectId}">+ Add Milestone</button>
+    </div>`;
+  if(pMs.length){
+    html += `<div style="margin-bottom:18px">
+      <div class="prog-label"><span style="font-size:12px;font-weight:600;color:var(--text2)">Progress</span><span style="font-size:12px;font-weight:700;color:var(--teal)">${pct}% (${done}/${pMs.length})</span></div>
+      <div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:var(--teal2)"></div></div>
+    </div>`;
+    html += `<div class="tl-list">`;
+    pMs.forEach(m=>{
+      const t = MS_TYPES[m.type]||MS_TYPES.deadline;
+      const d = daysUntil(m.date);
+      const isOverdue = !m.done && d!==null && d<0;
+      const isUrgent = !m.done && d!==null && d>=0 && d<=7;
+      html += `<div class="tl-item">
+        <div class="tl-dot" style="background:${m.done?'#10B981':t.color}">${m.done?'✓':t.icon}</div>
+        <div class="tl-content ${isOverdue?'tl-overdue':isUrgent?'tl-urgent':''} ${m.done?'ms-done':''}">
+          <div class="tl-title">${m.title}</div>
+          <div class="tl-meta">
+            <span style="background:${t.bg};color:${t.color};padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600">${t.icon} ${t.label}</span>
+            <span>${fmtDate(m.date)}</span>
+            ${isOverdue?`<span style="color:var(--red);font-weight:700">⚠ Overdue ${Math.abs(d)} hari</span>`:''}
+            ${isUrgent?`<span style="color:#d97706;font-weight:700">⏰ H-${d===0?'ini':d}</span>`:''}
+            ${m.done?`<span style="color:var(--green);font-weight:600">✅ Selesai</span>`:''}
+          </div>
+          ${m.notes?`<div style="font-size:11px;color:var(--text3);margin-top:5px">${m.notes}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn btn-sm btn-ghost" onclick="openMilestoneModal(${m.id},null)" style="font-size:11px">✏ Edit</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleMsDone(${m.id});renderDetailTimeline(${projectId})" style="font-size:11px">${m.done?'↩ Undo':'✅ Done'}</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div style="text-align:center;color:var(--text3);font-size:13px;padding:28px 0">Belum ada milestone untuk proyek ini. Klik "+ Add Milestone".</div>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+/* ═══════════════════════════════════
+   NOTIFICATION CHECK ON LOAD
+═══════════════════════════════════ */
+function checkNotifications(){
+  const urgent = milestones.filter(m=>{
+    if(m.done) return false;
+    const d = daysUntil(m.date);
+    return d !== null && d >= 0 && d <= 7;
+  });
+  const overdue = milestones.filter(m=>!m.done && daysUntil(m.date)!==null && daysUntil(m.date)<0);
+  if(overdue.length){ setTimeout(()=>toast(`🚨 ${overdue.length} milestone overdue!`),1000); }
+  else if(urgent.length){ setTimeout(()=>toast(`⏰ ${urgent.length} deadline dalam 7 hari ke depan`),1000); }
+  updateDeadlineCount();
+}
+
+
+
+/* ═══════════════════════════════════
+   TEAM MEMBERS & EMAIL NOTIFICATION
+═══════════════════════════════════ */
+
+// ── Member row UI ──
+function addMemberRow(name='', email='', role=''){
+  const list = document.getElementById('members-list');
+  const id = 'mbr-' + Date.now() + Math.random().toString(36).slice(2,6);
+  const div = document.createElement('div');
+  div.className = 'member-row';
+  div.id = id;
+  div.innerHTML = `
+    <input class="inp" placeholder="Nama lengkap" value="${name}" style="height:36px"/>
+    <input class="inp" placeholder="Email" type="email" value="${email}" style="height:36px"/>
+    <button class="btn btn-ghost" onclick="document.getElementById('${id}').remove()" style="padding:6px 8px;color:var(--red)">✕</button>
+  `;
+  list.appendChild(div);
+}
+
+function getMembersFromForm(){
+  const rows = document.querySelectorAll('#members-list .member-row');
+  const members = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const name = inputs[0]?.value?.trim();
+    const email = inputs[1]?.value?.trim();
+    if(name || email) members.push({name: name||'', email: email||''});
+  });
+  return members;
+}
+
+function populateMembersForm(members){
+  const list = document.getElementById('members-list');
+  list.innerHTML = '';
+  (members||[]).forEach(m => addMemberRow(m.name, m.email));
+}
+
+// ── Notify list in milestone modal ──
+function updateNotifyList(){
+  const projectId = parseInt(document.getElementById('ms-project').value);
+  const p = projects.find(x=>x.id===projectId);
+  const el = document.getElementById('ms-notify-list');
+  if(!p || !p.members || !p.members.length){
+    el.innerHTML = '<span style="color:var(--text3);font-size:12px">Project ini belum punya anggota tim. Tambahkan dulu di Edit Project.</span>';
+    return;
+  }
+  el.innerHTML = p.members.map((m,i)=>`
+    <div class="notify-member-row">
+      <input type="checkbox" id="notify-${i}" value="${m.email}" checked style="accent-color:var(--teal);width:15px;height:15px;flex-shrink:0"/>
+      <div class="member-avatar">${(m.name||'?').charAt(0).toUpperCase()}</div>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${m.name||'—'}</div>
+        <div style="font-size:11px;color:var(--text3)">${m.email||'no email'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function getCheckedEmails(){
+  const checked = document.querySelectorAll('#ms-notify-list input[type="checkbox"]:checked');
+  return [...checked].map(c=>c.value).filter(Boolean);
+}
+
+// ── Compose mailto link ──
+function sendEmailNotifications(milestone, project){
+  const emails = getCheckedEmails();
+  if(!emails.length) return;
+  const msType = MS_TYPES[milestone.type]||MS_TYPES.deadline;
+  const subject = encodeURIComponent(`[CESGS] ${msType.icon} ${milestone.title} — ${project.title}`);
+  const dateStr = milestone.date ? new Date(milestone.date).toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'}) : '—';
+  const body = encodeURIComponent(
+`Yth. Tim ${project.title},
+
+Anda mendapat notifikasi milestone dari CESGS Project Tracker:
+
+📌 Milestone  : ${milestone.title}
+📁 Project    : ${project.title}
+🏷 Tipe       : ${msType.label}
+📅 Tanggal    : ${dateStr}
+${milestone.notes ? '📝 Catatan    : ' + milestone.notes : ''}
+
+Silakan cek detail di CESGS Project Tracker.
+
+Salam,
+CESGS — Universitas Airlangga`
+  );
+  const mailto = `mailto:${emails.join(',')}?subject=${subject}&body=${body}`;
+  window.location.href = mailto;
+}
+
+// ── Show member chips in detail panel ──
+function renderMemberChips(members){
+  if(!members||!members.length) return '<span style="color:var(--text3);font-size:12px">Belum ada anggota tim</span>';
+  return members.map(m=>`
+    <div class="member-chip">
+      <div class="member-avatar">${(m.name||'?').charAt(0).toUpperCase()}</div>
+      <div>
+        <div class="member-chip-name">${m.name||'—'}</div>
+        <div class="member-chip-email">${m.email||'no email'}</div>
+      </div>
+      ${m.email?`<a href="mailto:${m.email}" onclick="event.stopPropagation()" title="Kirim email" style="color:var(--teal);font-size:14px;text-decoration:none;margin-left:4px">✉</a>`:''}
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════
+   DOCUMENT MANAGEMENT
+═══════════════════════════════════ */
+let modalDocs = []; // temp docs list while modal is open
+
+function switchDocTab(tab){
+  document.getElementById('doc-tab-link').classList.toggle('active', tab==='link');
+  document.getElementById('doc-tab-upload').classList.toggle('active', tab==='upload');
+  document.getElementById('doc-input-link').style.display = tab==='link' ? '' : 'none';
+  document.getElementById('doc-input-upload').style.display = tab==='upload' ? '' : 'none';
+}
+
+function getDocIcon(type){
+  if(type==='link') return '🔗';
+  const ext = type?.toLowerCase();
+  if(['pdf'].includes(ext)) return '📄';
+  if(['doc','docx'].includes(ext)) return '📝';
+  if(['xls','xlsx'].includes(ext)) return '📊';
+  if(['ppt','pptx'].includes(ext)) return '📑';
+  if(['png','jpg','jpeg','gif','webp'].includes(ext)) return '🖼️';
+  if(['zip','rar','7z'].includes(ext)) return '🗜️';
+  return '📎';
+}
+
+function addDocLink(){
+  const name = document.getElementById('doc-link-name').value.trim();
+  const url = document.getElementById('doc-link-url').value.trim();
+  if(!name || !url){ toast('Isi nama dan URL dokumen'); return; }
+  if(!/^https?:\/\//i.test(url)){ toast('URL harus diawali https://'); return; }
+  modalDocs.push({ id: Date.now(), type:'link', name, url, addedAt: new Date().toISOString().split('T')[0] });
+  document.getElementById('doc-link-name').value='';
+  document.getElementById('doc-link-url').value='';
+  renderModalDocs();
+}
+
+function handleFileUpload(e){
+  const files = [...e.target.files];
+  files.forEach(f=>{
+    const ext = f.name.split('.').pop().toLowerCase();
+    const sizeKb = Math.round(f.size/1024);
+    if(f.size > 10*1024*1024){ toast(`File ${f.name} terlalu besar (max 10MB)`); return; }
+    // Store as data URL for small files, otherwise just store name/meta
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      modalDocs.push({
+        id: Date.now() + Math.random(),
+        type: ext,
+        name: f.name,
+        size: sizeKb,
+        dataUrl: ev.target.result,
+        addedAt: new Date().toISOString().split('T')[0]
+      });
+      renderModalDocs();
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function removeModalDoc(id){
+  modalDocs = modalDocs.filter(d=>d.id!==id);
+  renderModalDocs();
+}
+
+function renderModalDocs(){
+  const el = document.getElementById('doc-modal-list');
+  if(!modalDocs.length){ el.innerHTML=''; return; }
+  el.innerHTML = modalDocs.map(d=>`
+    <div class="doc-item">
+      <div class="doc-item-icon">${getDocIcon(d.type)}</div>
+      <div class="doc-item-info">
+        <div class="doc-item-name">${d.name}</div>
+        <div class="doc-item-meta">${d.type==='link'?'Link':'File · '+d.size+'KB'} · ${d.addedAt}</div>
+      </div>
+      <div class="doc-item-actions">
+        ${d.type==='link'?`<a href="${d.url}" target="_blank" class="btn btn-sm btn-ghost" style="font-size:11px">Buka</a>`:''}
+        ${d.dataUrl&&d.type!=='link'?`<a href="${d.dataUrl}" download="${d.name}" class="btn btn-sm btn-ghost" style="font-size:11px">⬇</a>`:''}
+        <button class="btn btn-sm btn-ghost" onclick="removeModalDoc(${d.id})" style="color:var(--red);font-size:11px">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function populateDocsModal(docs){
+  modalDocs = docs ? JSON.parse(JSON.stringify(docs)) : [];
+  renderModalDocs();
+}
+
+function getDocsFromModal(){
+  return modalDocs;
+}
+
+function renderDetailDocs(p){
+  const el = document.getElementById('detail-docs-section');
+  const docs = p.docs || [];
+  el.innerHTML = `
+    <div class="doc-section">
+      <div class="doc-section-title">
+        📎 Dokumen Proyek
+        <span style="font-size:11px;font-weight:400;color:var(--text3)">${docs.length} dokumen</span>
+        <button class="btn btn-sm btn-outline" onclick="openEditModal(${p.id})" style="margin-left:auto;font-size:11px">+ Tambah Dokumen</button>
+      </div>
+      ${docs.length ? `<div class="doc-list">${docs.map(d=>`
+        <div class="doc-item">
+          <div class="doc-item-icon">${getDocIcon(d.type)}</div>
+          <div class="doc-item-info">
+            <div class="doc-item-name">${d.name}</div>
+            <div class="doc-item-meta">${d.type==='link'?'🔗 Link':'📁 File'+( d.size?' · '+d.size+'KB':'')} · ${d.addedAt||''}</div>
+          </div>
+          <div class="doc-item-actions">
+            ${d.type==='link'?`<a href="${d.url}" target="_blank" class="btn btn-sm btn-outline" style="color:var(--teal2);font-size:11px">Buka →</a>`:''}
+            ${d.dataUrl&&d.type!=='link'?`<a href="${d.dataUrl}" download="${d.name}" class="btn btn-sm btn-outline" style="color:var(--teal2);font-size:11px">⬇ Unduh</a>`:''}
+          </div>
+        </div>
+      `).join('')}</div>` : `<div class="doc-empty">Belum ada dokumen. Klik <b>+ Tambah Dokumen</b> untuk menambahkan link atau file.</div>`}
+    </div>
+  `;
+}
+
+/* ═══════════════════════════════════
+   EXPORT JSON
+═══════════════════════════════════ */
+function exportJSON(){
+  const msData = (()=>{ try{ return JSON.parse(localStorage.getItem('cesgs_milestones')||'[]') }catch(e){return[]} })();
+  const data = {
+    exportedAt: new Date().toISOString(),
+    exportedBy: 'CESGS Dashboard',
+    version: '1.0',
+    projects,
+    milestones: msData,
+    revenueTargets
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cesgs-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅ File JSON berhasil didownload');
+}
+
+/* ═══════════════════════════════════
+   IMPORT JSON
+═══════════════════════════════════ */
+let impParsedData = null;
+let impMode = 'replace';
+
+function openImportModal(){
+  impParsedData = null;
+  impMode = 'replace';
+  document.getElementById('imp-drop').style.display = '';
+  document.getElementById('imp-preview').style.display = 'none';
+  document.getElementById('imp-confirm-btn').style.display = 'none';
+  document.getElementById('imp-file-input').value = '';
+  selectImpMode('replace');
+  openOv('ov-import');
+}
+
+function resetImport(){
+  impParsedData = null;
+  document.getElementById('imp-drop').style.display = '';
+  document.getElementById('imp-preview').style.display = 'none';
+  document.getElementById('imp-confirm-btn').style.display = 'none';
+  document.getElementById('imp-file-input').value = '';
+}
+
+function handleImpDrop(e){
+  e.preventDefault();
+  document.getElementById('imp-drop').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file) parseImpFile(file);
+}
+
+function handleImpFile(e){
+  const file = e.target.files[0];
+  if(file) parseImpFile(file);
+}
+
+function parseImpFile(file){
+  if(!file.name.endsWith('.json')){ toast('❌ Pilih file .json'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(!data.projects || !Array.isArray(data.projects)) throw new Error('Bukan file export CESGS yang valid');
+      impParsedData = data;
+      // Tampilkan preview
+      document.getElementById('imp-drop').style.display = 'none';
+      document.getElementById('imp-preview').style.display = '';
+      document.getElementById('imp-confirm-btn').style.display = '';
+      document.getElementById('imp-file-name-label').textContent = '📄 ' + file.name;
+      document.getElementById('imp-count-projects').textContent = data.projects.length;
+      document.getElementById('imp-count-milestones').textContent = (data.milestones||[]).length;
+      document.getElementById('imp-count-targets').textContent = Object.keys(data.revenueTargets||{}).length;
+      const expDate = data.exportedAt ? new Date(data.exportedAt).toLocaleString('id-ID') : '—';
+      document.getElementById('imp-export-info').textContent = `Diexport: ${expDate}${data.exportedBy?' · '+data.exportedBy:''}`;
+    } catch(err){
+      toast('❌ File tidak valid: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function selectImpMode(mode){
+  impMode = mode;
+  document.getElementById('imp-opt-replace').classList.toggle('selected', mode==='replace');
+  document.getElementById('imp-opt-merge').classList.toggle('selected', mode==='merge');
+}
+
+function confirmImport(){
+  if(!impParsedData){ toast('Pilih file dulu'); return; }
+  if(impMode === 'replace'){
+    if(!confirm(`Ganti semua data dengan ${impParsedData.projects.length} proyek dari file?\n\nSemua data lokal saat ini akan dihapus.`)) return;
+    projects = impParsedData.projects;
+    revenueTargets = impParsedData.revenueTargets || {};
+    if(impParsedData.milestones) try{ localStorage.setItem('cesgs_milestones', JSON.stringify(impParsedData.milestones)); }catch(e){}
+    save(); saveTargets();
+    closeOv('ov-import');
+    renderDashboard();
+    if(document.getElementById('page-projects').classList.contains('active')) renderProjectsView();
+    toast(`✅ Import berhasil: ${projects.length} proyek dimuat`);
+  } else {
+    // merge
+    const existing = new Set(projects.map(p=>p.title+'|'+p.funder));
+    const added = (impParsedData.projects||[]).filter(p=>!existing.has(p.title+'|'+p.funder));
+    projects.push(...added);
+    if(impParsedData.revenueTargets) Object.assign(revenueTargets, impParsedData.revenueTargets);
+    save(); saveTargets();
+    closeOv('ov-import');
+    renderDashboard();
+    if(document.getElementById('page-projects').classList.contains('active')) renderProjectsView();
+    toast(`✅ Merge berhasil: ${added.length} proyek baru ditambahkan`);
+  }
+}
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+bootstrapDirectorLogin();
+</script>
+</body>
+</html>
