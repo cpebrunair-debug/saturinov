@@ -21,6 +21,8 @@
       --green-soft:#e8f7f4;
       --blue:#2b6fe5;
       --blue-soft:#eaf1ff;
+      --gold:#b07a10;
+      --gold-soft:#fef7e0;
       --gradient-main:linear-gradient(135deg,#148f84 0%,#2b6fe5 100%);
       --shadow-lg:0 24px 60px rgba(19,47,84,.10);
       --shadow-md:0 14px 36px rgba(19,47,84,.08);
@@ -148,57 +150,6 @@
 
     .hero-sub strong{color:#1a2f46}
 
-    .hero-card{
-      padding:30px;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      gap:18px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.96) 0%, rgba(247,251,255,.92) 100%);
-    }
-
-    .hero-card h2{
-      font-size:clamp(1.9rem,3vw,2.8rem);
-      line-height:1.02;
-      color:#10263d;
-    }
-
-    .hero-card p{
-      margin:0;
-      font-size:15px;
-      line-height:1.8;
-      color:var(--muted);
-    }
-
-    .shortcut-list{
-      display:grid;
-      gap:12px;
-      margin:0;
-      padding:0;
-      list-style:none;
-    }
-
-    .shortcut-list li{
-      display:flex;
-      align-items:flex-start;
-      gap:12px;
-      font-size:14px;
-      line-height:1.75;
-      color:var(--muted);
-    }
-
-    .shortcut-list li::before{
-      content:"";
-      width:11px;
-      height:11px;
-      border-radius:50%;
-      margin-top:6px;
-      flex-shrink:0;
-      background:var(--gradient-main);
-      box-shadow:0 0 0 5px rgba(43,111,229,.08);
-    }
-
     .cards{
       display:grid;
       gap:18px;
@@ -228,14 +179,8 @@
 
     .nav-card.applied::before{background:linear-gradient(135deg,#148f84,#57d1c4)}
     .nav-card.fundamental::before{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
-
     .nav-card.monitoring::before{background:linear-gradient(135deg,#7a52cc,#b08cff)}
-
-    .nav-card.monitoring:hover{border-color:rgba(122,82,204,.24)}
-
-    .badge.monitoring{background:#f3edff;color:#6d45c0}
-
-    .icon.monitoring{background:linear-gradient(135deg,#7a52cc,#b08cff)}
+    .nav-card.portfolio::before{background:linear-gradient(135deg,#b07a10,#f0c040)}
 
     .nav-card:hover{
       transform:translateY(-4px);
@@ -244,6 +189,8 @@
 
     .nav-card.applied:hover{border-color:rgba(20,143,132,.22)}
     .nav-card.fundamental:hover{border-color:rgba(43,111,229,.24)}
+    .nav-card.monitoring:hover{border-color:rgba(122,82,204,.24)}
+    .nav-card.portfolio:hover{border-color:rgba(176,122,16,.24)}
 
     .nav-card:focus-visible{
       outline:3px solid rgba(43,111,229,.18);
@@ -272,6 +219,8 @@
 
     .badge.applied{background:var(--green-soft);color:var(--green)}
     .badge.fundamental{background:var(--blue-soft);color:var(--blue)}
+    .badge.monitoring{background:#f3edff;color:#6d45c0}
+    .badge.portfolio{background:var(--gold-soft);color:var(--gold)}
 
     .icon{
       width:76px;
@@ -289,6 +238,8 @@
 
     .icon.applied{background:linear-gradient(135deg,#148f84,#57d1c4)}
     .icon.fundamental{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
+    .icon.monitoring{background:linear-gradient(135deg,#7a52cc,#b08cff)}
+    .icon.portfolio{background:linear-gradient(135deg,#b07a10,#f0c040)}
 
     .nav-card h3{
       font-size:clamp(2rem,3.6vw,3rem);
@@ -387,16 +338,6 @@
       color:#18314a;
     }
 
-    .logo-item small{
-      display:block;
-      margin-top:4px;
-      font-family:var(--font-body);
-      font-size:11px;
-      letter-spacing:0;
-      font-weight:700;
-      color:var(--muted);
-    }
-
     .footer-note{
       margin-top:18px;
       border-radius:22px;
@@ -413,7 +354,7 @@
     @media (max-width: 980px){
       .page{width:min(100% - 24px, 980px); padding:18px 0 36px}
       .hero{grid-template-columns:1fr}
-      .hero-copy,.hero-card,.nav-card,.collab-card{padding:24px}
+      .hero-copy,.nav-card,.collab-card{padding:24px}
       .collab-wrap{grid-template-columns:1fr}
     }
 
@@ -421,9 +362,9 @@
       .page{width:min(100% - 18px, 640px); padding:14px 0 26px}
       .hero{gap:14px; margin-bottom:16px}
       .panel,.nav-card,.collab-card,.footer-note{border-radius:22px}
-      .hero-copy,.hero-card,.nav-card,.collab-card{padding:20px}
+      .hero-copy,.nav-card,.collab-card{padding:20px}
       .hero-title{max-width:12ch}
-      .hero-sub,.hero-card p,.nav-card p{font-size:14px; line-height:1.8}
+      .hero-sub,.nav-card p{font-size:14px; line-height:1.8}
       .card-top,.collab-head{align-items:flex-start}
       .icon{width:64px;height:64px;border-radius:20px;font-size:24px}
       .badge{font-size:11px;padding:0 14px}
@@ -442,7 +383,6 @@
           Divisi Riset dan Inovasi CESGS menaungi dua jalur utama. <strong>Fundamental Research</strong> berfokus pada jurnal, artikel ilmiah, dan aktivitas riset kolaboratif berbasis publikasi ilmiah. <strong>Applied Research</strong> berfokus pada consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
         </p>
       </div>
-
     </section>
 
     <section class="cards" aria-label="Menu dashboard riset">
@@ -452,9 +392,7 @@
           <div class="icon applied">A</div>
         </div>
         <h3>Applied Research</h3>
-        <p>
-          Jalur applied untuk consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
-        </p>
+        <p>Jalur applied untuk consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.</p>
         <div class="hint">Klik kartu untuk masuk ke dashboard</div>
       </a>
 
@@ -464,12 +402,9 @@
           <div class="icon fundamental">F</div>
         </div>
         <h3>Fundamental Research</h3>
-        <p>
-          Jalur fundamental untuk jurnal, artikel ilmiah, dan berbagai aktivitas riset kolaboratif berbasis publikasi ilmiah.
-        </p>
+        <p>Jalur fundamental untuk jurnal, artikel ilmiah, dan berbagai aktivitas riset kolaboratif berbasis publikasi ilmiah.</p>
         <div class="hint">Klik kartu untuk masuk ke dashboard</div>
       </a>
-
 
       <a class="nav-card monitoring" href="https://cpebrunair-debug.github.io/saturinov/projectmonitor" aria-label="Masuk ke dashboard Project Monitoring">
         <div class="card-top">
@@ -477,10 +412,18 @@
           <div class="icon monitoring">P</div>
         </div>
         <h3>Project Monitoring</h3>
-        <p>
-          Jalur monitoring untuk memantau perkembangan project dan mengakses dashboard project monitoring secara langsung.
-        </p>
+        <p>Jalur monitoring untuk memantau perkembangan project dan mengakses dashboard project monitoring secara langsung.</p>
         <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+      </a>
+
+      <a class="nav-card portfolio" href="https://cpebrunair-debug.github.io/portofolio/home" aria-label="Masuk ke halaman Portofolio dan Publikasi">
+        <div class="card-top">
+          <div class="badge portfolio">Portofolio &amp; Publikasi</div>
+          <div class="icon portfolio">P</div>
+        </div>
+        <h3>Portofolio &amp; Publikasi</h3>
+        <p>Akses daftar portofolio Applied Research dan publikasi ilmiah Fundamental Research CESGS.</p>
+        <div class="hint">Klik kartu untuk masuk ke halaman</div>
       </a>
     </section>
 
