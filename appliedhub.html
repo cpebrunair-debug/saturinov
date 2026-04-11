@@ -2365,6 +2365,7 @@ function saveAll(){
     if(currentUserSession) localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession));
     else localStorage.removeItem('cesgs_hub_session');
   }catch(e){}
+  syncAccountProfileDatabaseFromStores();
   pushProjectHubToSuperState();
 }
 function ensurePrimarySuperadminAccount(state){
@@ -2415,6 +2416,7 @@ function loadAll(){
   }catch(e){}
   Object.values(adminState.customProjects||{}).forEach(p=>{PROJECTS[p.id]=p});
   pullSuperAdminState();
+  syncAccountProfileDatabaseFromStores();
   if(currentUserSession && currentUserSession.email){
     const stored = getCurrentAccountProfile();
     if(stored) currentUserSession = normalizeUserSession({...currentUserSession, ...stored});
@@ -4820,21 +4822,28 @@ function hasGlobalProjectAccess(user){
 }
 function isProjectDeliveryRole(role){ return /manager|staff|expert/i.test(String(role || '')); }
 function normalizeUserSession(user){
-  const role = user && user.role ? user.role : 'Client / Partner';
-  const canManage = !!(user && user.canManage) || isManagementRole(role);
-  let projects = Array.isArray(user && user.projects) ? user.projects.filter(pid => !!PROJECTS[pid]) : [];
+  const source = user && typeof user === 'object' ? user : {};
+  const overlay = source.email ? (getAccountProfileRecord(source.email) || {}) : {};
+  const mergedUser = {
+    ...source,
+    ...overlay,
+    projects:[...new Set([...(Array.isArray(source.projects) ? source.projects : []), ...(Array.isArray(overlay.projects) ? overlay.projects : [])])]
+  };
+  const role = mergedUser && mergedUser.role ? mergedUser.role : 'Client / Partner';
+  const canManage = typeof mergedUser.canManage === 'boolean' ? mergedUser.canManage : isManagementRole(role);
+  let projects = Array.isArray(mergedUser && mergedUser.projects) ? mergedUser.projects.filter(pid => !!PROJECTS[pid]) : [];
   if (canManage && !projects.length) projects = hasGlobalProjectAccess({role}) ? Object.keys(PROJECTS) : [];
   return {
-    email: String(user && user.email || '').toLowerCase(),
-    password: user && user.password ? user.password : '',
-    name: user && user.name ? user.name : ((user && user.email) ? user.email.split('@')[0] : 'Project User'),
+    email: String(mergedUser && mergedUser.email || '').toLowerCase(),
+    password: mergedUser && mergedUser.password ? mergedUser.password : '',
+    name: mergedUser && mergedUser.name ? mergedUser.name : ((mergedUser && mergedUser.email) ? mergedUser.email.split('@')[0] : 'Project User'),
     role,
     projects:[...new Set(projects)],
     canManage,
-    cv: String(user && user.cv || ''),
-    institution: String(user && user.institution || ''),
-    profileLink: sanitizeProfileLink(user && user.profileLink || ''),
-    photoUrl: sanitizeMediaUrl(user && user.photoUrl || '')
+    cv: String(mergedUser && mergedUser.cv || ''),
+    institution: String(mergedUser && mergedUser.institution || ''),
+    profileLink: sanitizeProfileLink(mergedUser && mergedUser.profileLink || ''),
+    photoUrl: sanitizeMediaUrl(mergedUser && mergedUser.photoUrl || '')
   };
 }
 function createAnonymousSession(pid){
@@ -4996,6 +5005,12 @@ function getUserAccounts(){
       }
     });
   }
+  const profileDb = getAccountProfileDatabase();
+  Object.values(profileDb.accounts || {}).forEach((account) => {
+    if(!account || !account.email || (account.status || 'active') === 'inactive') return;
+    const normalized = normalizeUserSession(account);
+    if(normalized.email && normalized.password && (normalized.projects.length || !normalized.canManage)) accounts.push(normalized);
+  });
   USER_ACCOUNTS_FALLBACK.forEach(acc=>accounts.push(acc));
   return dedupeAccountsByEmail(accounts);
 }
@@ -5229,6 +5244,7 @@ function getRecentMessages(state, limit){
 function getCurrentAccountProfile(){
   const email = currentUserEmail();
   if(!email) return currentUserSession || null;
+  const profileRecord = getAccountProfileRecord(email);
   const pools = [
     ...(Array.isArray(adminState?.admins) ? adminState.admins : []),
     ...(Array.isArray(getUserAccounts()) ? getUserAccounts() : [])
@@ -5238,7 +5254,8 @@ function getCurrentAccountProfile(){
     if(Array.isArray(superState?.[pool])) pools.push(...superState[pool]);
   });
   const found = pools.find(acc => String(acc?.email || '').toLowerCase() === email);
-  return found ? normalizeUserSession({...found}) : (currentUserSession || null);
+  if(found || profileRecord) return normalizeUserSession({...found, ...profileRecord});
+  return currentUserSession || null;
 }
 
 function syncCurrentUserProfileViews(){
@@ -5268,10 +5285,19 @@ function syncCurrentUserProfileViews(){
 function updateStoredAccountProfile(email, fields){
   const normalizedEmail = String(email || '').toLowerCase();
   if(!normalizedEmail) return false;
+  const normalizedFields = {
+    ...(fields && typeof fields === 'object' ? fields : {}),
+    cv: String(fields?.cv || ''),
+    institution: String(fields?.institution || ''),
+    profileLink: sanitizeProfileLink(fields?.profileLink || ''),
+    photoUrl: sanitizeMediaUrl(fields?.photoUrl || '')
+  };
   let updated = false;
+  const currentProfile = getAccountProfileRecord(normalizedEmail) || getCurrentAccountProfile() || currentUserSession || {email: normalizedEmail};
+  upsertAccountProfileRecord(normalizedEmail, {...currentProfile, ...normalizedFields}, {source:'profile_edit'});
   (adminState.admins || []).forEach(adm => {
     if(String(adm.email || '').toLowerCase() === normalizedEmail){
-      Object.assign(adm, fields);
+      Object.assign(adm, normalizedFields);
       updated = true;
     }
   });
@@ -5281,13 +5307,13 @@ function updateStoredAccountProfile(email, fields){
     if(!Array.isArray(superState[pool])) return;
     superState[pool].forEach(acc => {
       if(String(acc.email || '').toLowerCase() === normalizedEmail){
-        Object.assign(acc, fields);
+        Object.assign(acc, normalizedFields);
         updated = true;
       }
     });
   });
-  if(!updated && currentUserSession && String(currentUserSession.email || '').toLowerCase() === normalizedEmail){
-    const base = getCurrentAccountProfile() || currentUserSession || {};
+  if(!updated){
+    const base = getAccountProfileRecord(normalizedEmail) || currentProfile || {};
     superState.userAccounts.unshift({
       id:`u-${Date.now()}`,
       name:base.name || currentUserName(),
@@ -5298,16 +5324,17 @@ function updateStoredAccountProfile(email, fields){
       institution:String(base.institution || '').trim(),
       status:'active',
       createdAt:new Date().toISOString().slice(0,10),
-      ...fields
+      ...normalizedFields
     });
     updated = true;
   }
   localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(superState));
   if(currentUserSession && String(currentUserSession.email || '').toLowerCase() === normalizedEmail){
     const base = getCurrentAccountProfile() || currentUserSession || {};
-    currentUserSession = normalizeUserSession({...base, ...fields});
+    currentUserSession = normalizeUserSession({...base, ...normalizedFields});
     try{ localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession)); }catch(e){}
   }
+  syncAccountProfileDatabaseFromStores();
   if(updated) saveAll();
   return updated;
 }
@@ -6879,7 +6906,151 @@ function formatFileSize(bytes){
 
 const JSON_BACKUP_TYPE = 'cesgs_project_hub_backup';
 const JSON_BACKUP_VERSION = 1;
+const ACCOUNT_PROFILE_DB_KEY = 'cesgs_account_profile_db';
+const ACCOUNT_PROFILE_DB_VERSION = 1;
+
+function getEmptyAccountProfileDb(){
+  return {version: ACCOUNT_PROFILE_DB_VERSION, accounts: {}};
+}
+function getAccountProfileDatabase(){
+  const raw = parseJSONSafe(ACCOUNT_PROFILE_DB_KEY, getEmptyAccountProfileDb());
+  const db = raw && typeof raw === 'object' ? raw : getEmptyAccountProfileDb();
+  if(!db.accounts || typeof db.accounts !== 'object' || Array.isArray(db.accounts)) db.accounts = {};
+  if(!db.version) db.version = ACCOUNT_PROFILE_DB_VERSION;
+  return db;
+}
+function saveAccountProfileDatabase(db){
+  const next = db && typeof db === 'object' ? db : getEmptyAccountProfileDb();
+  if(!next.accounts || typeof next.accounts !== 'object' || Array.isArray(next.accounts)) next.accounts = {};
+  next.version = ACCOUNT_PROFILE_DB_VERSION;
+  localStorage.setItem(ACCOUNT_PROFILE_DB_KEY, JSON.stringify(next));
+  return next;
+}
+function buildAccountProfileRecord(email, data){
+  const payload = data && typeof data === 'object' ? data : {};
+  const normalizedEmail = String(email || payload.email || '').trim().toLowerCase();
+  if(!normalizedEmail) return null;
+  const role = String(payload.role || 'Client / Partner');
+  const canManage = typeof payload.canManage === 'boolean' ? payload.canManage : isManagementRole(role);
+  let projects = Array.isArray(payload.projects) ? payload.projects.filter(pid => !!PROJECTS[pid]) : [];
+  if(canManage && !projects.length && hasGlobalProjectAccess({role})) projects = Object.keys(PROJECTS);
+  return {
+    id: payload.id || `profile-${normalizedEmail.replace(/[^a-z0-9]+/g,'-')}`,
+    email: normalizedEmail,
+    password: String(payload.password || ''),
+    name: String(payload.name || (normalizedEmail.split('@')[0] || 'Project User')),
+    role,
+    projects: [...new Set(projects)],
+    canManage,
+    cv: String(payload.cv || ''),
+    institution: String(payload.institution || ''),
+    profileLink: sanitizeProfileLink(payload.profileLink || ''),
+    photoUrl: sanitizeMediaUrl(payload.photoUrl || ''),
+    status: String(payload.status || 'active'),
+    createdAt: payload.createdAt || new Date().toISOString().slice(0,10),
+    updatedAt: payload.updatedAt || new Date().toISOString(),
+    source: String(payload.source || 'profile_db')
+  };
+}
+function getAccountProfileRecord(email){
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if(!normalizedEmail) return null;
+  const db = getAccountProfileDatabase();
+  const record = db.accounts && db.accounts[normalizedEmail];
+  return record ? buildAccountProfileRecord(normalizedEmail, record) : null;
+}
+function upsertAccountProfileRecord(email, fields, options){
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if(!normalizedEmail) return null;
+  const opts = options && typeof options === 'object' ? options : {};
+  const db = getAccountProfileDatabase();
+  const current = db.accounts[normalizedEmail] || {email: normalizedEmail};
+  const next = buildAccountProfileRecord(normalizedEmail, {
+    ...current,
+    ...(fields && typeof fields === 'object' ? fields : {}),
+    email: normalizedEmail,
+    updatedAt: new Date().toISOString(),
+    source: opts.source || current.source || 'profile_db'
+  });
+  db.accounts[normalizedEmail] = next;
+  saveAccountProfileDatabase(db);
+  return next;
+}
+function mergeAccountProfileDatabase(currentDb, incomingDb){
+  const current = currentDb && typeof currentDb === 'object' ? safeStructuredClone(currentDb) : getEmptyAccountProfileDb();
+  const incoming = incomingDb && typeof incomingDb === 'object' ? incomingDb : {};
+  const next = current || getEmptyAccountProfileDb();
+  if(!next.accounts || typeof next.accounts !== 'object' || Array.isArray(next.accounts)) next.accounts = {};
+  let incomingAccounts = {};
+  if(Array.isArray(incoming.accounts)) {
+    incoming.accounts.forEach(item => {
+      const email = String(item && item.email || '').trim().toLowerCase();
+      if(email) incomingAccounts[email] = item;
+    });
+  } else if(incoming.accounts && typeof incoming.accounts === 'object') {
+    incomingAccounts = incoming.accounts;
+  } else if(!('accounts' in incoming)) {
+    incomingAccounts = incoming;
+  }
+  Object.keys(incomingAccounts || {}).forEach(key => {
+    const record = incomingAccounts[key];
+    const normalizedEmail = String(record && record.email || key || '').trim().toLowerCase();
+    if(!normalizedEmail) return;
+    const merged = mergePlainObject(next.accounts[normalizedEmail], record);
+    next.accounts[normalizedEmail] = buildAccountProfileRecord(normalizedEmail, merged);
+  });
+  next.version = ACCOUNT_PROFILE_DB_VERSION;
+  return next;
+}
+function syncAccountProfileDatabaseFromStores(){
+  const db = getAccountProfileDatabase();
+  const register = (account, source) => {
+    if(!account || !account.email) return;
+    const normalizedEmail = String(account.email || '').trim().toLowerCase();
+    if(!normalizedEmail) return;
+    const current = db.accounts[normalizedEmail] || {};
+    db.accounts[normalizedEmail] = buildAccountProfileRecord(normalizedEmail, {
+      ...account,
+      ...current,
+      email: normalizedEmail,
+      password: current.password || account.password || '',
+      name: current.name || account.name || '',
+      role: current.role || account.role || 'Client / Partner',
+      projects: (Array.isArray(current.projects) && current.projects.length ? current.projects : (Array.isArray(account.projects) ? account.projects : [])),
+      canManage: typeof current.canManage === 'boolean' ? current.canManage : (typeof account.canManage === 'boolean' ? account.canManage : isManagementRole(account.role)),
+      institution: current.institution || account.institution || '',
+      cv: current.cv || account.cv || '',
+      profileLink: current.profileLink || account.profileLink || '',
+      photoUrl: current.photoUrl || account.photoUrl || '',
+      status: current.status || account.status || 'active',
+      createdAt: current.createdAt || account.createdAt || new Date().toISOString().slice(0,10),
+      source: current.source || source || 'store_sync'
+    });
+  };
+  (adminState.admins || []).forEach(acc => register({
+    email: acc.email,
+    password: acc.password,
+    name: acc.name,
+    role: acc.isPrimary ? 'Superadmin' : (acc.role || 'Admin'),
+    projects: Array.isArray(acc.projects) ? acc.projects : Object.keys(PROJECTS),
+    canManage: true,
+    institution: acc.institution || '',
+    cv: acc.cv || '',
+    profileLink: acc.profileLink || '',
+    photoUrl: acc.photoUrl || '',
+    createdAt: acc.createdAt || ''
+  }, 'admin_state'));
+  MANAGEMENT_DEMO_ACCOUNTS.forEach(acc => register(acc, 'seed_account'));
+  const superState = parseJSONSafe(SUPERADMIN_STORAGE_KEY, {}) || {};
+  ['userAccounts','clients'].forEach(pool => {
+    (Array.isArray(superState[pool]) ? superState[pool] : []).forEach(acc => register(acc, `superadmin_${pool}`));
+  });
+  if(currentUserSession && currentUserSession.email) register(currentUserSession, 'current_session');
+  saveAccountProfileDatabase(db);
+  return db;
+}
 function buildJsonBackupPayload(){
+  syncAccountProfileDatabaseFromStores();
   return {
     backupType: JSON_BACKUP_TYPE,
     version: JSON_BACKUP_VERSION,
@@ -6894,7 +7065,8 @@ function buildJsonBackupPayload(){
       projectData: JSON.parse(JSON.stringify(projectData || {})),
       authenticatedProjects: JSON.parse(JSON.stringify(authenticatedProjects || {})),
       adminState: JSON.parse(JSON.stringify(adminState || DEFAULT_ADMIN_STATE)),
-      superadminState: parseJSONSafe(SUPERADMIN_STORAGE_KEY, null)
+      superadminState: parseJSONSafe(SUPERADMIN_STORAGE_KEY, null),
+      accountProfileDb: getAccountProfileDatabase()
     }
   };
 }
@@ -7049,26 +7221,30 @@ function applyJsonBackupPayload(payload){
   const adminWasOpen = document.getElementById('admin-console')?.style.display === 'block';
   const data = payload && payload.backupType === JSON_BACKUP_TYPE ? (payload.data || {}) : payload;
   if(!data || typeof data !== 'object') throw new Error('INVALID_BACKUP');
-  if(!('projectData' in data) && !('adminState' in data) && !('superadminState' in data) && !('authenticatedProjects' in data)) throw new Error('INVALID_BACKUP');
+  if(!('projectData' in data) && !('adminState' in data) && !('superadminState' in data) && !('authenticatedProjects' in data) && !('accountProfileDb' in data)) throw new Error('INVALID_BACKUP');
 
   const currentProjectStore = parseJSONSafe('cesgs_hub_data', projectData || {});
   const currentAuthStore = parseJSONSafe('cesgs_hub_auth', authenticatedProjects || {});
   const currentAdminStore = parseJSONSafe('cesgs_admin_state', adminState || DEFAULT_ADMIN_STATE);
   const currentSuperStore = parseJSONSafe(SUPERADMIN_STORAGE_KEY, null);
+  const currentProfileDb = getAccountProfileDatabase();
 
   const mergedProjectStore = ('projectData' in data) ? mergeProjectDataStore(currentProjectStore, data.projectData || {}) : currentProjectStore;
   const mergedAuthStore = ('authenticatedProjects' in data) ? mergeAuthenticatedProjects(currentAuthStore, data.authenticatedProjects || {}) : currentAuthStore;
   const mergedAdminStore = ('adminState' in data) ? mergeAdminStateData(currentAdminStore, data.adminState || DEFAULT_ADMIN_STATE) : currentAdminStore;
   const mergedSuperStore = ('superadminState' in data) ? mergeSuperadminStateData(currentSuperStore, data.superadminState) : currentSuperStore;
+  const mergedProfileDb = ('accountProfileDb' in data) ? mergeAccountProfileDatabase(currentProfileDb, data.accountProfileDb || {}) : currentProfileDb;
 
   localStorage.setItem('cesgs_hub_data', JSON.stringify(mergedProjectStore || {}));
   localStorage.setItem('cesgs_hub_auth', JSON.stringify(mergedAuthStore || {}));
   localStorage.setItem('cesgs_admin_state', JSON.stringify(mergedAdminStore || DEFAULT_ADMIN_STATE));
   if(mergedSuperStore === null || mergedSuperStore === undefined) localStorage.removeItem(SUPERADMIN_STORAGE_KEY);
   else localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(mergedSuperStore));
+  saveAccountProfileDatabase(mergedProfileDb || getEmptyAccountProfileDb());
 
   loadAll();
   ensureAllProjectEnhancements();
+  syncAccountProfileDatabaseFromStores();
 
   const currentHint = currentUserSession ? {email: currentUserSession.email || '', password: currentUserSession.password || ''} : null;
   const candidates = [payload?.sessionHint, data?.sessionHint, currentHint].filter(Boolean);
@@ -7153,13 +7329,13 @@ function renderBackupTools(){
     <div class="info-list" style="margin-bottom:14px">
       <div class="info-row"><span>Signed in as</span><strong>${escapeHtml(role)}</strong></div>
       <div class="info-row"><span>Active project</span><strong>${escapeHtml(PROJECTS[currentProjectId]?.name || currentProjectId || 'General workspace')}</strong></div>
-      <div class="info-row"><span>Backup scope</span><strong>Projects, accounts, tasks, timeline, documents, notifications</strong></div>
+      <div class="info-row"><span>Backup scope</span><strong>Projects, accounts, profile database, tasks, timeline, documents, notifications</strong></div>
     </div>
     <div class="manager-form-actions">
       <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
       <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
     </div>
-    <div class="helper-text" style="margin-top:12px">Import akan merge data dari file JSON ke database lokal browser ini. Jika ada item dengan ID atau email yang sama, data dari file import akan memperbarui item tersebut.</div>`;
+    <div class="helper-text" style="margin-top:12px">Import akan merge data dari file JSON ke database lokal browser ini. Database profil akun (CV, institusi, link profil, foto, role, dan assignment proyek) juga ikut diperbarui jika email yang sama ditemukan.</div>`;
 }
 function accountTypeFromRole(role){
   const normalized = String(role || '').toLowerCase();
