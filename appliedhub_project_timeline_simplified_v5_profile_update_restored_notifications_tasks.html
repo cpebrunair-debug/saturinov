@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -1235,6 +1236,8 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
           <div class="signin-err" id="landing-login-err"></div>
           <button class="signin-action" type="button" onclick="doLandingLogin()">Login</button>
         </div>
+
+        <div class="signin-note">Satu tombol login ini berlaku untuk seluruh akun. Dashboard tujuan akan menyesuaikan otomatis dengan role pemilik akun.</div>
       </div>
     </div>
   </div>
@@ -9331,6 +9334,7 @@ window.addEventListener('load', ()=>{ if(currentUserSession) renderUserProfileEd
     </div>
   </div>
 </div>
+
 <div id="superadmin-shell" class="superadmin-shell" aria-hidden="true">
   <button type="button" class="superadmin-back-btn" onclick="closeIntegratedSuperAdmin()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2
