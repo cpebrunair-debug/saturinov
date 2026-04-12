@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -1236,8 +1235,6 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
           <div class="signin-err" id="landing-login-err"></div>
           <button class="signin-action" type="button" onclick="doLandingLogin()">Login</button>
         </div>
-
-        <div class="signin-note">Satu tombol login ini berlaku untuk seluruh akun. Dashboard tujuan akan menyesuaikan otomatis dengan role pemilik akun.</div>
       </div>
     </div>
   </div>
@@ -1695,6 +1692,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
     <button class="btn btn-teal" onclick="openAddMeetingModal()">+ Add Meeting</button>
   </div>
+  <div id="meeting-dashboard-calendar-section" style="margin-bottom:18px"></div>
   <div id="meetings-list-container"></div>
 </div>
 
@@ -1778,7 +1776,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
     <div class="collab-list" id="collab-list"></div>
   </div>
 </div>
-<input id="json-backup-import-input" type="file" accept="application/json,.json" style="display:none" onchange="handleJsonBackupImport(event)"/>
+<input id="json-backup-import-input" type="file" accept="application/json,.json" multiple style="display:none" onchange="handleJsonBackupImport(event)"/>
 <input id="profile-calendar-import-input" type="file" accept=".ics,.ical,.ifb,text/calendar" style="display:none" onchange="handleProfileCalendarImport(event)"/>
 
 <div class="page" id="page-profile">
@@ -1974,7 +1972,13 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
       </div>
       <div class="form-row"><label class="inp-label">Platform / Location</label><input class="inp" id="nm-loc" placeholder="Zoom / Room 3"/></div>
       <div class="form-row"><label class="inp-label">Agenda</label><textarea class="textarea" id="nm-agenda" placeholder="Main topics..."></textarea></div>
-      <div class="form-row"><label class="inp-label">Attendees</label><div id="nm-attendees" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div></div>
+      <div class="form-row">
+        <label class="inp-label">Pilih akun terkait</label>
+        <div id="nm-account-checklist" class="bk-account-checklist" style="max-height:220px"></div>
+        <select class="inp" id="nm-account-select" multiple size="7" style="display:none"></select>
+        <div class="helper-text" style="margin-top:8px">Gunakan checkbox untuk memilih lebih dari satu akun yang terlibat dalam meeting ini.</div>
+      </div>
+      <div class="form-row"><label class="inp-label">Partner / attendee tambahan</label><div id="nm-attendees" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeOv('ov-add-meeting')">Cancel</button><button class="btn btn-teal" onclick="saveMeeting()">Add Meeting</button></div>
   </div>
@@ -2894,6 +2898,53 @@ function renderScheduleOwnerChecklist(){
   });
 }
 
+function populateMeetingAccountOptions(){
+  const select=document.getElementById('nm-account-select');
+  if(!select) return;
+  const options=getAccountDirectoryOptions(currentProjectId,{includeClients:true,includeManagement:true});
+  const currentValues=new Set(Array.from(select.selectedOptions || []).map(opt=>String(opt.value||'')));
+  select.innerHTML=options.map(opt=>`<option value="${escapeHtml(opt.value)}" data-email="${escapeHtml(opt.email||'')}" data-role="${escapeHtml(opt.role||'')}" data-institution="${escapeHtml(opt.institution||'')}">${escapeHtml(opt.label)}</option>`).join('');
+  Array.from(select.options || []).forEach(opt=>{ opt.selected=currentValues.has(opt.value); });
+  renderMeetingAccountChecklist();
+}
+
+function getSelectedMeetingAccountRecipients(){
+  const select=document.getElementById('nm-account-select');
+  if(!select) return [];
+  return Array.from(select.selectedOptions || []).map(opt=>({
+    name:String(opt.value||'').trim(),
+    email:String(opt.getAttribute('data-email')||'').trim().toLowerCase(),
+    role:String(opt.getAttribute('data-role')||'').trim(),
+    institution:String(opt.getAttribute('data-institution')||'').trim()
+  })).filter(item=>item.name);
+}
+
+function renderMeetingAccountChecklist(){
+  const select=document.getElementById('nm-account-select');
+  const checklist=document.getElementById('nm-account-checklist');
+  if(!select || !checklist) return;
+  const options=Array.from(select.options||[]);
+  if(!options.length){
+    checklist.innerHTML='<div class="helper-text">Belum ada akun proyek yang bisa dipilih pada dashboard ini.</div>';
+    return;
+  }
+  checklist.innerHTML=options.map((opt,idx)=>`<label class="bk-account-check-item">
+    <input type="checkbox" data-meeting-account-index="${idx}" ${opt.selected ? 'checked' : ''}/>
+    <span class="bk-account-check-meta">
+      <span class="bk-account-check-name">${escapeHtml(opt.value || opt.textContent || 'Account')}</span>
+      <span class="bk-account-check-sub">${escapeHtml(opt.textContent || '')}${opt.getAttribute('data-institution') && opt.getAttribute('data-institution')!=='No institution' ? ` · ${escapeHtml(opt.getAttribute('data-institution'))}` : ''}</span>
+    </span>
+  </label>`).join('');
+  checklist.querySelectorAll('input[data-meeting-account-index]').forEach(input=>{
+    input.addEventListener('change',()=>{
+      const idx=Number(input.getAttribute('data-meeting-account-index'));
+      if(Number.isNaN(idx) || !select.options[idx]) return;
+      select.options[idx].selected=!!input.checked;
+      renderMeetingAccountChecklist();
+    });
+  });
+}
+
 function renderBookingAccountChecklist(){
   const accountSelect=document.getElementById('bk-name-account');
   const checklist=document.getElementById('bk-name-account-checklist');
@@ -3517,6 +3568,9 @@ function openAddMeetingModal(){
   document.getElementById('nm-title').value='';document.getElementById('nm-date').value='';
   document.getElementById('nm-time').value='';document.getElementById('nm-loc').value='';
   document.getElementById('nm-agenda').value='';nmAttendees={};
+  populateMeetingAccountOptions();
+  Array.from(document.getElementById('nm-account-select')?.options || []).forEach(opt=>{ opt.selected=false; });
+  renderMeetingAccountChecklist();
   const el=document.getElementById('nm-attendees');
   if(!s.partners.length){el.innerHTML='<span style="font-size:13px;color:var(--ink3)">Add partners first</span>'}
   else{el.innerHTML=s.partners.map((p,i)=>`<div class="p-row" id="nma-${i}" onclick="toggleNMA('${esc(p)}',${i})" style="margin-bottom:0;padding:6px 10px">
@@ -3534,14 +3588,20 @@ function saveMeeting(){
   const s=getState();if(!s)return;
   const title=document.getElementById('nm-title').value.trim();const date=document.getElementById('nm-date').value;
   if(!title||!date){toast('Fill in title and date');return}
+  const selectedAccounts=getSelectedMeetingAccountRecipients();
+  const selectedPartners=Object.keys(nmAttendees).filter(k=>nmAttendees[k]);
+  const attendees=[...new Set([...selectedAccounts.map(item=>item.name), ...selectedPartners])];
   s.meetings.push({id:Date.now(),title,date,time:document.getElementById('nm-time').value.trim(),
     location:document.getElementById('nm-loc').value.trim(),agenda:document.getElementById('nm-agenda').value.trim(),
-    attendees:Object.keys(nmAttendees).filter(k=>nmAttendees[k]),status:'upcoming'});
+    attendees,accounts:selectedAccounts.map(item=>item.name),accountEmails:selectedAccounts.map(item=>item.email).filter(Boolean),status:'upcoming'});
+  Array.from(document.getElementById('nm-account-select')?.options || []).forEach(opt=>{ opt.selected=false; });
+  renderMeetingAccountChecklist();
   closeOv('ov-add-meeting');renderMeetingsList();renderCalendar();refreshDashboard();saveAll();toast('Meeting added!');
 }
 
 function renderMeetingsList(){
   const s=getState();if(!s)return;
+  renderMeetingDashboardCalendarSection();
   const el=document.getElementById('meetings-list-container');
   const visibleProjectIds=getVisibleCalendarProjectIds();
   const meetingItems=[];
@@ -7538,9 +7598,27 @@ function mergeUniqueNumberArray(currentArr, incomingArr){
   return values;
 }
 function mergePlainObject(currentObj, incomingObj){
-  const base = currentObj && typeof currentObj === 'object' && !Array.isArray(currentObj) ? safeStructuredClone(currentObj) : {};
-  const incoming = incomingObj && typeof incomingObj === 'object' && !Array.isArray(incomingObj) ? safeStructuredClone(incomingObj) : {};
-  return {...base, ...incoming};
+  const isPlain = value => !!value && typeof value === 'object' && !Array.isArray(value);
+  const mergeValue = (currentValue, incomingValue) => {
+    if(incomingValue === undefined) return safeStructuredClone(currentValue);
+    if(incomingValue === null) return currentValue === undefined ? null : safeStructuredClone(currentValue);
+    if(Array.isArray(currentValue) || Array.isArray(incomingValue)){
+      return mergeRecordArrays(Array.isArray(currentValue) ? currentValue : [], Array.isArray(incomingValue) ? incomingValue : [], ['id','email','name','title','date','time']);
+    }
+    if(isPlain(currentValue) || isPlain(incomingValue)){
+      const base = isPlain(currentValue) ? currentValue : {};
+      const incoming = isPlain(incomingValue) ? incomingValue : {};
+      const merged = {};
+      const keys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
+      keys.forEach(key => {
+        merged[key] = mergeValue(base[key], incoming[key]);
+      });
+      return merged;
+    }
+    if(incomingValue === '') return currentValue === undefined ? '' : safeStructuredClone(currentValue);
+    return safeStructuredClone(incomingValue);
+  };
+  return mergeValue(currentObj, incomingObj) || {};
 }
 function mergeRecordArrays(currentArr, incomingArr, preferredKeys=[]){
   const map = new Map();
@@ -7740,15 +7818,28 @@ function applyJsonBackupPayload(payload){
 }
 
 async function handleJsonBackupImport(event){
-  const file = event?.target?.files?.[0];
-  if(!file) return;
+  const files = Array.from(event?.target?.files || []);
+  if(!files.length) return;
+  let importedCount = 0;
+  const failedFiles = [];
   try{
-    const text = await file.text();
-    const payload = JSON.parse(text);
-    applyJsonBackupPayload(payload);
-    toast('Database JSON imported and merged');
-  }catch(err){
-    toast('Backup JSON is not valid');
+    for(const file of files){
+      try{
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        applyJsonBackupPayload(payload);
+        importedCount += 1;
+      }catch(err){
+        failedFiles.push(file?.name || 'unknown-file');
+      }
+    }
+    if(importedCount && !failedFiles.length){
+      toast(importedCount > 1 ? `${importedCount} JSON files imported and merged` : 'Database JSON imported and merged');
+    }else if(importedCount && failedFiles.length){
+      toast(`${importedCount} JSON merged, ${failedFiles.length} failed`);
+    }else{
+      toast('Backup JSON is not valid');
+    }
   }finally{
     if(event?.target) event.target.value='';
   }
@@ -8721,27 +8812,177 @@ function enterFirstProjectSuperadmin(){
 
 function hubCalendarChangeMonth(delta){
   hubCalendarViewDate = new Date(hubCalendarViewDate.getFullYear(), hubCalendarViewDate.getMonth()+delta, 1);
-  renderUserHubPage();
+  renderHubCalendarSection();
+  renderMeetingDashboardCalendarSection();
+}
+
+function getHubCalendarItemStartTime(item){
+  return item.startTime || (String(item.time || '').match(/\d{2}:\d{2}/) || ['00:00'])[0];
+}
+
+function getHubCalendarItemEndTime(item){
+  if(item.endTime) return item.endTime;
+  const matches = String(item.time || '').match(/\d{2}:\d{2}/g) || [];
+  return matches.length > 1 ? matches[matches.length - 1] : getHubCalendarItemStartTime(item);
+}
+
+function getUserHubCalendarProjectIds(){
+  return [...new Set(getSessionProjects().filter(pid=>!!PROJECTS[pid] && currentUserCanAccessProject(pid)))];
 }
 
 function getUserHubAgendaMeetings(){
-  let projects = [];
-  if(isCurrentUserInternalCesgs() || userCanManage()){
-    projects = currentProjectId && PROJECTS[currentProjectId] ? [currentProjectId] : getSessionProjects();
-  } else if(currentProjectId && currentUserCanAccessProject(currentProjectId)){
-    projects = [currentProjectId];
-  } else {
-    const assigned = getSessionProjects();
-    projects = assigned.length ? [assigned[0]] : [];
-  }
+  const projects = getUserHubCalendarProjectIds();
   const rows = [];
-  [...new Set(projects)].forEach(pid=>{
+  projects.forEach(pid=>{
     const state = projectData[pid];
     if(!state) return;
-    (state.meetings||[]).forEach(m=>rows.push({...m,__projectId:pid}));
+    (state.meetings||[]).forEach(meeting=>{
+      rows.push({
+        ...meeting,
+        startTime: getHubCalendarItemStartTime(meeting),
+        endTime: getHubCalendarItemEndTime(meeting),
+        __projectId:pid,
+        __kind:'meeting'
+      });
+    });
+    (state.calendarEvents||[]).forEach(event=>{
+      if(String(event.source || '').toLowerCase() === 'import') return;
+      rows.push({
+        id: event.id || `evt-${pid}-${event.date || 'na'}-${event.startTime || '00:00'}-${event.title || 'event'}`,
+        title: event.title || 'Agenda Event',
+        date: event.date || '',
+        time: `${event.startTime || '00:00'} – ${event.endTime || '23:59'}`,
+        startTime: event.startTime || '00:00',
+        endTime: event.endTime || '23:59',
+        location: event.mode || 'Online',
+        agenda: event.title || '',
+        attendees: splitOwnerNames(event.owner || ''),
+        owner: event.owner || '',
+        ownerEmail: event.ownerEmail || '',
+        status: 'agenda',
+        source: event.source || 'manual',
+        __projectId:pid,
+        __kind:'event'
+      });
+    });
   });
-  rows.sort((a,b)=>`${a.date||''} ${String(a.time||'').match(/\d{2}:\d{2}/)?.[0]||''}`.localeCompare(`${b.date||''} ${String(b.time||'').match(/\d{2}:\d{2}/)?.[0]||''}`));
+  rows.sort((a,b)=>`${a.date||''} ${getHubCalendarItemStartTime(a)}`.localeCompare(`${b.date||''} ${getHubCalendarItemStartTime(b)}`));
   return rows;
+}
+
+function getSharedSyncedCalendarData(){
+  const isInternal=isCurrentUserInternalCesgs();
+  const scopedProjectIds=getUserHubCalendarProjectIds();
+  const scopedProjectNames=scopedProjectIds.map(pid=>PROJECTS[pid]?.name || pid).filter(Boolean);
+  const projectSummaryLabel=scopedProjectNames.length > 1
+    ? `${scopedProjectNames.length} project yang Anda ikuti`
+    : (scopedProjectNames[0] || 'project Anda');
+  const agendaRecords=getUserHubAgendaMeetings().filter(item=>!!item.date);
+  const personalRecords=isInternal
+    ? getProfileCalendarEvents().filter(ev=>!!ev.date).map(ev=>({
+        ...ev,
+        startTime: ev.startTime || '00:00',
+        endTime: ev.endTime || '23:59',
+        __kind: String(ev.source || '').toLowerCase() === 'import' ? 'import' : 'event'
+      }))
+    : [];
+  const seen=new Set();
+  const records=[...agendaRecords, ...personalRecords].reduce((acc,item)=>{
+    const normalized={
+      ...item,
+      startTime:getHubCalendarItemStartTime(item),
+      endTime:getHubCalendarItemEndTime(item)
+    };
+    const dedupeKey=[
+      normalized.__projectId || '',
+      normalized.__kind || '',
+      normalized.date || '',
+      normalized.startTime || '',
+      normalized.endTime || '',
+      normalized.title || '',
+      normalized.location || normalized.mode || '',
+      normalized.source || ''
+    ].join('|');
+    if(seen.has(dedupeKey)) return acc;
+    seen.add(dedupeKey);
+    acc.push(normalized);
+    return acc;
+  }, []).sort((a,b)=>`${a.date||''} ${a.startTime||''}`.localeCompare(`${b.date||''} ${b.startTime||''}`));
+  const importedCount=personalRecords.filter(ev=>String(ev.source || '').toLowerCase() === 'import').length;
+  return {isInternal, scopedProjectIds, scopedProjectNames, projectSummaryLabel, records, importedCount};
+}
+
+function renderMeetingDashboardCalendarSection(){
+  const container=document.getElementById('meeting-dashboard-calendar-section');
+  if(!container || !currentUserSession){ if(container) container.innerHTML=''; return; }
+  const {isInternal, projectSummaryLabel, records, importedCount}=getSharedSyncedCalendarData();
+  const year=hubCalendarViewDate.getFullYear();
+  const month=hubCalendarViewDate.getMonth();
+  const first=new Date(year,month,1);
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const startPad=(first.getDay()+6)%7;
+  const todayKey=new Date().toISOString().slice(0,10);
+  const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const monthStart=`${year}-${String(month+1).padStart(2,'0')}-01`;
+  const monthEnd=`${year}-${String(month+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+  const monthItems=records.filter(item=>String(item.date||'')>=monthStart && String(item.date||'')<=monthEnd);
+  const byDate={};
+  monthItems.forEach(item=>{ (byDate[item.date] ||= []).push(item); });
+  const monthAgenda=monthItems.slice(0,10);
+  let cells=dow.map(label=>`<div class="hub-calendar-dow">${label}</div>`).join('');
+  for(let i=0;i<startPad;i++) cells+='<div class="hub-calendar-cell empty"></div>';
+  for(let day=1; day<=daysInMonth; day++){
+    const dateKey=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const items=(byDate[dateKey]||[]);
+    let cellClass='hub-calendar-cell';
+    if(items.length) cellClass+=' has-items';
+    if(dateKey===todayKey) cellClass+=' today';
+    const body=items.length
+      ? `<div class="hub-calendar-event-stack">${items.slice(0,2).map(item=>{
+          const start=escapeHtml(item.startTime||'00:00');
+          const end=item.endTime ? escapeHtml(item.endTime) : '';
+          const label=`${start}${end ? `–${end}` : ''} · ${escapeHtml(item.title||'Agenda')}`;
+          const pillClass=item.__kind === 'meeting' ? 'meeting' : '';
+          return `<div class="hub-calendar-time-pill ${pillClass}">${label}</div>`;
+        }).join('')}${items.length>2 ? `<div class="hub-calendar-more">+${items.length-2} agenda lainnya</div>` : ''}</div>`
+      : '<div class="hub-calendar-empty-note">&nbsp;</div>';
+    cells += `<div class="${cellClass}"><div class="hub-calendar-day">${day}</div>${body}</div>`;
+  }
+  const subtitle=`Kalender pada dashboard meeting memakai sumber agenda yang sama dengan halaman selamat datang: ${escapeHtml(projectSummaryLabel)}${isInternal && importedCount ? ' serta sinkronisasi kalender pribadi Anda' : ''}.`;
+  container.innerHTML=`
+    <div class="hub-calendar-layout">
+      <div class="card card-pad">
+        <div class="hub-calendar-toolbar">
+          <div>
+            <div class="hub-section-title">📆 Kalender Sinkronisasi</div>
+            <div class="helper-text" style="margin-top:6px">${subtitle}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="cal-nav-btn" type="button" onclick="hubCalendarChangeMonth(-1)">←</button>
+            <span class="readonly-pill">${MONTHS[month]} ${year}</span>
+            <button class="cal-nav-btn" type="button" onclick="hubCalendarChangeMonth(1)">→</button>
+          </div>
+        </div>
+        <div class="hub-calendar-grid">${cells}</div>
+      </div>
+      <div class="hub-calendar-side">
+        <div class="card card-pad">
+          <div class="hub-side-list-head">
+            <div>
+              <div class="section-label" style="margin-bottom:4px">Agenda Bulan Ini</div>
+            </div>
+            <span class="readonly-pill">${monthItems.length} agenda</span>
+          </div>
+          <div class="helper-text" style="margin-bottom:12px">Panel ini otomatis ikut berubah saat kalender di halaman selamat datang berubah, dan sebaliknya.</div>
+          <div class="hub-side-list">${monthAgenda.length ? monthAgenda.map(item=>{
+            const badgeClass=item.__kind === 'meeting' ? 'badge-gold' : (item.__kind === 'import' ? 'badge-blue' : 'badge-teal');
+            const badgeLabel=item.__kind === 'meeting' ? 'Meeting' : (item.__kind === 'import' ? 'ICS' : 'Agenda');
+            const projectLabel=PROJECTS[item.__projectId]?.name || item.__projectId || (item.__kind === 'import' ? 'Kalender pribadi' : 'Project');
+            return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+          }).join('') : '<div class="empty-state">Belum ada agenda yang sinkron pada bulan ini.</div>'}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderHubCalendarSection(){
@@ -8761,16 +9002,14 @@ function renderHubCalendarSection(){
   const byDate={};
   let subtitle='';
   let rightCard='';
-  let records=[];
+
+  const {projectSummaryLabel, records, importedCount}=getSharedSyncedCalendarData();
+
+  records.forEach(item=>{ (byDate[item.date] ||= []).push(item); });
+  const upcoming = records.filter(item=>`${item.date||''} ${item.startTime||''}` >= upcomingCutoff).slice(0,8);
 
   if(isInternal){
-    records=getProfileCalendarEvents()
-      .filter(ev=>!!ev.date)
-      .sort((a,b)=>`${a.date||''} ${a.startTime||''}`.localeCompare(`${b.date||''} ${b.startTime||''}`));
-    records.forEach(ev=>{ (byDate[ev.date] ||= []).push(ev); });
-    const importedCount=records.filter(ev=>ev.source==='import').length;
-    const upcoming = records.filter(ev=>`${ev.date||''} ${ev.startTime||''}` >= upcomingCutoff).slice(0,8);
-    subtitle='Menampilkan tanggal dan jam agenda yang sudah terisi dari kalender pribadi Anda, tanpa label available atau not available.';
+    subtitle = `Kalender ini menggabungkan agenda meeting dari ${escapeHtml(projectSummaryLabel)}${importedCount ? ' serta sinkronisasi kalender pribadi Anda' : ''}.`;
     rightCard=`
       <div class="card card-pad">
         <div class="hub-side-list-head">
@@ -8782,6 +9021,7 @@ function renderHubCalendarSection(){
             <button class="btn btn-red btn-sm" type="button" onclick="removeImportedCalendarForCurrentUser()">Hapus Import</button>
           </div>
         </div>
+        <div class="helper-text">Agenda pada kalender welcome page otomatis menggabungkan meeting lintas proyek yang Anda ikuti. Event dari file .ics tetap ditampilkan sebagai pelengkap.</div>
       </div>
       <div class="card card-pad">
         <div class="hub-side-list-head">
@@ -8789,16 +9029,15 @@ function renderHubCalendarSection(){
             <div class="section-label" style="margin-bottom:4px">Agenda Terkini</div>
           </div>
         </div>
-        <div class="hub-side-list">${upcoming.length ? upcoming.map(ev=>`<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(ev.title||'Imported Event')}</div><div class="profile-calendar-event-meta">${formatDateFancy(ev.date)} · ${escapeHtml(ev.startTime||'00:00')}–${escapeHtml(ev.endTime||'23:59')} · ${escapeHtml(ev.mode||'Online')}</div></div><span class="badge ${ev.source==='import'?'badge-blue':'badge-teal'}">${ev.source==='import'?'ICS':'Manual'}</span></div>`).join('') : '<div class="empty-state">Belum ada agenda internal mendatang pada kalender Anda.</div>'}</div>
+        <div class="hub-side-list">${upcoming.length ? upcoming.map(item=>{
+          const badgeClass = item.__kind === 'meeting' ? 'badge-gold' : (item.__kind === 'import' ? 'badge-blue' : 'badge-teal');
+          const badgeLabel = item.__kind === 'meeting' ? 'Meeting' : (item.__kind === 'import' ? 'ICS' : 'Agenda');
+          const projectLabel = PROJECTS[item.__projectId]?.name || item.__projectId || (item.__kind === 'import' ? 'Kalender pribadi' : 'Project');
+          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+        }).join('') : '<div class="empty-state">Belum ada agenda meeting lintas proyek pada akun ini.</div>'}</div>
       </div>`;
   } else {
-    records=getUserHubAgendaMeetings()
-      .filter(item=>!!item.date)
-      .sort((a,b)=>`${a.date||''} ${String(a.time||'').match(/\d{2}:\d{2}/)?.[0]||''}`.localeCompare(`${b.date||''} ${String(b.time||'').match(/\d{2}:\d{2}/)?.[0]||''}`));
-    records.forEach(item=>{ (byDate[item.date] ||= []).push(item); });
-    const scopedProjectName = PROJECTS[currentProjectId]?.name || PROJECTS[records[0]?.__projectId]?.name || 'project Anda';
-    const upcoming = records.filter(item=>`${item.date||''} ${String(item.time||'').match(/\d{2}:\d{2}/)?.[0]||''}` >= upcomingCutoff).slice(0,8);
-    subtitle=`Menampilkan hanya agenda meeting yang terkait dengan ${escapeHtml(scopedProjectName)}, tanpa status available atau not available.`;
+    subtitle = `Kalender ini menggabungkan agenda meeting dari ${escapeHtml(projectSummaryLabel)} yang terhubung ke akun Anda.`;
     rightCard=`
       <div class="card card-pad">
         <div class="hub-side-list-head">
@@ -8806,10 +9045,12 @@ function renderHubCalendarSection(){
             <div class="section-label" style="margin-bottom:4px">Agenda Meeting</div>
           </div>
         </div>
-        <div class="hub-side-list">${upcoming.length ? upcoming.map(item=>`<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Meeting')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.time||'') || 'Waktu menyusul'} · ${escapeHtml(PROJECTS[item.__projectId]?.name || item.__projectId || 'Project')}</div></div><span class="badge badge-gold">Meeting</span></div>`).join('') : '<div class="empty-state">Belum ada agenda meeting untuk project ini.</div>'}</div>
-      </div>
-      <div class="card card-pad">
-        <div class="section-label">Keterangan</div>
+        <div class="helper-text" style="margin-bottom:12px">Semua meeting dari proyek yang Anda ikuti akan muncul otomatis di sini, bukan hanya dari satu dashboard proyek.</div>
+        <div class="hub-side-list">${upcoming.length ? upcoming.map(item=>{
+          const badgeClass = item.__kind === 'event' ? 'badge-blue' : 'badge-gold';
+          const badgeLabel = item.__kind === 'event' ? 'Agenda' : 'Meeting';
+          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Meeting')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.time || `${item.startTime || '00:00'}–${item.endTime || '23:59'}`) || 'Waktu menyusul'} · ${escapeHtml(PROJECTS[item.__projectId]?.name || item.__projectId || 'Project')}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+        }).join('') : '<div class="empty-state">Belum ada agenda meeting untuk proyek yang terhubung ke akun ini.</div>'}</div>
       </div>`;
   }
 
@@ -8825,10 +9066,11 @@ function renderHubCalendarSection(){
     if(items.length){
       const visible = items.slice(0,2);
       body = `<div class="hub-calendar-event-stack">${visible.map(item=>{
-        const start = isInternal ? escapeHtml(item.startTime||'00:00') : escapeHtml(String(item.time||'').match(/\d{2}:\d{2}/)?.[0] || 'TBA');
-        const end = isInternal ? escapeHtml(item.endTime||'23:59') : '';
-        const label = isInternal ? `${start}${end ? `–${end}` : ''} · ${escapeHtml(item.title||'Agenda')}` : `${start} · ${escapeHtml(item.title||'Meeting')}`;
-        return `<div class="hub-calendar-time-pill ${isInternal ? '' : 'meeting'}">${label}</div>`;
+        const start = escapeHtml(item.startTime||'00:00');
+        const end = item.endTime ? escapeHtml(item.endTime) : '';
+        const label = `${start}${end ? `–${end}` : ''} · ${escapeHtml(item.title||'Agenda')}`;
+        const pillClass = item.__kind === 'meeting' ? 'meeting' : '';
+        return `<div class="hub-calendar-time-pill ${pillClass}">${label}</div>`;
       }).join('')}${items.length>2 ? `<div class="hub-calendar-more">+${items.length-2} agenda lainnya</div>` : ''}</div>`;
     } else {
       body = '<div class="hub-calendar-empty-note">&nbsp;</div>';
@@ -8842,6 +9084,7 @@ function renderHubCalendarSection(){
         <div class="hub-calendar-toolbar">
           <div>
             <div class="hub-section-title">📆 Kalender</div>
+            <div class="helper-text" style="margin-top:6px">${subtitle}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button class="cal-nav-btn" type="button" onclick="hubCalendarChangeMonth(-1)">←</button>
@@ -9334,7 +9577,6 @@ window.addEventListener('load', ()=>{ if(currentUserSession) renderUserProfileEd
     </div>
   </div>
 </div>
-
 <div id="superadmin-shell" class="superadmin-shell" aria-hidden="true">
   <button type="button" class="superadmin-back-btn" onclick="closeIntegratedSuperAdmin()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2
