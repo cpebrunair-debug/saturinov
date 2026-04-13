@@ -4396,7 +4396,7 @@ if (document.getElementById('landing-login-email')) {
 /* ═══════════════════════════════════
    ADMIN CONSOLE
 ═══════════════════════════════════ */
-function getAdminByEmail(email){return (adminState.admins||[]).find(a=>a.email.toLowerCase()===String(email||'').toLowerCase())}
+function getAdminByEmail(email){const normalized=String(email||'').toLowerCase();if(!normalized||isDeletedAccountEmail(normalized)) return null;return (adminState.admins||[]).find(a=>a.email.toLowerCase()===normalized)}
 function isPrimaryAdmin(){const adm=getAdminByEmail(currentAdminEmail);return !!adm&&!!adm.isPrimary}
 function openAdminLoginModal(){openLoginModal()}
 function closeAdminLoginModal(){closeLoginModal()}
@@ -4503,6 +4503,7 @@ function adminConsoleCreateAccount(){
   if(!projects.length) return toast('Pilih minimal satu project');
   const exists=getUserAccounts().some(acc=>String(acc.email||'').toLowerCase()===email);
   if(exists) return toast('Email akun sudah terdaftar. Gunakan Edit pada akun yang sudah ada.');
+  restoreDeletedAccountEmail(email);
   if(roleKey==='admin'){
     adminState.admins = adminState.admins || [];
     adminState.admins.push({id:`adm-${Date.now()}`,name,email,password,role:'Admin',projects,cv:'',institution,profileLink:'',photoUrl:'',isPrimary:false,createdAt:new Date().toISOString().slice(0,10)});
@@ -4527,8 +4528,8 @@ function toggleAdminWeekday(day){const list=adminState.bookingConfig.weekdays||[
 function renderDurationChips(){const el=document.getElementById('admin-duration-list');const options=[30,60,90,120];const active=adminState.bookingConfig?.durations||[];el.innerHTML=options.map(min=>`<button type="button" class="admin-chip ${active.includes(min)?'active':''}" onclick="toggleAdminDuration(${min})">${min} min</button>`).join('')}
 function toggleAdminDuration(min){const list=adminState.bookingConfig.durations||[];if(list.includes(min)) adminState.bookingConfig.durations=list.filter(d=>d!==min);else list.push(min),adminState.bookingConfig.durations=list.sort((a,b)=>a-b);renderDurationChips()}
 function saveAdminBookingConfig(){const start=document.getElementById('admin-start-time').value;const end=document.getElementById('admin-end-time').value;if(!start||!end||timeToMinutes(end)<=timeToMinutes(start)){toast('Set a valid start and end time');return}adminState.bookingConfig.start=start;adminState.bookingConfig.end=end;if(!(adminState.bookingConfig.durations||[]).length) adminState.bookingConfig.durations=[30];saveAll();renderAdminConsole();toast('Availability template saved')}
-function renderAdminAccess(){const note=document.getElementById('admin-primary-note');note.textContent=isPrimaryAdmin() ? 'You are signed in as the main admin. You can invite more admins and set their passwords before sending the email invitation.' : `Signed in as ${currentAdminEmail}. Only the main admin can issue new admin credentials.`;document.getElementById('admin-invite-form').style.display=isPrimaryAdmin()?'block':'none';const el=document.getElementById('admin-access-list');el.innerHTML='<div class="admin-list">'+(adminState.admins||[]).map(adm=>`<div class="admin-row"><div><div class="admin-row-title">${adm.email}</div><div class="admin-row-sub">${adm.isPrimary?'Main admin':'Invited admin'}${adm.name?` · ${adm.name}`:''}</div></div><div class="admin-actions"><span class="badge ${adm.isPrimary?'badge-gold':'badge-teal'}">${adm.isPrimary?'primary':'admin'}</span></div></div>`).join('')+'</div>'}
-function inviteAdmin(){if(!isPrimaryAdmin()){toast('Only the main admin can invite another admin');return}const email=document.getElementById('admin-invite-email').value.trim().toLowerCase();const password=document.getElementById('admin-invite-password').value.trim();if(!email||!email.includes('@')){toast('Enter a valid admin email');return}if(!password){toast('Set a password for the invited admin');return}const existing=getAdminByEmail(email);if(existing){existing.password=password;existing.isPrimary=false}else adminState.admins.push({email,password,name:email.split('@')[0],isPrimary:false});saveAll();const subject='Admin invitation — Applied Research CESGS';const body=`Hello,
+function renderAdminAccess(){const note=document.getElementById('admin-primary-note');note.textContent=isPrimaryAdmin() ? 'You are signed in as the main admin. You can invite more admins and set their passwords before sending the email invitation.' : `Signed in as ${currentAdminEmail}. Only the main admin can issue new admin credentials.`;document.getElementById('admin-invite-form').style.display=isPrimaryAdmin()?'block':'none';const el=document.getElementById('admin-access-list');el.innerHTML='<div class="admin-list">'+(adminState.admins||[]).filter(adm=>!isDeletedAccountEmail(adm&&adm.email)).map(adm=>`<div class="admin-row"><div><div class="admin-row-title">${adm.email}</div><div class="admin-row-sub">${adm.isPrimary?'Main admin':'Invited admin'}${adm.name?` · ${adm.name}`:''}</div></div><div class="admin-actions"><span class="badge ${adm.isPrimary?'badge-gold':'badge-teal'}">${adm.isPrimary?'primary':'admin'}</span></div></div>`).join('')+'</div>'}
+function inviteAdmin(){if(!isPrimaryAdmin()){toast('Only the main admin can invite another admin');return}const email=document.getElementById('admin-invite-email').value.trim().toLowerCase();const password=document.getElementById('admin-invite-password').value.trim();if(!email||!email.includes('@')){toast('Enter a valid admin email');return}if(!password){toast('Set a password for the invited admin');return}restoreDeletedAccountEmail(email);const existing=getAdminByEmail(email);if(existing){existing.password=password;existing.isPrimary=false}else adminState.admins.push({email,password,name:email.split('@')[0],isPrimary:false});saveAll();const subject='Admin invitation — Applied Research CESGS';const body=`Hello,
 
 You have been invited as an admin for Applied Research CESGS.
 
@@ -4702,7 +4703,7 @@ function renderAdminAccountManager(){
               <td style="max-width:280px">${projTags}</td>
               <td>
                 <button class="btn btn-outline btn-sm" onclick="acmToggleEdit('${esc(acc.email)}')">${isEditing?'✕ Tutup':'✏️ Edit'}</button>
-                ${!acc.locked?`<button class="btn btn-red btn-sm" onclick="acmDeleteAccount('${esc(acc.email)}')">🗑️</button>`:'<span class="readonly-pill">Primary</span>'}
+                ${acc.locked?'<span class="readonly-pill">Primary</span>':''}<button class="btn btn-red btn-sm" onclick="acmDeleteAccount('${esc(acc.email)}')">🗑️</button>
               </td>
             </tr>
             ${isEditing?`<tr><td colspan="4" style="padding:0 0 16px"><div class="acm-edit-panel" id="acm-edit-${esc(acc.email.replace('@','_').replace('.','_'))}">${renderAcmEditForm(acc)}</div></td></tr>`:''}`;
@@ -4777,6 +4778,7 @@ function acmSaveAccount(email){
     const chk=document.getElementById(`acm-pc-${pid}-${safeEmail}`);
     return chk&&chk.checked;
   });
+  restoreDeletedAccountEmail(email);
   const fields={};
   if(name) fields.name=name;
   if(role) fields.role=role;
@@ -4799,20 +4801,31 @@ function acmSaveAccount(email){
 }
 
 function acmDeleteAccount(email){
+  const normalizedEmail=String(email||'').toLowerCase();
   const accounts=getUserAccounts();
-  const acc=accounts.find(a=>a.email===email);
-  if(!acc){toast('Akun tidak ditemukan');return;}
-  if(!confirm(`Hapus akun "${acc.name||email}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+  const acc=accounts.find(a=>a.email===normalizedEmail)||{email:normalizedEmail,name:normalizedEmail};
+  if(!normalizedEmail){toast('Akun tidak ditemukan');return;}
+  if(!confirm(`Hapus akun "${acc.name||normalizedEmail}"? Tindakan ini tidak bisa dibatalkan.`)) return;
   try{
+    markAccountAsDeleted(normalizedEmail);
+    adminState.admins=(adminState.admins||[]).filter(a=>String(a.email||'').toLowerCase()!==normalizedEmail);
     const superState=parseJSONSafe(SUPERADMIN_STORAGE_KEY,{})||{};
     ['userAccounts','clients'].forEach(pool=>{
-      if(Array.isArray(superState[pool])) superState[pool]=superState[pool].filter(a=>String(a.email||'').toLowerCase()!==email.toLowerCase());
+      if(Array.isArray(superState[pool])) superState[pool]=superState[pool].filter(a=>String(a.email||'').toLowerCase()!==normalizedEmail);
     });
     localStorage.setItem(SUPERADMIN_STORAGE_KEY,JSON.stringify(superState));
-    toast(`Akun ${acc.name||email} berhasil dihapus`);
-    if(acmEditingEmail===email) acmEditingEmail=null;
+    const db=getAccountProfileDatabase();
+    if(db.accounts&&db.accounts[normalizedEmail]){
+      db.accounts[normalizedEmail]=buildAccountProfileRecord(normalizedEmail,{...db.accounts[normalizedEmail],status:'inactive',updatedAt:new Date().toISOString(),source:'deleted_by_superadmin'});
+      saveAccountProfileDatabase(db);
+    }
+    handleDeletedAccountSession(normalizedEmail);
+    saveAll();
+    toast(`Akun ${acc.name||normalizedEmail} berhasil dihapus`);
+    if(acmEditingEmail===normalizedEmail) acmEditingEmail=null;
     renderAdminAccountManager();
     renderAdminStatGrid();
+    if(typeof renderAccountManagementPage==='function') renderAccountManagementPage();
   }catch(e){toast('Gagal menghapus akun')}
 }
 
@@ -5028,7 +5041,7 @@ function ensureSeedManagedAccounts(){
   let changed = false;
   MANAGEMENT_DEMO_ACCOUNTS.forEach((acc, idx) => {
     const email = String(acc.email || '').toLowerCase();
-    if(!email) return;
+    if(!email || isDeletedAccountEmail(email)) return;
     const existsInUsers = superState.userAccounts.some(item => String(item.email || '').toLowerCase() === email);
     const existsInClients = superState.clients.some(item => String(item.email || '').toLowerCase() === email);
     if(existsInUsers || existsInClients) return;
@@ -5066,7 +5079,7 @@ function getUserAccounts(){
     if(!account || !account.email) return;
     const normalized = normalizeUserSession(account);
     const email = String(normalized.email || '').toLowerCase();
-    if(!email) return;
+    if(!email || isDeletedAccountEmail(email)) return;
     accountMap.set(email, normalized);
   };
 
@@ -5133,6 +5146,7 @@ function getUserAccounts(){
 function authenticateUser(email, password) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const pass = String(password || '');
+  if(isDeletedAccountEmail(normalizedEmail)) return null;
   const account = getUserAccounts().find(u => u.email.toLowerCase() === normalizedEmail && u.password === pass);
   if(account) return account;
   const forcedAdmin = (adminState.admins || []).find(a => String(a && a.email || '').toLowerCase() === normalizedEmail && String(a && a.password || '') === pass);
@@ -5677,6 +5691,7 @@ function syncCurrentUserProfileViews(){
 function updateStoredAccountProfile(email, fields){
   const normalizedEmail = String(email || '').toLowerCase();
   if(!normalizedEmail) return false;
+  restoreDeletedAccountEmail(normalizedEmail);
   const normalizedFields = {
     ...(fields && typeof fields === 'object' ? fields : {}),
     cv: Object.prototype.hasOwnProperty.call(fields || {}, 'cv') ? String(fields?.cv || '') : undefined,
@@ -7520,6 +7535,61 @@ const JSON_BACKUP_TYPE = 'cesgs_project_hub_backup';
 const JSON_BACKUP_VERSION = 1;
 const ACCOUNT_PROFILE_DB_KEY = 'cesgs_account_profile_db';
 const ACCOUNT_PROFILE_DB_VERSION = 1;
+const DELETED_ACCOUNTS_STORAGE_KEY = 'project_hub_deleted_accounts';
+
+function getDeletedAccountEmails(){
+  const raw = parseJSONSafe(DELETED_ACCOUNTS_STORAGE_KEY, []);
+  const list = Array.isArray(raw) ? raw : [];
+  return [...new Set(list.map(item => String(item || '').trim().toLowerCase()).filter(Boolean))];
+}
+function saveDeletedAccountEmails(emails){
+  const normalized = [...new Set((Array.isArray(emails) ? emails : []).map(item => String(item || '').trim().toLowerCase()).filter(Boolean))];
+  try{ localStorage.setItem(DELETED_ACCOUNTS_STORAGE_KEY, JSON.stringify(normalized)); }catch(e){}
+  return normalized;
+}
+function isDeletedAccountEmail(email){
+  const normalized = String(email || '').trim().toLowerCase();
+  if(!normalized) return false;
+  return getDeletedAccountEmails().includes(normalized);
+}
+function markAccountAsDeleted(email){
+  const normalized = String(email || '').trim().toLowerCase();
+  if(!normalized) return [];
+  const next = getDeletedAccountEmails();
+  if(!next.includes(normalized)) next.push(normalized);
+  return saveDeletedAccountEmails(next);
+}
+function restoreDeletedAccountEmail(email){
+  const normalized = String(email || '').trim().toLowerCase();
+  if(!normalized) return getDeletedAccountEmails();
+  return saveDeletedAccountEmails(getDeletedAccountEmails().filter(item => item !== normalized));
+}
+function handleDeletedAccountSession(email){
+  const normalized = String(email || '').trim().toLowerCase();
+  if(!normalized) return;
+  const isCurrentUser = !!(currentUserSession && String(currentUserSession.email || '').trim().toLowerCase() === normalized);
+  const isCurrentAdmin = String(currentAdminEmail || '').trim().toLowerCase() === normalized;
+  if(!(isCurrentUser || isCurrentAdmin)) return;
+  currentUserSession = null;
+  currentAdminEmail = '';
+  currentProjectId = null;
+  authenticatedProjects = {};
+  try{ localStorage.removeItem('cesgs_hub_session'); }catch(e){}
+  const adminConsole = document.getElementById('admin-console');
+  if(adminConsole) adminConsole.style.display = 'none';
+  const userHub = document.getElementById('user-hub-page');
+  if(userHub) userHub.classList.remove('show');
+  const profileEdit = document.getElementById('user-profile-edit-page');
+  if(profileEdit) profileEdit.classList.remove('show');
+  const landing = document.getElementById('landing-page');
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main-content');
+  const hamburger = document.getElementById('hamburger-btn');
+  if(landing) landing.style.display = '';
+  if(sidebar){ sidebar.style.display = 'none'; sidebar.classList.remove('open'); }
+  if(main) main.style.display = 'none';
+  if(hamburger) hamburger.style.display = 'none';
+}
 
 function getEmptyAccountProfileDb(){
   return {version: ACCOUNT_PROFILE_DB_VERSION, accounts: {}};
@@ -7566,7 +7636,7 @@ function buildAccountProfileRecord(email, data){
 }
 function getAccountProfileRecord(email){
   const normalizedEmail = String(email || '').trim().toLowerCase();
-  if(!normalizedEmail) return null;
+  if(!normalizedEmail || isDeletedAccountEmail(normalizedEmail)) return null;
   const db = getAccountProfileDatabase();
   const record = db.accounts && db.accounts[normalizedEmail];
   return record ? buildAccountProfileRecord(normalizedEmail, record) : null;
@@ -7619,7 +7689,7 @@ function syncAccountProfileDatabaseFromStores(){
   const register = (account, source) => {
     if(!account || !account.email) return;
     const normalizedEmail = String(account.email || '').trim().toLowerCase();
-    if(!normalizedEmail) return;
+    if(!normalizedEmail || isDeletedAccountEmail(normalizedEmail)) return;
     const current = db.accounts[normalizedEmail] || {};
     const hasAccountProjects = Array.isArray(account.projects);
     const hasCurrentProjects = Array.isArray(current.projects);
@@ -7668,6 +7738,10 @@ function refreshCurrentSessionFromStores(){
   if(!currentUserSession || !currentUserSession.email) return currentUserSession;
   const normalizedEmail = String(currentUserSession.email || '').trim().toLowerCase();
   if(!normalizedEmail) return currentUserSession;
+  if(isDeletedAccountEmail(normalizedEmail)){
+    handleDeletedAccountSession(normalizedEmail);
+    return currentUserSession;
+  }
   const matchingAccount = getUserAccounts().find(acc => String(acc.email || '').toLowerCase() === normalizedEmail);
   const matchingProfile = getAccountProfileRecord(normalizedEmail);
   if(matchingAccount || matchingProfile){
@@ -8070,10 +8144,12 @@ function buildAccountInvitationDraft(account){
 function getAccountManagementRows(){
   const rows = [];
   (adminState.admins || []).forEach((adm, idx) => {
+    const email = String(adm.email || '').toLowerCase();
+    if(!email || isDeletedAccountEmail(email)) return;
     rows.push({
       key:`admin:${adm.id || idx}`,
       source:'admin',
-      matchEmail:String(adm.email || '').toLowerCase(),
+      matchEmail:email,
       name:adm.name || (adm.email ? adm.email.split('@')[0] : `Admin ${idx+1}`),
       email:adm.email || '',
       password:adm.password || '',
@@ -8098,7 +8174,7 @@ function getAccountManagementRows(){
   pools.forEach(pool => {
     pool.items.forEach((acc, idx) => {
       const email = String(acc.email || '').toLowerCase();
-      if(!email) return;
+      if(!email || isDeletedAccountEmail(email)) return;
       rows.push({
         key:`${pool.source}:${acc.id || idx}:${email}`,
         source:pool.source,
@@ -8200,6 +8276,7 @@ function upsertManagedUserAccount(roleLabel, payload){
   if(!Array.isArray(superState.userAccounts)) superState.userAccounts = [];
   if(!Array.isArray(superState.clients)) superState.clients = [];
   const email = String(payload.email || '').toLowerCase();
+  restoreDeletedAccountEmail(email);
   superState.clients = superState.clients.filter(acc => String(acc.email || '').toLowerCase() !== email);
   const idx = superState.userAccounts.findIndex(acc => String(acc.email || '').toLowerCase() === email);
   const nextAccount = {
@@ -8241,6 +8318,7 @@ function saveManagedAccount(){
   if(!password) return toast('Masukkan password akun');
   if(!projects.length) return toast('Pilih minimal satu proyek');
 
+  restoreDeletedAccountEmail(email);
   if(originalRow && originalRow.matchEmail !== email){
     if(originalRow.source === 'admin'){
       adminState.admins = (adminState.admins || []).filter(adm => String(adm.email || '').toLowerCase() !== originalRow.matchEmail || !!adm.isPrimary);
@@ -8334,7 +8412,7 @@ function deleteManagedAccount(key){
   if(!isSuperadminSession()) return toast('Only superadmin can manage accounts');
   const row = getAccountManagementRows().find(item => item.key === key);
   if(!row) return;
-  if(row.locked) return toast('Primary superadmin account cannot be deleted');
+  markAccountAsDeleted(row.matchEmail);
   if(row.source === 'admin'){
     adminState.admins = (adminState.admins || []).filter(adm => String(adm.email || '').toLowerCase() !== row.matchEmail);
   } else {
@@ -8347,8 +8425,16 @@ function deleteManagedAccount(key){
     }
     localStorage.setItem(SUPERADMIN_STORAGE_KEY, JSON.stringify(superState));
   }
+  const db = getAccountProfileDatabase();
+  if(db.accounts && db.accounts[row.matchEmail]){
+    db.accounts[row.matchEmail] = buildAccountProfileRecord(row.matchEmail,{...db.accounts[row.matchEmail],status:'inactive',updatedAt:new Date().toISOString(),source:'deleted_by_superadmin'});
+    saveAccountProfileDatabase(db);
+  }
+  handleDeletedAccountSession(row.matchEmail);
   saveAll();
   renderAccountManagementPage();
+  if(typeof renderAdminAccountManager==='function') renderAdminAccountManager();
+  if(typeof renderAdminStatGrid==='function') renderAdminStatGrid();
   toast('Account deleted');
 }
 function sendManagedAccountInvite(key){
@@ -8473,6 +8559,7 @@ function saveManagedAccountProfileEdit(){
   if(!email || !email.includes('@')) return toast('Masukkan email yang valid');
   if(!password) return toast('Masukkan password akun');
   if(!projects.length) return toast('Pilih minimal satu proyek');
+  restoreDeletedAccountEmail(email);
   if(originalRow.locked){
     const primaryAdmin = (adminState.admins || []).find(adm => String(adm.email || '').toLowerCase() === originalRow.matchEmail && !!adm.isPrimary);
     if(primaryAdmin){
@@ -8569,7 +8656,7 @@ function renderAccountManagementPage(){
                 <span style="display:block;font-size:11px;color:var(--ink3);margin-top:4px">CV: ${row.cv ? 'Ready to show on client profile' : 'Not added yet'}</span><span style="display:block;font-size:11px;color:var(--ink3);margin-top:4px">Profile link: ${row.profileLink ? 'Ready to open by client' : 'Not added yet'}</span><span style="display:block;font-size:11px;color:var(--ink3);margin-top:4px">Photo: ${row.photoUrl ? 'Ready to show on profile card' : 'Initial avatar fallback'}</span>
               </div>
               <div class="inline-actions">
-                <button class="btn btn-outline btn-sm" type="button" onclick="editManagedAccount('${esc(row.key)}')">Edit Profile</button>${row.locked ? `<span class="readonly-pill">Primary</span>` : `<button class="btn btn-red btn-sm" type="button" onclick="deleteManagedAccount('${esc(row.key)}')">Delete</button>`}
+                <button class="btn btn-outline btn-sm" type="button" onclick="editManagedAccount('${esc(row.key)}')">Edit Profile</button>${row.locked ? `<span class="readonly-pill">Primary</span>` : ''}<button class="btn btn-red btn-sm" type="button" onclick="deleteManagedAccount('${esc(row.key)}')">Delete</button>
                 <button class="btn btn-teal btn-sm" type="button" onclick="sendManagedAccountInvite('${esc(row.key)}')">Email</button>
               </div>
             </div>`).join('') : '<div class="empty-state">Belum ada akun pengelola tambahan.</div>'}</div>
@@ -9668,6 +9755,1823 @@ function renderUserHubPage(){
     </div>`;
   }).join('');
 }
+
+
+const HARDCODED_JSON_BACKUP = {
+  "backupType": "cesgs_project_hub_backup",
+  "version": 1,
+  "exportedAt": "2026-04-13T11:58:27.916Z",
+  "currentProjectId": "plts-terapung",
+  "sessionHint": {
+    "email": "bakdiyatulmukarromah@cesgs.or.id",
+    "password": "Bakdiyatul_2026",
+    "role": "Project Manager"
+  },
+  "data": {
+    "projectData": {
+      "bi": {
+        "partners": [],
+        "currentPartner": "",
+        "availability": {},
+        "calNotes": {},
+        "meetings": [
+          {
+            "id": 1775654823109,
+            "title": "Meeting with Bagas",
+            "date": "2026-04-09",
+            "time": "08:30 – 09:00 WIB",
+            "duration": 30,
+            "location": "Google Meet / CESGS",
+            "agenda": "diskusi awal",
+            "attendees": [
+              "Bagas",
+              "adityabagas68@gmail.com"
+            ],
+            "status": "confirmed"
+          }
+        ],
+        "documents": [
+          {
+            "id": 1,
+            "title": "Proposal Blue Building BI v1.0",
+            "cat": "proposal",
+            "url": "https://drive.google.com",
+            "desc": "Blue Building project proposal for Bank Indonesia.",
+            "author": "CESGS Team",
+            "date": "2026-02-01"
+          },
+          {
+            "id": 2,
+            "title": "Panduan Green Building BI",
+            "cat": "reference",
+            "url": "https://drive.google.com",
+            "desc": "Panduan standar bangunan hijau Bank Indonesia.",
+            "author": "Bank Indonesia",
+            "date": "2026-01-10"
+          }
+        ],
+        "moms": [],
+        "collaborators": [],
+        "bookingRequests": [],
+        "projectMeta": {
+          "status": "Active",
+          "lastUpdate": "2026-04-13",
+          "estimatedDeadline": "",
+          "summary": ""
+        },
+        "timeline": [],
+        "tasks": [],
+        "notifications": [
+          {
+            "id": 1775652698482.375,
+            "title": "",
+            "message": "Project status updated to Active",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-08T12:51:38.482Z",
+            "createdBy": "Aditya Bagas",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1775620628089.172,
+            "title": "Jadwal baru ditambahkan",
+            "message": "MAKAN dijadwalkan pada 8 April 2026 pukul 12:00–13:00 (Online).",
+            "audience": "adityabagas.official@gmail.com",
+            "type": "meeting",
+            "icon": "",
+            "createdAt": "2026-04-08T03:57:08.089Z",
+            "createdBy": "Bagas Aditya",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": "schedule"
+          },
+          {
+            "id": 1775620582612.6833,
+            "title": "Jadwal baru ditambahkan",
+            "message": "MAKAN dijadwalkan pada 8 April 2026 pukul 10:56–14:56 (Online).",
+            "audience": "bakdiyatulmukarromah@gmail.com",
+            "type": "meeting",
+            "icon": "",
+            "createdAt": "2026-04-08T03:56:22.612Z",
+            "createdBy": "Bagas Aditya",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": "schedule"
+          }
+        ],
+        "messages": [],
+        "calendarEvents": [],
+        "importedCalendarSources": []
+      },
+      "cbhe": {
+        "partners": [
+          "Bakdi - CESGS",
+          "Bagas - CESGS",
+          "Fajar - CESGS"
+        ],
+        "currentPartner": "Fajar - CESGS",
+        "availability": {
+          "2026-04-06": []
+        },
+        "calNotes": {
+          "2026-04-06": "ADAD"
+        },
+        "meetings": [],
+        "documents": [
+          {
+            "id": 1,
+            "title": "CBHE Project Proposal v1.0",
+            "cat": "proposal",
+            "url": "https://drive.google.com",
+            "desc": "Initial project proposal submitted to Erasmus+ CBHE.",
+            "author": "CESGS Team",
+            "date": "2026-01-10"
+          },
+          {
+            "id": 2,
+            "title": "Work Package Description",
+            "cat": "proposal",
+            "url": "https://drive.google.com",
+            "desc": "Detailed work packages and milestones.",
+            "author": "Coord. Office",
+            "date": "2026-02-01"
+          },
+          {
+            "id": 3,
+            "title": "Erasmus+ CBHE Guidelines 2025",
+            "cat": "reference",
+            "url": "https://erasmus-plus.ec.europa.eu",
+            "desc": "Official CBHE guidelines.",
+            "author": "EU Commission",
+            "date": "2025-09-01"
+          },
+          {
+            "id": 4,
+            "title": "Partner Agreement Template",
+            "cat": "reference",
+            "url": "https://drive.google.com",
+            "desc": "Inter-institutional agreement template.",
+            "author": "Legal Team",
+            "date": "2026-01-20"
+          }
+        ],
+        "moms": [],
+        "collaborators": [
+          {
+            "email": "ghalyfarras0@gmail.com",
+            "role": "editor",
+            "addedAt": "2026-04-06T03:50:57.103Z"
+          },
+          {
+            "email": "bakdiyatulmukarromah@cesgs.or.id",
+            "role": "editor",
+            "addedAt": "2026-04-06T03:58:16.456Z"
+          }
+        ],
+        "bookingRequests": [],
+        "projectMeta": {
+          "status": "Active",
+          "lastUpdate": "2026-04-13",
+          "estimatedDeadline": "",
+          "summary": ""
+        },
+        "timeline": [],
+        "tasks": [],
+        "notifications": [],
+        "messages": [],
+        "calendarEvents": [],
+        "importedCalendarSources": []
+      },
+      "tfk": {
+        "partners": [],
+        "currentPartner": "",
+        "availability": {},
+        "calNotes": {},
+        "meetings": [],
+        "documents": [],
+        "moms": [],
+        "collaborators": [],
+        "bookingRequests": [],
+        "projectMeta": {
+          "status": "Active",
+          "lastUpdate": "2026-04-07",
+          "estimatedDeadline": "",
+          "summary": ""
+        },
+        "timeline": [],
+        "tasks": [],
+        "notifications": [],
+        "messages": [],
+        "calendarEvents": [],
+        "importedCalendarSources": []
+      },
+      "plts-terapung": {
+        "partners": [],
+        "currentPartner": "",
+        "availability": {},
+        "calNotes": {},
+        "meetings": [],
+        "calendarEvents": [],
+        "documents": [],
+        "moms": [],
+        "collaborators": [],
+        "bookingRequests": [
+          {
+            "id": 1775808144045,
+            "requestedAt": "2026-04-10T08:02:24.045Z",
+            "name": "Vidy PLN",
+            "email": "adityabagas86@gmail.com",
+            "org": "",
+            "agenda": "knadakd",
+            "duration": 30,
+            "preferences": [
+              {
+                "date": "2026-04-15",
+                "time": "08:30"
+              },
+              {
+                "date": "2026-04-15",
+                "time": "09:00"
+              },
+              {
+                "date": "2026-04-15",
+                "time": "10:30"
+              }
+            ],
+            "project": "plts-terapung",
+            "projectName": "PLTS Terapung",
+            "external": true,
+            "status": "requested"
+          }
+        ],
+        "projectMeta": {
+          "status": "Active",
+          "lastUpdate": "2026-04-13",
+          "estimatedDeadline": "",
+          "summary": ""
+        },
+        "timeline": [
+          {
+            "id": 1775815603371,
+            "title": "Kunjungan ke PLTS Karangkates",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-02-03",
+            "updatedAt": "2026-04-03",
+            "deadline": "2026-02-03",
+            "note": ""
+          },
+          {
+            "id": 1776050334703,
+            "title": "Pemaparan Draft kajian dengan CESGS",
+            "type": "milestone",
+            "status": "review",
+            "date": "2026-04-08",
+            "updatedAt": "2026-04-13",
+            "deadline": "2026-04-30",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ],
+            "picEmail": "adityabagas.official@gmail.com",
+            "picName": "Aditya Bagas"
+          },
+          {
+            "id": 1776050296483,
+            "title": "Koordinasi dengan RKJ untuk memetakan stakeholder terkait regulasi di sisi tata kelola, sosial dan lingkungan",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-02-16",
+            "updatedAt": "2026-04-13",
+            "deadline": "2026-02-20",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Aditya Bagas",
+              "Ghaly Farras",
+              "Haris Dwi CAhyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Aditya Bagas, Ghaly Farras, Haris Dwi CAhyo"
+          },
+          {
+            "id": 1776050240762,
+            "title": "Membuat usulan permintaan kebutuhan data kepada BPO",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-02-09",
+            "updatedAt": "2026-04-13",
+            "deadline": "2026-02-13",
+            "note": "",
+            "picEmails": [
+              "bakdiyatulmukarromah@gmail.com"
+            ],
+            "picNames": [
+              "Bakdiyatul Mukarromah"
+            ],
+            "picEmail": "bakdiyatulmukarromah@gmail.com",
+            "picName": "Bakdiyatul Mukarromah"
+          },
+          {
+            "id": 1776050132542,
+            "title": "Koordinasi dengan BPO untuk sharing tujuan pembuatan dokumen dan menerima masukan yang sesuai dengan konteks framework dari MRS, libatkan CESGS",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-02-16",
+            "updatedAt": "2026-04-13",
+            "deadline": "2026-02-27",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "bakdiyatulmukarromah@gmail.com",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Aditya Bagas",
+              "Bakdiyatul Mukarromah",
+              "Fajar Kristanto",
+              "Ghaly Farras",
+              "Haris Dwi CAhyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, bakdiyatulmukarromah@gmail.com, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Aditya Bagas, Bakdiyatul Mukarromah, Fajar Kristanto, Ghaly Farras, Haris Dwi CAhyo"
+          },
+          {
+            "id": 1776050082561,
+            "title": "Memetakan kebutuhan data dengan CESGS",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-02-02",
+            "updatedAt": "2026-04-13",
+            "deadline": "2026-02-06",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "putra.fajar@feb.unair.ac.id"
+            ],
+            "picNames": [
+              "Aditya Bagas",
+              "Fajar Kristanto"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, putra.fajar@feb.unair.ac.id",
+            "picName": "Aditya Bagas, Fajar Kristanto"
+          }
+        ],
+        "tasks": [],
+        "notifications": [
+          {
+            "id": 1775815603371.3062,
+            "title": "",
+            "message": "Timeline item added: Kunjungan ke PLTS Karangkates",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-10T10:06:43.372Z",
+            "createdBy": "Bakdiyatul Mukarromah",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776050334703.1921,
+            "title": "",
+            "message": "Timeline item added: Pemaparan Draft kajian dengan CESGS · PIC: Aditya Bagas",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-13T03:18:54.703Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776050296483.505,
+            "title": "",
+            "message": "Timeline item added: Koordinasi dengan RKJ untuk memetakan stakeholder terkait regulasi di sisi tata kelola, sosial dan lingkungan · PIC: Aditya Bagas, Ghaly Farras, Haris Dwi CAhyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-13T03:18:16.483Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776050240762.0098,
+            "title": "",
+            "message": "Timeline item added: Membuat usulan permintaan kebutuhan data kepada BPO · PIC: Bakdiyatul Mukarromah",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-13T03:17:20.762Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776050132542.0552,
+            "title": "",
+            "message": "Timeline item added: Koordinasi dengan BPO untuk sharing tujuan pembuatan dokumen dan menerima masukan yang sesuai dengan konteks framework dari MRS, libatkan CESGS · PIC: Aditya Bagas, Bakdiyatul Mukarromah, Fajar Kristanto, Ghaly Farras, Haris Dwi CAhyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-13T03:15:32.542Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776050082561.1467,
+            "title": "",
+            "message": "Timeline item added: Memetakan kebutuhan data dengan CESGS · PIC: Aditya Bagas, Fajar Kristanto",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-13T03:14:42.561Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          }
+        ],
+        "messages": [],
+        "importedCalendarSources": []
+      },
+      "kajian-risiko-dan-": {
+        "partners": [],
+        "currentPartner": "",
+        "availability": {},
+        "calNotes": {},
+        "meetings": [],
+        "documents": [],
+        "moms": [],
+        "collaborators": [],
+        "bookingRequests": [],
+        "projectMeta": {
+          "status": "Active",
+          "lastUpdate": "2026-04-13",
+          "estimatedDeadline": "",
+          "summary": ""
+        },
+        "timeline": [],
+        "tasks": [],
+        "notifications": [],
+        "messages": [],
+        "calendarEvents": [],
+        "importedCalendarSources": []
+      }
+    },
+    "authenticatedProjects": {
+      "bi": true,
+      "cbhe": true,
+      "tfk": true,
+      "plts-terapung": true,
+      "kajian-risiko-dan-": true
+    },
+    "adminState": {
+      "admins": [
+        {
+          "id": "a-1",
+          "email": "info@cesgs.or.id",
+          "password": "CESGS2026",
+          "name": "CESGS Superadmin",
+          "isPrimary": true,
+          "role": "Superadmin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true
+        },
+        {
+          "id": "a-1",
+          "email": "adityabagas.official@gmail.com",
+          "password": "Bagas_2026",
+          "name": "Bagas Aditya",
+          "isPrimary": false,
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true
+        },
+        {
+          "id": "a-1",
+          "email": "adityabagas86@gmail.com",
+          "password": "CESGS2026",
+          "name": "BAGAS ADITYA",
+          "isPrimary": false,
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk"
+          ],
+          "canManage": true
+        },
+        {
+          "id": "adm-1775622649342",
+          "email": "bakdiyatulmukarromah@gmail.com",
+          "password": "Bakdi_2026",
+          "name": "Bakdiyatul Mukarromah",
+          "isPrimary": false,
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung"
+          ],
+          "canManage": true
+        }
+      ],
+      "customProjects": {
+        "bi": {
+          "id": "bi",
+          "name": "Blue Building",
+          "org": "Bank Indonesia",
+          "password": "BlueBuilding2026",
+          "accent": "#1A55C9",
+          "icon": "🏛️",
+          "iconBg": "#E5EEFF",
+          "orgColor": "var(--blue)",
+          "statusBg": "var(--blue-light)",
+          "statusColor": "var(--blue)",
+          "tag": "Blue Building · Bank Indonesia",
+          "title": "Blue Building Hub",
+          "sub": "Collaboration workspace for the Blue Building project with Bank Indonesia. Coordinate schedules, documents, and meeting minutes.",
+          "teamName": "Tim Blue Building",
+          "teamOrg": "CESGS — Universitas Airlangga",
+          "links": [
+            {
+              "label": "Bank Indonesia Portal",
+              "url": "https://www.bi.go.id",
+              "icon": "🏦",
+              "bg": "#E5EEFF"
+            },
+            {
+              "label": "Shared Google Drive",
+              "url": "https://drive.google.com",
+              "icon": "📁",
+              "bg": "#FDF3E0"
+            },
+            {
+              "label": "Zoom Meeting Room",
+              "url": "https://zoom.us",
+              "icon": "📹",
+              "bg": "var(--teal-light)"
+            }
+          ],
+          "seedDocs": [
+            {
+              "id": 1,
+              "title": "Proposal Blue Building BI v1.0",
+              "cat": "proposal",
+              "url": "https://drive.google.com",
+              "desc": "Blue Building project proposal for Bank Indonesia.",
+              "author": "CESGS Team",
+              "date": "2026-02-01"
+            },
+            {
+              "id": 2,
+              "title": "Panduan Green Building BI",
+              "cat": "reference",
+              "url": "https://drive.google.com",
+              "desc": "Panduan standar bangunan hijau Bank Indonesia.",
+              "author": "Bank Indonesia",
+              "date": "2026-01-10"
+            }
+          ]
+        },
+        "cbhe": {
+          "id": "cbhe",
+          "name": "CBHE Erasmus+",
+          "org": "Erasmus+ Programme",
+          "password": "CBHE2027",
+          "accent": "#9333EA",
+          "icon": "🎓",
+          "iconBg": "#F3E8FF",
+          "orgColor": "#9333EA",
+          "statusBg": "#F3E8FF",
+          "statusColor": "#9333EA",
+          "tag": "CBHE Erasmus+ · Erasmus+ Programme",
+          "title": "CBHE Erasmus+ Hub",
+          "sub": "Centralized workspace for the Capacity Building for Higher Education project. Coordinate schedules, manage documents, and track decisions across all partner institutions.",
+          "teamName": "CESGS Team",
+          "teamOrg": "Universitas Airlangga",
+          "links": [
+            {
+              "label": "Erasmus+ Portal",
+              "url": "https://erasmus-plus.ec.europa.eu",
+              "icon": "🌐",
+              "bg": "#E5EEFF"
+            },
+            {
+              "label": "Shared Google Drive",
+              "url": "https://drive.google.com",
+              "icon": "📁",
+              "bg": "#FDF3E0"
+            },
+            {
+              "label": "Zoom Meeting Room",
+              "url": "https://zoom.us",
+              "icon": "📹",
+              "bg": "var(--teal-light)"
+            }
+          ],
+          "seedDocs": [
+            {
+              "id": 1,
+              "title": "CBHE Project Proposal v1.0",
+              "cat": "proposal",
+              "url": "https://drive.google.com",
+              "desc": "Initial project proposal submitted to Erasmus+ CBHE.",
+              "author": "CESGS Team",
+              "date": "2026-01-10"
+            },
+            {
+              "id": 2,
+              "title": "Work Package Description",
+              "cat": "proposal",
+              "url": "https://drive.google.com",
+              "desc": "Detailed work packages and milestones.",
+              "author": "Coord. Office",
+              "date": "2026-02-01"
+            },
+            {
+              "id": 3,
+              "title": "Erasmus+ CBHE Guidelines 2025",
+              "cat": "reference",
+              "url": "https://erasmus-plus.ec.europa.eu",
+              "desc": "Official CBHE guidelines.",
+              "author": "EU Commission",
+              "date": "2025-09-01"
+            },
+            {
+              "id": 4,
+              "title": "Partner Agreement Template",
+              "cat": "reference",
+              "url": "https://drive.google.com",
+              "desc": "Inter-institutional agreement template.",
+              "author": "Legal Team",
+              "date": "2026-01-20"
+            }
+          ]
+        },
+        "tfk": {
+          "id": "tfk",
+          "name": "TFK",
+          "org": "Universitas Airlangga",
+          "password": "TFK2026",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "iconBg": "#EAF9F6",
+          "orgColor": "var(--teal)",
+          "statusBg": "var(--teal-light)",
+          "statusColor": "var(--teal)",
+          "tag": "TFK · Universitas Airlangga",
+          "title": "TFK Hub",
+          "sub": "Project workspace for Applied Research CESGS.",
+          "teamName": "Applied Research CESGS Team",
+          "teamOrg": "Universitas Airlangga",
+          "links": [
+            {
+              "label": "Shared Google Drive",
+              "url": "https://drive.google.com",
+              "icon": "📁",
+              "bg": "#FDF3E0"
+            },
+            {
+              "label": "Google Meet",
+              "url": "https://meet.google.com",
+              "icon": "🎥",
+              "bg": "#E5EEFF"
+            }
+          ],
+          "seedDocs": []
+        },
+        "plts-terapung": {
+          "id": "plts-terapung",
+          "name": "PLTS Terapung",
+          "org": "PT PLN Persero",
+          "password": "PLTST2026",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "iconBg": "#EAF9F6",
+          "orgColor": "var(--teal)",
+          "statusBg": "var(--teal-light)",
+          "statusColor": "var(--teal)",
+          "tag": "PLTS Terapung · PT PLN Persero",
+          "title": "PLTS Terapung Hub",
+          "sub": "Project workspace for Applied Research CESGS.",
+          "teamName": "Applied Research CESGS Team",
+          "teamOrg": "Universitas Airlangga",
+          "links": [
+            {
+              "label": "Shared Google Drive",
+              "url": "https://cesgs-my.sharepoint.com/:f:/g/personal/general_cesgs_onmicrosoft_com/IgDKiDqqwJ-BRbYaYQiHgKyuAQtPX-cpXYyyVctbDPFUld8?e=BX5x4Z",
+              "icon": "📁",
+              "bg": "#FDF3E0"
+            },
+            {
+              "label": "Zoom / Meet",
+              "url": "https://us06web.zoom.us/j/85236465345?pwd=cdG4SpOD3buqRNyrCZsxJJrGaMhH0U.1",
+              "icon": "🎥",
+              "bg": "#E5EEFF"
+            }
+          ],
+          "seedDocs": []
+        },
+        "kajian-risiko-dan-": {
+          "id": "kajian-risiko-dan-",
+          "name": "Kajian Risiko dan Peluang Perubahan Iklim",
+          "org": "PT PLN PERSERO",
+          "password": "CLIMATE2025",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "iconBg": "#EAF9F6",
+          "orgColor": "var(--teal)",
+          "statusBg": "var(--teal-light)",
+          "statusColor": "var(--teal)",
+          "tag": "Kajian Risiko dan Peluang Perubahan Iklim · PT PLN PERSERO",
+          "title": "Kajian Risiko dan Peluang Perubahan Iklim Hub",
+          "sub": "Project workspace for Applied Research CESGS.",
+          "teamName": "Applied Research CESGS Team",
+          "teamOrg": "Universitas Airlangga",
+          "links": [
+            {
+              "label": "Shared Google Drive",
+              "url": "https://drive.google.com",
+              "icon": "📁",
+              "bg": "#FDF3E0"
+            },
+            {
+              "label": "Google Meet",
+              "url": "https://meet.google.com",
+              "icon": "🎥",
+              "bg": "#E5EEFF"
+            }
+          ],
+          "seedDocs": []
+        }
+      },
+      "bookingConfig": {
+        "start": "08:00",
+        "end": "16:30",
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "durations": [
+          30,
+          60,
+          90,
+          120
+        ]
+      },
+      "bookingRequests": [
+        {
+          "id": 1775808144045,
+          "requestedAt": "2026-04-10T08:02:24.045Z",
+          "name": "Vidy PLN",
+          "email": "adityabagas86@gmail.com",
+          "org": "",
+          "agenda": "knadakd",
+          "duration": 30,
+          "preferences": [
+            {
+              "date": "2026-04-15",
+              "time": "08:30"
+            },
+            {
+              "date": "2026-04-15",
+              "time": "09:00"
+            },
+            {
+              "date": "2026-04-15",
+              "time": "10:30"
+            }
+          ],
+          "project": "plts-terapung",
+          "projectName": "PLTS Terapung",
+          "external": true,
+          "status": "requested"
+        },
+        {
+          "id": 1775552020525,
+          "requestedAt": "2026-04-07T08:53:40.525Z",
+          "name": "Bagas",
+          "email": "adityabagas68@gmail.com",
+          "org": "",
+          "agenda": "diskusi awal",
+          "duration": 30,
+          "preferences": [
+            {
+              "date": "2026-04-09",
+              "time": "08:30"
+            },
+            {
+              "date": "2026-04-09",
+              "time": "15:00"
+            }
+          ],
+          "project": "umum",
+          "projectName": "General Consultation",
+          "external": true,
+          "status": "confirmed",
+          "confirmedDate": "2026-04-09",
+          "confirmedTime": "08:30"
+        }
+      ]
+    },
+    "superadminState": {
+      "userAccounts": [
+        {
+          "id": "u-1776081472472",
+          "name": "Bakdiyatul Mukarromah",
+          "email": "bakdiyatulmukarromah@cesgs.or.id",
+          "password": "Bakdiyatul_2026",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "cv": "",
+          "institution": "CESGS UNAIR",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-1",
+          "name": "Iman Harymawan",
+          "email": "iman.harymawan@feb.unair.ac.id",
+          "password": "CEOIMAN2026",
+          "role": "Client / Partner",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "CEO account with executive visibility across all CESGS projects, portfolio performance, and internal workload monitoring.",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-2",
+          "name": "Project Manager CESGS",
+          "email": "pm@cesgs.id",
+          "password": "PM2026",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project manager with experience coordinating multi-stakeholder research delivery, milestone monitoring, reporting, and client communication.",
+          "profileLink": "https://www.linkedin.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-3",
+          "name": "Expert CESGS",
+          "email": "expert@cesgs.id",
+          "password": "EXPERT2026",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Subject matter expert supporting research design, technical review, methodology refinement, and strategic recommendations for CESGS projects.",
+          "profileLink": "https://scholar.google.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-4",
+          "name": "Project Staff CESGS",
+          "email": "staff@cesgs.id",
+          "password": "STAFF2026",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project operations staff handling coordination, documentation, follow-up actions, scheduling, and day-to-day execution support.",
+          "profileLink": "https://www.linkedin.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-6",
+          "name": "Ghaly Farras",
+          "email": "ghalyfarras0@gmail.com",
+          "password": "Farras_2026",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project staff yang mendukung operasional proyek melalui dokumentasi, follow-up task, persiapan rapat, dan koordinasi harian.",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-7",
+          "name": "Fajar Kristanto",
+          "email": "putra.fajar@feb.unair.ac.id",
+          "password": "Fajar_2026",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Expert account for CESGS projects. Assigned projects can be adjusted anytime from the superadmin account management panel.",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "seed-8",
+          "name": "Haris Dwi CAhyo",
+          "email": "harisdwi2020@mail.ugm.ac.id",
+          "password": "Haris_2026",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Staff account for CESGS projects. Assigned projects can be edited and switched anytime from the superadmin account management panel.",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "u-1776081009330",
+          "name": "Andrias Vidy",
+          "email": "andriasvidy@gmail.com",
+          "password": "Vidy_2026",
+          "role": "Client / Partner",
+          "projects": [
+            "plts-terapung"
+          ],
+          "cv": "",
+          "institution": "PT PLN PERSERO",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "u-1775623540818",
+          "name": "Prof. Iman Harymawan",
+          "email": "harymawan.iman@feb.unair.ac.id",
+          "password": "Iman_2026",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung"
+          ],
+          "cv": "",
+          "institution": "CESGS UNAIR",
+          "profileLink": "https://id.linkedin.com/in/iman-harymawan",
+          "photoUrl": "https://scholar.unair.ac.id/files-asset/22233636/IMAN_HARYMAWAN_SE._MBA.Ph.D..jpg/",
+          "status": "active",
+          "createdAt": "2026-04-08"
+        },
+        {
+          "id": "u-1775622710732",
+          "name": "Bagas Aditya",
+          "email": "bagas.client@gmail.com",
+          "password": "CESGS2026",
+          "role": "Client / Partner",
+          "projects": [
+            "plts",
+            "bi",
+            "cbhe",
+            "tfk",
+            "baru-aja-3748",
+            "plts",
+            "bi",
+            "cbhe",
+            "tfk",
+            "baru-aja-3748"
+          ],
+          "cv": "",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-08"
+        }
+      ],
+      "clients": [
+        {
+          "id": "c2",
+          "name": "Anisa Putri",
+          "email": "anisa@bi.go.id",
+          "org": "Bank Indonesia",
+          "password": "BlueBuilding2026",
+          "projects": [
+            "bi"
+          ],
+          "status": "active",
+          "createdAt": "2026-02-15"
+        },
+        {
+          "id": "c3",
+          "name": "Dr. Hans Mueller",
+          "email": "hans@erasmus.eu",
+          "org": "EU Commission",
+          "password": "CBHE2027",
+          "projects": [
+            "cbhe"
+          ],
+          "status": "inactive",
+          "createdAt": "2026-03-01"
+        },
+        {
+          "id": "c1775475340993",
+          "name": "FARRAS",
+          "email": "ghalyfarras0@gmail.com",
+          "password": "BARU2026",
+          "org": "UNAIR",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung"
+          ],
+          "status": "active",
+          "createdAt": "2026-04-06",
+          "role": "Staff"
+        },
+        {
+          "id": "c1775475962165",
+          "name": "BAGAS",
+          "email": "adityabagas86@gmail.com",
+          "password": "PLTST2026",
+          "org": "CESGS",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk"
+          ],
+          "status": "active",
+          "createdAt": "2026-04-06",
+          "role": "Admin"
+        }
+      ],
+      "projects": {
+        "bi": {
+          "id": "bi",
+          "name": "Blue Building",
+          "org": "Bank Indonesia",
+          "password": "BlueBuilding2026",
+          "accent": "#1A55C9",
+          "icon": "🏛️",
+          "desc": "Collaboration workspace for the Blue Building project with Bank Indonesia. Coordinate schedules, documents, and meeting minutes.",
+          "status": "active",
+          "drive": "https://drive.google.com",
+          "meet": "https://zoom.us",
+          "createdAt": "2026-04-13"
+        },
+        "cbhe": {
+          "id": "cbhe",
+          "name": "CBHE Erasmus+",
+          "org": "Erasmus+ Programme",
+          "password": "CBHE2027",
+          "accent": "#9333EA",
+          "icon": "🎓",
+          "desc": "Centralized workspace for the Capacity Building for Higher Education project. Coordinate schedules, manage documents, and track decisions across all partner institutions.",
+          "status": "active",
+          "drive": "https://drive.google.com",
+          "meet": "https://zoom.us",
+          "createdAt": "2026-04-13"
+        },
+        "tfk": {
+          "id": "tfk",
+          "name": "TFK",
+          "org": "Universitas Airlangga",
+          "password": "TFK2026",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "desc": "Project workspace for Applied Research CESGS.",
+          "status": "active",
+          "drive": "https://drive.google.com",
+          "meet": "https://meet.google.com",
+          "createdAt": "2026-04-06"
+        },
+        "plts-terapung": {
+          "id": "plts-terapung",
+          "name": "PLTS Terapung",
+          "org": "PT PLN Persero",
+          "password": "PLTST2026",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "desc": "Project workspace for Applied Research CESGS.",
+          "status": "active",
+          "drive": "https://cesgs-my.sharepoint.com/:f:/g/personal/general_cesgs_onmicrosoft_com/IgDKiDqqwJ-BRbYaYQiHgKyuAQtPX-cpXYyyVctbDPFUld8?e=BX5x4Z",
+          "meet": "https://us06web.zoom.us/j/85236465345?pwd=cdG4SpOD3buqRNyrCZsxJJrGaMhH0U.1",
+          "createdAt": "2026-04-13"
+        },
+        "kajian-risiko-dan-": {
+          "id": "kajian-risiko-dan-",
+          "name": "Kajian Risiko dan Peluang Perubahan Iklim",
+          "org": "PT PLN PERSERO",
+          "password": "CLIMATE2025",
+          "accent": "#0b8c7a",
+          "icon": "🔬",
+          "desc": "Project workspace for Applied Research CESGS.",
+          "status": "active",
+          "drive": "https://drive.google.com",
+          "meet": "https://meet.google.com",
+          "createdAt": "2026-04-13"
+        }
+      },
+      "admins": [
+        {
+          "id": "a-1",
+          "name": "CESGS Superadmin",
+          "email": "info@cesgs.or.id",
+          "password": "CESGS2026",
+          "role": "Superadmin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "isPrimary": true,
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "a-1",
+          "name": "Bagas Aditya",
+          "email": "adityabagas.official@gmail.com",
+          "password": "Bagas_2026",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "isPrimary": false,
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "a-1",
+          "name": "BAGAS ADITYA",
+          "email": "adityabagas86@gmail.com",
+          "password": "CESGS2026",
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk"
+          ],
+          "isPrimary": false,
+          "createdAt": "2026-04-13"
+        },
+        {
+          "id": "adm-1775622649342",
+          "name": "Bakdiyatul Mukarromah",
+          "email": "bakdiyatulmukarromah@gmail.com",
+          "password": "Bakdi_2026",
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung"
+          ],
+          "isPrimary": false,
+          "createdAt": "2026-04-13"
+        }
+      ],
+      "availability": {
+        "start": "08:00",
+        "end": "16:30",
+        "weekdays": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "durations": [
+          30,
+          60,
+          90,
+          120
+        ],
+        "blockedDates": []
+      },
+      "bookingRequests": [
+        {
+          "id": 1775808144045,
+          "requestedAt": "2026-04-10T08:02:24.045Z",
+          "name": "Vidy PLN",
+          "email": "adityabagas86@gmail.com",
+          "org": "",
+          "agenda": "knadakd",
+          "duration": 30,
+          "preferences": [
+            {
+              "date": "2026-04-15",
+              "time": "08:30"
+            },
+            {
+              "date": "2026-04-15",
+              "time": "09:00"
+            },
+            {
+              "date": "2026-04-15",
+              "time": "10:30"
+            }
+          ],
+          "project": "plts-terapung",
+          "projectName": "PLTS Terapung",
+          "external": true,
+          "status": "requested"
+        },
+        {
+          "id": 1775552020525,
+          "requestedAt": "2026-04-07T08:53:40.525Z",
+          "name": "Bagas",
+          "email": "adityabagas68@gmail.com",
+          "org": "",
+          "agenda": "diskusi awal",
+          "duration": 30,
+          "preferences": [
+            {
+              "date": "2026-04-09",
+              "time": "08:30"
+            },
+            {
+              "date": "2026-04-09",
+              "time": "15:00"
+            }
+          ],
+          "project": "umum",
+          "projectName": "General Consultation",
+          "external": true,
+          "status": "confirmed",
+          "confirmedDate": "2026-04-09",
+          "confirmedTime": "08:30"
+        }
+      ],
+      "meetings": [
+        {
+          "id": 1775654823109,
+          "title": "Meeting with Bagas",
+          "projectId": "bi",
+          "date": "2026-04-09",
+          "time": "08:30 – 09:00 WIB",
+          "duration": 30,
+          "location": "Google Meet / CESGS",
+          "agenda": "diskusi awal",
+          "attendees": [
+            "Bagas",
+            "adityabagas68@gmail.com"
+          ],
+          "status": "confirmed"
+        }
+      ],
+      "superAdmin": {
+        "email": "superadmin@cesgs.ac.id",
+        "password": "SUPERADMIN2026",
+        "name": "Super Admin CESGS"
+      },
+      "orgInfo": {
+        "name": "Applied Research CESGS",
+        "sub": "Universitas Airlangga — Center for Energy Studies & Green Solutions",
+        "email": "research@cesgs.ac.id"
+      },
+      "activityLog": [
+        {
+          "text": "Admin <b>BAKDI</b> ditambahkan",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Akun client <b>Budi Santoso</b> dihapus",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Bagas Aditya</b> login ke Super Admin Panel",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Admin <b>Bagas Aditya</b> ditambahkan",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Aditya Bagas</b> login ke Super Admin Panel",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Akun client <b>BAGAS</b> ditambahkan",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Super Admin CESGS</b> login ke Super Admin Panel",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Proyek <b>Floating Solar PV Study</b> diperbarui",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Aditya Bagas</b> login ke Super Admin Panel via Project Hub",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Akun client <b>FARRAS</b> ditambahkan",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Proyek <b>BARU AJA</b> diperbarui",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Proyek <b>BARU AJA</b> ditambahkan",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Aditya Bagas</b> login ke Super Admin Panel via Project Hub",
+          "time": "Baru saja",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "<b>Super Admin</b> login ke dashboard",
+          "time": "2 menit lalu",
+          "color": "var(--teal)"
+        },
+        {
+          "text": "Permintaan meeting baru dari <b>Rizky Fadilah</b> (PLTS)",
+          "time": "1 jam lalu",
+          "color": "var(--gold)"
+        },
+        {
+          "text": "Meeting <b>CBHE WP Review</b> dikonfirmasi",
+          "time": "3 jam lalu",
+          "color": "var(--blue)"
+        },
+        {
+          "text": "Akun client <b>Anisa Putri</b> diaktifkan",
+          "time": "1 hari lalu",
+          "color": "var(--teal)"
+        }
+      ]
+    },
+    "accountProfileDb": {
+      "version": 1,
+      "accounts": {
+        "info@cesgs.or.id": {
+          "id": "profile-info-cesgs-or-id",
+          "email": "info@cesgs.or.id",
+          "password": "CESGS2026",
+          "name": "CESGS Superadmin",
+          "role": "Superadmin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13",
+          "updatedAt": "2026-04-13T11:58:27.912Z",
+          "source": "admin_state"
+        },
+        "iman.harymawan@feb.unair.ac.id": {
+          "id": "seed-1",
+          "email": "iman.harymawan@feb.unair.ac.id",
+          "password": "CEOIMAN2026",
+          "name": "Iman Harymawan",
+          "role": "Client / Partner",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "CEO account with executive visibility across all CESGS projects, portfolio performance, and internal workload monitoring.",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "pm@cesgs.id": {
+          "id": "seed-2",
+          "email": "pm@cesgs.id",
+          "password": "PM2026",
+          "name": "Project Manager CESGS",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project manager with experience coordinating multi-stakeholder research delivery, milestone monitoring, reporting, and client communication.",
+          "institution": "",
+          "profileLink": "https://www.linkedin.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "expert@cesgs.id": {
+          "id": "seed-3",
+          "email": "expert@cesgs.id",
+          "password": "EXPERT2026",
+          "name": "Expert CESGS",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Subject matter expert supporting research design, technical review, methodology refinement, and strategic recommendations for CESGS projects.",
+          "institution": "",
+          "profileLink": "https://scholar.google.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "staff@cesgs.id": {
+          "id": "seed-4",
+          "email": "staff@cesgs.id",
+          "password": "STAFF2026",
+          "name": "Project Staff CESGS",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project operations staff handling coordination, documentation, follow-up actions, scheduling, and day-to-day execution support.",
+          "institution": "",
+          "profileLink": "https://www.linkedin.com/",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "bakdiyatulmukarromah@gmail.com": {
+          "id": "seed-5",
+          "email": "bakdiyatulmukarromah@gmail.com",
+          "password": "Bakdi_2026",
+          "name": "Bakdiyatul Mukarromah",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Project manager yang berpengalaman mengkoordinasikan penjadwalan, komunikasi klien, monitoring proyek, dan milestone follow-up.",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.913Z",
+          "source": "seed_account"
+        },
+        "ghalyfarras0@gmail.com": {
+          "id": "c1775475340993",
+          "email": "ghalyfarras0@gmail.com",
+          "password": "BARU2026",
+          "name": "FARRAS",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung"
+          ],
+          "canManage": true,
+          "cv": "Project staff yang mendukung operasional proyek melalui dokumentasi, follow-up task, persiapan rapat, dan koordinasi harian.",
+          "institution": "CESGS UNAIR",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_clients"
+        },
+        "putra.fajar@feb.unair.ac.id": {
+          "id": "seed-7",
+          "email": "putra.fajar@feb.unair.ac.id",
+          "password": "Fajar_2026",
+          "name": "Fajar Kristanto",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Expert account for CESGS projects. Assigned projects can be adjusted anytime from the superadmin account management panel.",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "harisdwi2020@mail.ugm.ac.id": {
+          "id": "seed-8",
+          "email": "harisdwi2020@mail.ugm.ac.id",
+          "password": "Haris_2026",
+          "name": "Haris Dwi CAhyo",
+          "role": "Staff",
+          "projects": [
+            "bi",
+            "cbhe"
+          ],
+          "canManage": true,
+          "cv": "Staff account for CESGS projects. Assigned projects can be edited and switched anytime from the superadmin account management panel.",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "adityabagas.official@gmail.com": {
+          "id": "profile-adityabagas-official-gmail-com",
+          "email": "adityabagas.official@gmail.com",
+          "password": "Bagas_2026",
+          "name": "Bagas Aditya",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.912Z",
+          "source": "admin_state"
+        },
+        "adityabagas86@gmail.com": {
+          "id": "c1775475962165",
+          "email": "adityabagas86@gmail.com",
+          "password": "PLTST2026",
+          "name": "BAGAS",
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-12",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_clients"
+        },
+        "harymawan.iman@feb.unair.ac.id": {
+          "id": "u-1775623540818",
+          "email": "harymawan.iman@feb.unair.ac.id",
+          "password": "Iman_2026",
+          "name": "Prof. Iman Harymawan",
+          "role": "Expert",
+          "projects": [
+            "bi",
+            "cbhe",
+            "plts-terapung"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "CESGS UNAIR",
+          "profileLink": "https://id.linkedin.com/in/iman-harymawan",
+          "photoUrl": "https://scholar.unair.ac.id/files-asset/22233636/IMAN_HARYMAWAN_SE._MBA.Ph.D..jpg/",
+          "status": "active",
+          "createdAt": "2026-04-08",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_userAccounts"
+        },
+        "bagas.client@gmail.com": {
+          "id": "u-1775622710732",
+          "email": "bagas.client@gmail.com",
+          "password": "CESGS2026",
+          "name": "Bagas Aditya",
+          "role": "Client / Partner",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk"
+          ],
+          "canManage": false,
+          "cv": "",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-08",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_userAccounts"
+        },
+        "anisa@bi.go.id": {
+          "id": "c2",
+          "email": "anisa@bi.go.id",
+          "password": "BlueBuilding2026",
+          "name": "Anisa Putri",
+          "role": "Client / Partner",
+          "projects": [
+            "bi"
+          ],
+          "canManage": false,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-02-15",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_clients"
+        },
+        "hans@erasmus.eu": {
+          "id": "c3",
+          "email": "hans@erasmus.eu",
+          "password": "CBHE2027",
+          "name": "Dr. Hans Mueller",
+          "role": "Client / Partner",
+          "projects": [
+            "cbhe"
+          ],
+          "canManage": false,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "inactive",
+          "createdAt": "2026-03-01",
+          "updatedAt": "2026-04-13T11:58:27.916Z",
+          "source": "superadmin_clients"
+        },
+        "vidy.pln@gmail.com": {
+          "id": "profile-vidy-pln-gmail-com",
+          "email": "vidy.pln@gmail.com",
+          "password": "Vidy_2026",
+          "name": "Vidy PLN",
+          "role": "Client / Partner",
+          "projects": [
+            "bi"
+          ],
+          "canManage": false,
+          "cv": "",
+          "institution": "",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-11",
+          "updatedAt": "2026-04-11T14:22:14.006Z",
+          "source": "current_session"
+        },
+        "andriasvidy@gmail.com": {
+          "id": "u-1776081009330",
+          "email": "andriasvidy@gmail.com",
+          "password": "Vidy_2026",
+          "name": "Andrias Vidy",
+          "role": "Client / Partner",
+          "projects": [
+            "plts-terapung"
+          ],
+          "canManage": false,
+          "cv": "",
+          "institution": "PT PLN PERSERO",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        },
+        "bakdiyatulmukarromah@cesgs.or.id": {
+          "id": "u-1776081472472",
+          "email": "bakdiyatulmukarromah@cesgs.or.id",
+          "password": "Bakdiyatul_2026",
+          "name": "Bakdiyatul Mukarromah",
+          "role": "Project Manager",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "CESGS UNAIR",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-13",
+          "updatedAt": "2026-04-13T11:58:27.915Z",
+          "source": "superadmin_userAccounts"
+        }
+      }
+    }
+  }
+};
+function applyHardcodedJsonBackupOnStartup(){
+  try {
+    deleteImportedJsonData(true);
+  } catch (e) {
+    console.warn('Failed to clear previous local data before applying hardcoded JSON.', e);
+  }
+  try {
+    applyJsonBackupPayload(HARDCODED_JSON_BACKUP);
+    console.info('Hardcoded JSON backup applied successfully.');
+  } catch (err) {
+    console.error('Failed to apply hardcoded JSON backup.', err);
+  }
+}
+
+applyHardcodedJsonBackupOnStartup();
 
 ensureSeedManagedAccounts();
 loadAll();
