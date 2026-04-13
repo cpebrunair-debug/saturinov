@@ -1119,6 +1119,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
   <div class="global-json-toolbar-label">Database JSON</div>
   <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
   <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
+  <button class="btn btn-red" type="button" onclick="deleteImportedJsonData()">Delete JSON</button>
 </div>
 
 <div class="landing" id="landing-page">
@@ -1642,8 +1643,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
   <div class="grid-2" style="margin-bottom:20px">
     <div style="display:flex;flex-direction:column;gap:16px">
       <div class="card card-pad">
-        <div class="section-label" id="sched-form-title">Add Event</div>
-        <div class="helper-text" id="sched-form-helper" style="margin-bottom:10px">Agenda yang dibuat di sini akan tampil sinkron untuk semua akun pada project ini, dan semua akun juga dapat mengedit atau menghapusnya.</div>
+        <div class="section-label">Add Event</div>
         <div class="form-grid-2">
           <div class="form-row"><label class="inp-label">Nama pengguna *</label><div id="sched-event-owner-checklist" class="bk-account-checklist" style="max-height:220px"></div><select class="inp" id="sched-event-owner" multiple size="7" style="display:none"></select></div>
           <div class="form-row"><label class="inp-label">Nama event *</label><input class="inp" id="sched-event-title" placeholder="Contoh: Kickoff Meeting / Site Visit" maxlength="120"/></div>
@@ -1653,8 +1653,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
           <div class="form-row"><label class="inp-label">Selesai *</label><input class="inp" id="sched-event-end" type="time"/></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-teal" id="sched-form-submit-btn" onclick="addCalendarEventManual()">+ Add Event</button>
-          <button class="btn btn-outline" id="sched-form-cancel-btn" onclick="resetCalendarEventForm()" style="display:none">Cancel Edit</button>
+          <button class="btn btn-teal" onclick="addCalendarEventManual()">+ Add Event</button>
         </div>
       </div>
 
@@ -1778,7 +1777,7 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
     <div class="collab-list" id="collab-list"></div>
   </div>
 </div>
-<input id="json-backup-import-input" type="file" accept="application/json,.json" multiple style="display:none" onchange="handleJsonBackupImport(event)"/>
+<input id="json-backup-import-input" type="file" accept="application/json,.json" style="display:none" onchange="handleJsonBackupImport(event)"/>
 <input id="profile-calendar-import-input" type="file" accept=".ics,.ical,.ifb,text/calendar" style="display:none" onchange="handleProfileCalendarImport(event)"/>
 
 <div class="page" id="page-profile">
@@ -2072,6 +2071,7 @@ const PROJECTS = {
 /* ═══════════════════════════════════
    STATE
 ═══════════════════════════════════ */
+const DEFAULT_PROJECTS_SNAPSHOT = JSON.parse(JSON.stringify(PROJECTS));
 const COLORS=[
   {bg:'#EDE9FE',text:'#5B21B6',av:'#7C3AED'},{bg:'#FCE7F3',text:'#9D174D',av:'#DB2777'},
   {bg:'#D1FAE5',text:'#065F46',av:'#059669'},{bg:'#FEF3C7',text:'#78350F',av:'#D97706'},
@@ -2314,7 +2314,6 @@ let selectedOverlapDays=new Set();
 let nmAttendees={},nmomAttendees={};
 let emailPlain='';
 let activeDocTab='all';
-let schedEditingEventId=null,schedEditingProjectId=null;
 
 const now=new Date();
 viewYear=now.getFullYear();
@@ -2901,14 +2900,10 @@ function renderScheduleOwnerChecklist(){
   });
 }
 
-let meetingModalProjectId = null;
-let meetingEditContext = null;
-
 function populateMeetingAccountOptions(){
   const select=document.getElementById('nm-account-select');
   if(!select) return;
-  const targetProjectId=meetingModalProjectId || currentProjectId;
-  const options=getAccountDirectoryOptions(targetProjectId,{includeClients:true,includeManagement:true});
+  const options=getAccountDirectoryOptions(currentProjectId,{includeClients:true,includeManagement:true});
   const currentValues=new Set(Array.from(select.selectedOptions || []).map(opt=>String(opt.value||'')));
   select.innerHTML=options.map(opt=>`<option value="${escapeHtml(opt.value)}" data-email="${escapeHtml(opt.email||'')}" data-role="${escapeHtml(opt.role||'')}" data-institution="${escapeHtml(opt.institution||'')}">${escapeHtml(opt.label)}</option>`).join('');
   Array.from(select.options || []).forEach(opt=>{ opt.selected=currentValues.has(opt.value); });
@@ -3316,89 +3311,6 @@ function replaceImportedCalendarForSelectedOwner(){
   triggerCalendarImport();
 }
 
-function resetCalendarEventForm(){
-  schedEditingEventId=null;
-  schedEditingProjectId=null;
-  const titleEl=document.getElementById('sched-form-title');
-  const helperEl=document.getElementById('sched-form-helper');
-  const submitBtn=document.getElementById('sched-form-submit-btn');
-  const cancelBtn=document.getElementById('sched-form-cancel-btn');
-  if(titleEl) titleEl.textContent='Add Event';
-  if(helperEl) helperEl.textContent='Agenda yang dibuat di sini akan tampil sinkron untuk semua akun pada project ini, dan semua akun juga dapat mengedit atau menghapusnya.';
-  if(submitBtn) submitBtn.textContent='+ Add Event';
-  if(cancelBtn) cancelBtn.style.display='none';
-  const title=document.getElementById('sched-event-title');
-  const date=document.getElementById('sched-event-date');
-  const start=document.getElementById('sched-event-start');
-  const end=document.getElementById('sched-event-end');
-  const mode=document.getElementById('sched-event-mode');
-  if(title) title.value='';
-  if(date) date.value='';
-  if(start) start.value='';
-  if(end) end.value='';
-  if(mode) mode.value='Online';
-  populateScheduleOwnerOptions();
-  const select=document.getElementById('sched-event-owner');
-  Array.from(select && select.options || []).forEach(opt=>{ opt.selected=false; });
-  renderScheduleOwnerChecklist();
-}
-
-function setSelectedScheduleOwnersByNames(names){
-  populateScheduleOwnerOptions();
-  const wanted=new Set((names||[]).map(name=>String(name||'').trim().toLowerCase()).filter(Boolean));
-  const select=document.getElementById('sched-event-owner');
-  if(!select) return;
-  Array.from(select.options || []).forEach(opt=>{
-    opt.selected=wanted.has(String(opt.value||'').trim().toLowerCase());
-  });
-  renderScheduleOwnerChecklist();
-}
-
-function editCalendarEventManual(projectId,eventId){
-  const pid=String(projectId||currentProjectId||'').trim();
-  const targetId=String(eventId||'').trim();
-  const state=projectData[pid];
-  if(!pid || !state){ toast('Project agenda tidak ditemukan'); return; }
-  ensureCalendarState(state);
-  const event=(state.calendarEvents||[]).find(item=>String(item.id)===targetId && String(item.source||'manual').toLowerCase()!=='import');
-  if(!event){ toast('Agenda yang ingin diedit tidak ditemukan'); return; }
-  schedEditingProjectId=pid;
-  schedEditingEventId=targetId;
-  const titleEl=document.getElementById('sched-form-title');
-  const helperEl=document.getElementById('sched-form-helper');
-  const submitBtn=document.getElementById('sched-form-submit-btn');
-  const cancelBtn=document.getElementById('sched-form-cancel-btn');
-  if(titleEl) titleEl.textContent='Edit Event';
-  if(helperEl) helperEl.textContent='Perubahan agenda akan langsung sinkron ke semua akun pada project ini setelah disimpan.';
-  if(submitBtn) submitBtn.textContent='Simpan Perubahan';
-  if(cancelBtn) cancelBtn.style.display='inline-flex';
-  document.getElementById('sched-event-title').value=event.title||'';
-  document.getElementById('sched-event-date').value=event.date||'';
-  document.getElementById('sched-event-start').value=event.startTime||'';
-  document.getElementById('sched-event-end').value=event.endTime||'';
-  document.getElementById('sched-event-mode').value=event.mode||'Online';
-  setSelectedScheduleOwnersByNames(splitOwnerNames(event.owner||''));
-  try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(e){}
-}
-
-function deleteCalendarEventManual(projectId,eventId){
-  const pid=String(projectId||currentProjectId||'').trim();
-  const targetId=String(eventId||'').trim();
-  const state=projectData[pid];
-  if(!pid || !state){ toast('Project agenda tidak ditemukan'); return; }
-  ensureCalendarState(state);
-  const idx=(state.calendarEvents||[]).findIndex(item=>String(item.id)===targetId && String(item.source||'manual').toLowerCase()!=='import');
-  if(idx<0){ toast('Agenda yang ingin dihapus tidak ditemukan'); return; }
-  const event=state.calendarEvents[idx] || {};
-  const ok=window.confirm(`Hapus agenda "${event.title||'Untitled Event'}" pada ${formatDateFancy(event.date||'')}? Perubahan ini akan tersinkron ke semua akun pada project ini.`);
-  if(!ok) return;
-  state.calendarEvents.splice(idx,1);
-  if(String(schedEditingEventId||'')===targetId && String(schedEditingProjectId||'')===pid) resetCalendarEventForm();
-  saveAll();
-  renderChips(); renderCalendar(); refreshDashboard(); renderNotificationsPage(); renderProfilePage(); renderUserHubPage();
-  toast('Agenda berhasil dihapus dan tersinkron ke semua akun');
-}
-
 function addCalendarEventManual(){
   const s=getState(); if(!s) return;
   ensureCalendarState(s);
@@ -3412,61 +3324,17 @@ function addCalendarEventManual(){
   const end=document.getElementById('sched-event-end').value;
   if(!owners.length || !title || !date || !start || !end){ toast('Lengkapi nama pengguna, nama event, tanggal, status event, jam mulai, dan jam selesai'); return; }
   if(end<=start){ toast('Jam selesai harus setelah jam mulai'); return; }
-  if(schedEditingEventId && schedEditingProjectId && projectData[schedEditingProjectId]){
-    const targetState=projectData[schedEditingProjectId];
-    ensureCalendarState(targetState);
-    const idx=(targetState.calendarEvents||[]).findIndex(item=>String(item.id)===String(schedEditingEventId) && String(item.source||'manual').toLowerCase()!=='import');
-    if(idx<0){
-      toast('Agenda yang sedang diedit sudah tidak ditemukan. Silakan coba lagi.');
-      resetCalendarEventForm();
-      renderCalendar();
-      return;
-    }
-    const existing=targetState.calendarEvents[idx]||{};
-    targetState.calendarEvents[idx]={
-      ...existing,
-      id: existing.id || schedEditingEventId || Date.now(),
-      owner,
-      ownerEmail:(recipients[0]&&recipients[0].email)||existing.ownerEmail||'',
-      title,
-      mode,
-      date,
-      startTime:start,
-      endTime:end,
-      source:String(existing.source||'manual').toLowerCase()==='import' ? 'manual' : (existing.source||'manual'),
-      updatedAt:new Date().toISOString(),
-      updatedBy:currentUserName(),
-      updatedByEmail:currentUserEmail()
-    };
-    saveAll();
-    resetCalendarEventForm();
-    renderChips(); renderCalendar(); refreshDashboard(); renderNotificationsPage(); renderProfilePage(); renderUserHubPage();
-    toast('Agenda berhasil diperbarui dan tersinkron ke semua akun');
-    return;
-  }
-  s.calendarEvents.push({
-    id:Date.now(),
-    owner,
-    ownerEmail:(recipients[0]&&recipients[0].email)||'',
-    title,
-    mode,
-    date,
-    startTime:start,
-    endTime:end,
-    source:'manual',
-    createdAt:new Date().toISOString(),
-    createdBy:currentUserName(),
-    createdByEmail:currentUserEmail(),
-    updatedAt:new Date().toISOString(),
-    updatedBy:currentUserName(),
-    updatedByEmail:currentUserEmail()
-  });
+  s.calendarEvents.push({id:Date.now(),owner,ownerEmail:(recipients[0]&&recipients[0].email)||'',title,mode,date,startTime:start,endTime:end,source:'manual'});
   addScheduleEventNotifications(recipients,{title,date,start,end,mode},currentProjectId);
   const openedMailDraft=openScheduleEventEmailDraft(recipients,{title,date,start,end,mode});
-  saveAll();
-  resetCalendarEventForm();
-  renderChips(); renderCalendar(); refreshDashboard(); renderNotificationsPage(); renderProfilePage(); renderUserHubPage();
-  toast(openedMailDraft ? 'Event berhasil ditambahkan, notifikasi dibuat, dan draft email dibuka' : 'Event berhasil ditambahkan dan notifikasi dibuat');
+  document.getElementById('sched-event-title').value='';
+  document.getElementById('sched-event-date').value='';
+  document.getElementById('sched-event-start').value='';
+  document.getElementById('sched-event-end').value='';
+  document.getElementById('sched-event-mode').value='Online';
+  Array.from(document.getElementById('sched-event-owner').options || []).forEach(opt=>{ opt.selected=false; });
+  renderScheduleOwnerChecklist();
+  renderChips(); renderCalendar(); refreshDashboard(); renderNotificationsPage(); saveAll(); toast(openedMailDraft ? 'Event berhasil ditambahkan, notifikasi dibuat, dan draft email dibuka' : 'Event berhasil ditambahkan dan notifikasi dibuat');
 }
 
 function parseICSDate(value){
@@ -3615,51 +3483,15 @@ function getRelevantScheduleAgendaItems(){
   return filtered;
 }
 
-function getDashboardScheduleAgendaItems(){
-  const pid=currentProjectId;
-  const state=getState();
-  if(!pid || !PROJECTS[pid] || !state) return [];
-  ensureCalendarState(state);
-  const rows=[];
-  (state.meetings || []).forEach(meeting=>{
-    rows.push({...meeting, __projectId:pid, __kind:'meeting'});
-  });
-  (state.calendarEvents || []).forEach(event=>{
-    if(String(event.source || '').toLowerCase() === 'import') return;
-    rows.push({
-      id: event.id || `evt-${pid}-${event.date || 'na'}-${event.startTime || '00:00'}-${event.title || 'event'}`,
-      title: event.title || 'Agenda Event',
-      date: event.date || '',
-      time: `${event.startTime || '00:00'} – ${event.endTime || '23:59'}`,
-      startTime: event.startTime || '00:00',
-      endTime: event.endTime || '23:59',
-      location: event.mode || 'Online',
-      agenda: event.title || '',
-      attendees: splitOwnerNames(event.owner || ''),
-      owner: event.owner || '',
-      ownerEmail: event.ownerEmail || '',
-      source: event.source || 'manual',
-      status: 'agenda',
-      __projectId: pid,
-      __kind: 'event'
-    });
-  });
-  rows.sort((a,b)=>{
-    const aStart = a.startTime || (String(a.time || '').match(/\d{2}:\d{2}/) || ['00:00'])[0];
-    const bStart = b.startTime || (String(b.time || '').match(/\d{2}:\d{2}/) || ['00:00'])[0];
-    return `${a.date || ''} ${aStart}`.localeCompare(`${b.date || ''} ${bStart}`);
-  });
-  return rows;
-}
-
 function renderCalendar(){
   const s=getState(); if(!s) return;
   ensureCalendarState(s);
   const listEl = document.getElementById('schedule-agenda-list');
   const ownerPill = document.getElementById('schedule-agenda-owner-pill');
   if(!listEl) return;
-  if(ownerPill) ownerPill.textContent = 'Sync: semua akun project';
-  const allItems = getDashboardScheduleAgendaItems();
+  const ownerLabel = currentUserName() || 'Project User';
+  if(ownerPill) ownerPill.textContent = `Owner: ${ownerLabel}`;
+  const allItems = getRelevantScheduleAgendaItems();
   const nowCutoff = new Date().toISOString().slice(0,16).replace('T',' ');
   const upcoming = allItems.filter(item=>{
     const start = item.startTime || (String(item.time || '').match(/\d{2}:\d{2}/) || ['00:00'])[0];
@@ -3670,7 +3502,7 @@ function renderCalendar(){
   document.getElementById('sched-stat-avail').textContent = visibleItems.length;
   document.getElementById('sched-stat-overlap').textContent = allItems.filter(item=>String(item.date || '').startsWith(thisMonthPrefix)).length;
   if(!visibleItems.length){
-    listEl.innerHTML = `<div class="empty-state">Belum ada agenda meeting tersinkron untuk project ini. Tambahkan agenda baru agar langsung muncul ke semua akun yang terhubung.</div>`;
+    listEl.innerHTML = `<div class="empty-state">Belum ada agenda meeting yang relevan untuk <b>${escapeHtml(ownerLabel)}</b> pada proyek ini. Tambahkan meeting baru atau pilih project lain jika diperlukan.</div>`;
     return;
   }
   listEl.innerHTML = `<div class="profile-calendar-event-list">${visibleItems.map(item=>{
@@ -3690,7 +3522,6 @@ function renderCalendar(){
         <div class="profile-calendar-event-meta">${metaBits.join(' · ')}</div>
         ${item.agenda ? `<div style="font-size:12px;color:var(--ink2);line-height:1.65;margin-top:6px">${escapeHtml(item.agenda)}</div>` : ''}
         ${attendees.length ? `<div style="font-size:11px;color:var(--ink3);line-height:1.55;margin-top:6px">Peserta terkait: ${escapeHtml(attendees.join(', '))}</div>` : ''}
-        ${renderSyncedAgendaActions(item)}
       </div>
       <span class="badge ${kindBadge}">${kindLabel}</span>
     </div>`;
@@ -3734,63 +3565,20 @@ function saveDate(){
 ═══════════════════════════════════ *//* ═══════════════════════════════════
    MEETINGS
 ═══════════════════════════════════ */
-function setMeetingModalPresentation(isEdit){
-  const titleEl=document.querySelector('#ov-add-meeting .modal-head-title');
-  const saveBtn=document.querySelector('#ov-add-meeting .modal-footer .btn.btn-teal');
-  if(titleEl) titleEl.textContent=isEdit ? 'Edit Meeting' : 'Schedule a Meeting';
-  if(saveBtn) saveBtn.textContent=isEdit ? 'Save Changes' : 'Add Meeting';
-}
-
-function renderMeetingPartnerRows(state){
-  const el=document.getElementById('nm-attendees');
-  if(!el) return;
-  if(!state || !state.partners.length){
-    el.innerHTML='<span style="font-size:13px;color:var(--ink3)">Add partners first</span>';
-    return;
-  }
-  el.innerHTML=state.partners.map((p,i)=>`<div class="p-row ${nmAttendees[p]?'checked':''}" id="nma-${i}" onclick="toggleNMA('${esc(p)}',${i})" style="margin-bottom:0;padding:6px 10px">
-    <div class="pr-ck" id="nmac-${i}">${nmAttendees[p]?svgCheck():''}</div>
-    <div class="av av-sm" style="background:${pc(i).av}">${ini(p)}</div>
-    <div style="font-size:13px;font-weight:500">${p}</div></div>`).join('');
-}
-
-function openAddMeetingModal(projectIdOverride, meetingIdOverride){
-  const targetProjectId=String(projectIdOverride || currentProjectId || '');
-  const targetState=(targetProjectId && projectData[targetProjectId]) ? projectData[targetProjectId] : getState();
-  if(!targetState) return;
-  meetingModalProjectId = targetProjectId || currentProjectId || null;
-  meetingEditContext = null;
+function openAddMeetingModal(){
+  const s=getState();if(!s)return;
   document.getElementById('nm-title').value='';document.getElementById('nm-date').value='';
   document.getElementById('nm-time').value='';document.getElementById('nm-loc').value='';
   document.getElementById('nm-agenda').value='';nmAttendees={};
   populateMeetingAccountOptions();
   Array.from(document.getElementById('nm-account-select')?.options || []).forEach(opt=>{ opt.selected=false; });
-  if(projectIdOverride && meetingIdOverride!=null){
-    const meeting=(targetState.meetings||[]).find(m=>String(m.id)===String(meetingIdOverride));
-    if(meeting){
-      meetingEditContext={projectId:meetingModalProjectId,id:String(meeting.id)};
-      document.getElementById('nm-title').value=meeting.title||'';
-      document.getElementById('nm-date').value=meeting.date||'';
-      document.getElementById('nm-time').value=meeting.time||'';
-      document.getElementById('nm-loc').value=meeting.location||'';
-      document.getElementById('nm-agenda').value=meeting.agenda||'';
-      const selectedNames=new Set((meeting.accounts||meeting.attendees||[]).map(v=>String(v||'').trim()).filter(Boolean));
-      const selectedEmails=new Set((meeting.accountEmails||[]).map(v=>String(v||'').trim().toLowerCase()).filter(Boolean));
-      Array.from(document.getElementById('nm-account-select')?.options || []).forEach(opt=>{
-        const optName=String(opt.value||'').trim();
-        const optEmail=String(opt.getAttribute('data-email')||'').trim().toLowerCase();
-        opt.selected=selectedNames.has(optName) || (!!optEmail && selectedEmails.has(optEmail));
-      });
-      const accountNames=new Set((meeting.accounts||[]).map(v=>String(v||'').trim()).filter(Boolean));
-      (meeting.attendees||[]).forEach(name=>{
-        const cleanName=String(name||'').trim();
-        if(cleanName && !accountNames.has(cleanName)) nmAttendees[cleanName]=true;
-      });
-    }
-  }
   renderMeetingAccountChecklist();
-  renderMeetingPartnerRows(targetState);
-  setMeetingModalPresentation(!!meetingEditContext);
+  const el=document.getElementById('nm-attendees');
+  if(!s.partners.length){el.innerHTML='<span style="font-size:13px;color:var(--ink3)">Add partners first</span>'}
+  else{el.innerHTML=s.partners.map((p,i)=>`<div class="p-row" id="nma-${i}" onclick="toggleNMA('${esc(p)}',${i})" style="margin-bottom:0;padding:6px 10px">
+    <div class="pr-ck" id="nmac-${i}"></div>
+    <div class="av av-sm" style="background:${pc(i).av}">${ini(p)}</div>
+    <div style="font-size:13px;font-weight:500">${p}</div></div>`).join('')}
   openOv('ov-add-meeting');
 }
 function toggleNMA(name,i){
@@ -3799,61 +3587,18 @@ function toggleNMA(name,i){
   if(nmAttendees[name]){row.classList.add('checked');ck.innerHTML=svgCheck()}else{row.classList.remove('checked');ck.innerHTML=''}
 }
 function saveMeeting(){
-  const targetProjectId=meetingModalProjectId || currentProjectId;
-  const s=(targetProjectId && projectData[targetProjectId]) ? projectData[targetProjectId] : getState();
-  if(!s) return;
+  const s=getState();if(!s)return;
   const title=document.getElementById('nm-title').value.trim();const date=document.getElementById('nm-date').value;
   if(!title||!date){toast('Fill in title and date');return}
   const selectedAccounts=getSelectedMeetingAccountRecipients();
   const selectedPartners=Object.keys(nmAttendees).filter(k=>nmAttendees[k]);
   const attendees=[...new Set([...selectedAccounts.map(item=>item.name), ...selectedPartners])];
-  const payload={
-    id:meetingEditContext ? meetingEditContext.id : Date.now(),
-    title,
-    date,
-    time:document.getElementById('nm-time').value.trim(),
-    location:document.getElementById('nm-loc').value.trim(),
-    agenda:document.getElementById('nm-agenda').value.trim(),
-    attendees,
-    accounts:selectedAccounts.map(item=>item.name),
-    accountEmails:selectedAccounts.map(item=>item.email).filter(Boolean),
-    status:'upcoming'
-  };
-  const wasEditing=!!meetingEditContext;
-  if(wasEditing){
-    const idx=(s.meetings||[]).findIndex(m=>String(m.id)===String(meetingEditContext.id));
-    if(idx>=0) s.meetings[idx]={...(s.meetings[idx]||{}), ...payload};
-    else (s.meetings ||= []).push(payload);
-  } else {
-    (s.meetings ||= []).push(payload);
-  }
+  s.meetings.push({id:Date.now(),title,date,time:document.getElementById('nm-time').value.trim(),
+    location:document.getElementById('nm-loc').value.trim(),agenda:document.getElementById('nm-agenda').value.trim(),
+    attendees,accounts:selectedAccounts.map(item=>item.name),accountEmails:selectedAccounts.map(item=>item.email).filter(Boolean),status:'upcoming'});
   Array.from(document.getElementById('nm-account-select')?.options || []).forEach(opt=>{ opt.selected=false; });
   renderMeetingAccountChecklist();
-  meetingEditContext=null;
-  meetingModalProjectId=null;
-  setMeetingModalPresentation(false);
-  closeOv('ov-add-meeting');
-  renderMeetingsList();renderCalendar();refreshDashboard();renderNotificationsPage();renderProfilePage();renderUserHubPage();saveAll();
-  toast(wasEditing ? 'Meeting diperbarui!' : 'Meeting added!');
-}
-
-function renderSyncedAgendaActions(item){
-  if(!item || String(item.source || '').toLowerCase()==='import') return '';
-  const projectId=String(item.__projectId || currentProjectId || '');
-  const itemId=String(item.id || '');
-  if(!projectId || !itemId) return '';
-  if(String(item.__kind || '')==='meeting'){
-    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-outline btn-sm" type="button" onclick='openAddMeetingModal(${JSON.stringify(projectId)}, ${JSON.stringify(itemId)})'>Edit</button><button class="btn btn-red btn-sm" type="button" onclick='deleteMeetingGlobal(${JSON.stringify(projectId)}, ${JSON.stringify(itemId)})'>Hapus</button></div>`;
-  }
-  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn btn-outline btn-sm" type="button" onclick='editCalendarEventManual(${JSON.stringify(projectId)}, ${JSON.stringify(itemId)})'>Edit</button><button class="btn btn-red btn-sm" type="button" onclick='deleteCalendarEventManual(${JSON.stringify(projectId)}, ${JSON.stringify(itemId)})'>Hapus</button></div>`;
-}
-
-function deleteMeetingGlobal(projectId,id){
-  const pid=String(projectId || currentProjectId || '');
-  const s=(pid && projectData[pid]) ? projectData[pid] : getState();
-  if(!s) return;
-  s.meetings=(s.meetings||[]).filter(m=>String(m.id)!==String(id));
-  renderMeetingsList();renderCalendar();refreshDashboard();renderNotificationsPage();renderProfilePage();renderUserHubPage();saveAll();toast('Meeting dihapus');
+  closeOv('ov-add-meeting');renderMeetingsList();renderCalendar();refreshDashboard();saveAll();toast('Meeting added!');
 }
 
 function renderMeetingsList(){
@@ -3884,8 +3629,6 @@ function renderMeetingsList(){
           <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:${colors[ci]};font-weight:600">${Number.isFinite(mo)?MOS[mo-1]:''}</div></div>
         <div class="mc-info"><div class="mc-title">${m.title}</div><div class="mc-meta">${m.time?`<span>🕐 ${m.time}</span><div class="mc-dot"></div>`:''}${m.location?`<span>📍 ${m.location}</span><div class="mc-dot"></div>`:''}${projectLabel?`<span>🗂 ${projectLabel}</span>`:''}</div></div>
         <div class="mc-actions"><span class="badge badge-teal">${m.status}</span>
-          <button class="btn btn-outline btn-sm" type="button" onclick='openAddMeetingModal(${JSON.stringify(String(m.__projectId||''))}, ${JSON.stringify(String(m.id||''))})'>Edit</button>
-          <button class="btn btn-red btn-sm" type="button" onclick='deleteMeetingGlobal(${JSON.stringify(String(m.__projectId||''))}, ${JSON.stringify(String(m.id||''))})'>Hapus</button>
           <button class="mc-expand" onclick="toggleMC('${m.__projectId}-${m.id}')">▾</button></div>
       </div>
       <div class="mc-body" id="mc-body-${m.__projectId}-${m.id}">
@@ -7845,6 +7588,80 @@ function triggerJsonBackupImport(){
   input.value = '';
   input.click();
 }
+function getJsonManagedStorageKeys(){
+  const keys = [];
+  try{
+    for(let i=0; i<localStorage.length; i += 1){
+      const key = localStorage.key(i);
+      if(key && /^cesgs_/i.test(key) && !keys.includes(key)) keys.push(key);
+    }
+  }catch(e){}
+  [
+    'cesgs_hub_data',
+    'cesgs_hub_auth',
+    'cesgs_admin_state',
+    'cesgs_hub_session',
+    'cesgs_disabled_projects',
+    ACCOUNT_PROFILE_DB_KEY,
+    SUPERADMIN_STORAGE_KEY,
+    SUPERADMIN_LOGIN_BRIDGE_KEY
+  ].forEach(key=>{
+    if(key && !keys.includes(key)) keys.push(key);
+  });
+  return keys;
+}
+function restoreDefaultProjectsRegistry(){
+  Object.keys(PROJECTS).forEach(pid=>{ delete PROJECTS[pid]; });
+  Object.assign(PROJECTS, JSON.parse(JSON.stringify(DEFAULT_PROJECTS_SNAPSHOT || {})));
+}
+function deleteImportedJsonData(skipConfirm){
+  const keys = getJsonManagedStorageKeys();
+  if(!skipConfirm){
+    const ok = window.confirm('Hapus semua data hasil import JSON dan seluruh data lokal aplikasi ini?\n\nProject tambahan, akun, task, timeline, dokumen, notifikasi, sesi login, dan cache lokal akan dibersihkan. Tindakan ini tidak bisa dibatalkan.');
+    if(!ok) return false;
+  }
+  try{ keys.forEach(key=>localStorage.removeItem(key)); }catch(e){}
+  const jsonInput = document.getElementById('json-backup-import-input');
+  if(jsonInput) jsonInput.value = '';
+  restoreDefaultProjectsRegistry();
+  projectData = {};
+  authenticatedProjects = {};
+  mergeAdminState(null);
+  currentAdminEmail = '';
+  currentUserSession = null;
+  currentProjectId = null;
+  currentProjectMode = 'project';
+  modalDate = null;
+  modalChecked = {};
+  selectedOverlapDays = new Set();
+  nmAttendees = {};
+  nmomAttendees = {};
+  emailPlain = '';
+  activeDocTab = 'all';
+  const adminConsole = document.getElementById('admin-console');
+  if(adminConsole) adminConsole.style.display = 'none';
+  const userHub = document.getElementById('user-hub-page');
+  if(userHub) userHub.classList.remove('show');
+  const profileEdit = document.getElementById('user-profile-edit-page');
+  if(profileEdit) profileEdit.classList.remove('show');
+  const superadminShell = document.getElementById('superadmin-shell');
+  if(superadminShell){
+    superadminShell.classList.remove('show');
+    superadminShell.setAttribute('aria-hidden', 'true');
+  }
+  const landing = document.getElementById('landing-page');
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main-content');
+  const hamburger = document.getElementById('hamburger-btn');
+  if(landing) landing.style.display = '';
+  if(sidebar){ sidebar.style.display = 'none'; sidebar.classList.remove('open'); }
+  if(main) main.style.display = 'none';
+  if(hamburger) hamburger.style.display = 'none';
+  updateSidebarContext();
+  renderLanding();
+  toast('Semua data JSON impor dan penyimpanan lokal berhasil dihapus');
+  return true;
+}
 
 function safeStructuredClone(value){
   if(value === undefined) return undefined;
@@ -7857,27 +7674,9 @@ function mergeUniqueNumberArray(currentArr, incomingArr){
   return values;
 }
 function mergePlainObject(currentObj, incomingObj){
-  const isPlain = value => !!value && typeof value === 'object' && !Array.isArray(value);
-  const mergeValue = (currentValue, incomingValue) => {
-    if(incomingValue === undefined) return safeStructuredClone(currentValue);
-    if(incomingValue === null) return currentValue === undefined ? null : safeStructuredClone(currentValue);
-    if(Array.isArray(currentValue) || Array.isArray(incomingValue)){
-      return mergeRecordArrays(Array.isArray(currentValue) ? currentValue : [], Array.isArray(incomingValue) ? incomingValue : [], ['id','email','name','title','date','time']);
-    }
-    if(isPlain(currentValue) || isPlain(incomingValue)){
-      const base = isPlain(currentValue) ? currentValue : {};
-      const incoming = isPlain(incomingValue) ? incomingValue : {};
-      const merged = {};
-      const keys = new Set([...Object.keys(base), ...Object.keys(incoming)]);
-      keys.forEach(key => {
-        merged[key] = mergeValue(base[key], incoming[key]);
-      });
-      return merged;
-    }
-    if(incomingValue === '') return currentValue === undefined ? '' : safeStructuredClone(currentValue);
-    return safeStructuredClone(incomingValue);
-  };
-  return mergeValue(currentObj, incomingObj) || {};
+  const base = currentObj && typeof currentObj === 'object' && !Array.isArray(currentObj) ? safeStructuredClone(currentObj) : {};
+  const incoming = incomingObj && typeof incomingObj === 'object' && !Array.isArray(incomingObj) ? safeStructuredClone(incomingObj) : {};
+  return {...base, ...incoming};
 }
 function mergeRecordArrays(currentArr, incomingArr, preferredKeys=[]){
   const map = new Map();
@@ -8077,28 +7876,15 @@ function applyJsonBackupPayload(payload){
 }
 
 async function handleJsonBackupImport(event){
-  const files = Array.from(event?.target?.files || []);
-  if(!files.length) return;
-  let importedCount = 0;
-  const failedFiles = [];
+  const file = event?.target?.files?.[0];
+  if(!file) return;
   try{
-    for(const file of files){
-      try{
-        const text = await file.text();
-        const payload = JSON.parse(text);
-        applyJsonBackupPayload(payload);
-        importedCount += 1;
-      }catch(err){
-        failedFiles.push(file?.name || 'unknown-file');
-      }
-    }
-    if(importedCount && !failedFiles.length){
-      toast(importedCount > 1 ? `${importedCount} JSON files imported and merged` : 'Database JSON imported and merged');
-    }else if(importedCount && failedFiles.length){
-      toast(`${importedCount} JSON merged, ${failedFiles.length} failed`);
-    }else{
-      toast('Backup JSON is not valid');
-    }
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    applyJsonBackupPayload(payload);
+    toast('Database JSON imported and merged');
+  }catch(err){
+    toast('Backup JSON is not valid');
   }finally{
     if(event?.target) event.target.value='';
   }
@@ -8114,6 +7900,7 @@ function renderBackupTools(){
     <div class="manager-form-actions">
       <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
       <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
+      <button class="btn btn-red" type="button" onclick="deleteImportedJsonData()">Delete JSON</button>
     </div>`;
 }
 function accountTypeFromRole(role){
@@ -9237,7 +9024,7 @@ function renderMeetingDashboardCalendarSection(){
             const badgeClass=item.__kind === 'meeting' ? 'badge-gold' : (item.__kind === 'import' ? 'badge-blue' : 'badge-teal');
             const badgeLabel=item.__kind === 'meeting' ? 'Meeting' : (item.__kind === 'import' ? 'ICS' : 'Agenda');
             const projectLabel=PROJECTS[item.__projectId]?.name || item.__projectId || (item.__kind === 'import' ? 'Kalender pribadi' : 'Project');
-            return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div>${item.agenda ? `<div style="font-size:12px;color:var(--ink2);line-height:1.65;margin-top:6px">${escapeHtml(item.agenda)}</div>` : ''}${renderSyncedAgendaActions(item)}</div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+            return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
           }).join('') : '<div class="empty-state">Belum ada agenda yang sinkron pada bulan ini.</div>'}</div>
         </div>
       </div>
@@ -9292,7 +9079,7 @@ function renderHubCalendarSection(){
           const badgeClass = item.__kind === 'meeting' ? 'badge-gold' : (item.__kind === 'import' ? 'badge-blue' : 'badge-teal');
           const badgeLabel = item.__kind === 'meeting' ? 'Meeting' : (item.__kind === 'import' ? 'ICS' : 'Agenda');
           const projectLabel = PROJECTS[item.__projectId]?.name || item.__projectId || (item.__kind === 'import' ? 'Kalender pribadi' : 'Project');
-          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div>${item.agenda ? `<div style="font-size:12px;color:var(--ink2);line-height:1.65;margin-top:6px">${escapeHtml(item.agenda)}</div>` : ''}${renderSyncedAgendaActions(item)}</div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Agenda')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.startTime||'00:00')}${item.endTime ? `–${escapeHtml(item.endTime)}` : ''} · ${escapeHtml(item.location || item.mode || 'Online')} · ${escapeHtml(projectLabel)}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
         }).join('') : '<div class="empty-state">Belum ada agenda meeting lintas proyek pada akun ini.</div>'}</div>
       </div>`;
   } else {
@@ -9308,7 +9095,7 @@ function renderHubCalendarSection(){
         <div class="hub-side-list">${upcoming.length ? upcoming.map(item=>{
           const badgeClass = item.__kind === 'event' ? 'badge-blue' : 'badge-gold';
           const badgeLabel = item.__kind === 'event' ? 'Agenda' : 'Meeting';
-          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Meeting')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.time || `${item.startTime || '00:00'}–${item.endTime || '23:59'}`) || 'Waktu menyusul'} · ${escapeHtml(PROJECTS[item.__projectId]?.name || item.__projectId || 'Project')}</div>${item.agenda ? `<div style="font-size:12px;color:var(--ink2);line-height:1.65;margin-top:6px">${escapeHtml(item.agenda)}</div>` : ''}${renderSyncedAgendaActions(item)}</div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+          return `<div class="profile-calendar-event-item"><div class="profile-calendar-event-main"><div class="profile-calendar-event-title">${escapeHtml(item.title||'Meeting')}</div><div class="profile-calendar-event-meta">${formatDateFancy(item.date)} · ${escapeHtml(item.time || `${item.startTime || '00:00'}–${item.endTime || '23:59'}`) || 'Waktu menyusul'} · ${escapeHtml(PROJECTS[item.__projectId]?.name || item.__projectId || 'Project')}</div></div><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
         }).join('') : '<div class="empty-state">Belum ada agenda meeting untuk proyek yang terhubung ke akun ini.</div>'}</div>
       </div>`;
   }
