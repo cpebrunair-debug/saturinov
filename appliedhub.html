@@ -1160,10 +1160,10 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
             </div>
           </div>
           <div class="signin-quick-grid">
-            <button class="signin-quick-btn" type="button" onclick="useLandingQuickLogin('adityabagas.official@gmail.com','CESGS2026')">
+            <button class="signin-quick-btn" type="button" onclick="useLandingQuickLogin('info@cesgs.or.id','CESGS2026')">
               <div class="signin-quick-meta">
                 <div class="signin-quick-role">Superadmin / Admin</div>
-                <div class="signin-quick-email">adityabagas.official@gmail.com</div>
+                <div class="signin-quick-email">info@cesgs.or.id</div>
                 <div class="signin-quick-pass">Password: CESGS2026</div>
               </div>
               <span class="signin-quick-arrow">→</span>
@@ -2085,8 +2085,26 @@ const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 let currentProjectId=null;
 let projectData={};
 let currentProjectMode='project';
+const PRIMARY_SUPERADMIN_EMAIL='info@cesgs.or.id';
+const PRIMARY_SUPERADMIN_PASSWORD='CESGS2026';
+const PRIMARY_SUPERADMIN_NAME='CESGS Superadmin';
+function isPrimarySuperadminEmail(email){
+  return String(email||'').trim().toLowerCase()===PRIMARY_SUPERADMIN_EMAIL;
+}
+function buildPrimarySuperadminRecord(seed={}){
+  return {
+    ...(seed&&typeof seed==='object' ? seed : {}),
+    email:PRIMARY_SUPERADMIN_EMAIL,
+    password:PRIMARY_SUPERADMIN_PASSWORD,
+    name:PRIMARY_SUPERADMIN_NAME,
+    role:'Superadmin',
+    isPrimary:true,
+    canManage:true,
+    projects:Object.keys(PROJECTS)
+  };
+}
 const DEFAULT_ADMIN_STATE={
-  admins:[{email:'adityabagas.official@gmail.com',password:'CESGS2026',name:'Aditya Bagas',isPrimary:true}],
+  admins:[buildPrimarySuperadminRecord({})],
   customProjects:{},
   bookingConfig:{start:'08:00',end:'16:30',weekdays:[1,2,3,4,5],durations:[30,60,90,120]},
   bookingRequests:[]
@@ -2335,6 +2353,10 @@ function getState(){
 
 // Persistence via localStorage
 function saveAll(){
+  adminState = ensurePrimarySuperadminAccount(adminState);
+  if(currentUserSession && isPrimarySuperadminEmail(currentUserSession.email)){
+    currentUserSession = normalizeUserSession(buildPrimarySuperadminRecord(currentUserSession));
+  }
   try{localStorage.setItem('cesgs_hub_data',JSON.stringify(projectData))}catch(e){}
   try{localStorage.setItem('cesgs_hub_auth',JSON.stringify(authenticatedProjects))}catch(e){}
   try{localStorage.setItem('cesgs_admin_state',JSON.stringify(adminState))}catch(e){}
@@ -2370,28 +2392,26 @@ function refreshAllViewsAfterDataChange(){
   if(typeof renderUserProfileEditPage === 'function' && currentUserSession) renderUserProfileEditPage();
 }
 function ensurePrimarySuperadminAccount(state){
-  const targetEmail='adityabagas.official@gmail.com';
-  const targetPassword='CESGS2026';
   if(!state || typeof state!=='object') state = {};
   if(!Array.isArray(state.admins)) state.admins = [];
-  const idx = state.admins.findIndex(a => String(a && a.email || '').toLowerCase() === targetEmail);
-  const nextAdmin = {
-    ...(idx >= 0 ? state.admins[idx] : {}),
-    email:targetEmail,
-    password:targetPassword,
-    name:(idx >= 0 && state.admins[idx] && state.admins[idx].name) ? state.admins[idx].name : 'Aditya Bagas',
-    role:'Superadmin',
-    isPrimary:true,
-    projects:Object.keys(PROJECTS)
-  };
+  const idx = state.admins.findIndex(a => isPrimarySuperadminEmail(a && a.email));
+  const nextAdmin = buildPrimarySuperadminRecord(idx >= 0 ? state.admins[idx] : {});
   if(idx >= 0) state.admins[idx] = nextAdmin;
   else state.admins.unshift(nextAdmin);
-  state.admins = state.admins.map((admin, index) => ({
-    ...admin,
-    role: admin && admin.isPrimary ? 'Superadmin' : (admin && admin.role ? admin.role : 'Admin'),
-    projects:Array.isArray(admin && admin.projects) && admin.projects.length ? admin.projects.filter(pid => !!PROJECTS[pid]) : Object.keys(PROJECTS),
-    isPrimary:index === state.admins.findIndex(item => item && item.isPrimary) ? !!admin.isPrimary : false
-  }));
+  const primaryIndex = state.admins.findIndex(item => item && (item.isPrimary || isPrimarySuperadminEmail(item.email)));
+  state.admins = state.admins.map((admin, index) => {
+    const baseAdmin = admin && typeof admin==='object' ? admin : {};
+    if(index === primaryIndex || isPrimarySuperadminEmail(baseAdmin.email)){
+      return buildPrimarySuperadminRecord(baseAdmin);
+    }
+    return {
+      ...baseAdmin,
+      role: baseAdmin.role ? baseAdmin.role : 'Admin',
+      projects:Array.isArray(baseAdmin.projects) && baseAdmin.projects.length ? baseAdmin.projects.filter(pid => !!PROJECTS[pid]) : Object.keys(PROJECTS),
+      isPrimary:false,
+      canManage:true
+    };
+  });
   return state;
 }
 function mergeAdminState(raw){
@@ -3943,7 +3963,7 @@ let bkMeetingDuration = 30;
 const CESGS_TIMEZONE='Asia/Jakarta';
 const CESGS_TIMEZONE_LABEL='WIB (UTC+7)';
 const USER_TIMEZONE=(Intl.DateTimeFormat().resolvedOptions().timeZone||'Local time').replace(/_/g,' ');
-const BOOKING_RECIPIENT='adityabagas.official@gmail.com';
+const BOOKING_RECIPIENT='info@cesgs.or.id';
 
 function getBookingInternalRecipients(){
   const unique=new Map();
@@ -4399,11 +4419,11 @@ function useLandingQuickLogin(email, password) {
 }
 
 function prefillLandingDemo() {
-  document.getElementById('landing-login-email').value = 'adityabagas.official@gmail.com';
-  document.getElementById('landing-login-password').value = 'CESGS2026';
+  document.getElementById('landing-login-email').value = PRIMARY_SUPERADMIN_EMAIL;
+  document.getElementById('landing-login-password').value = PRIMARY_SUPERADMIN_PASSWORD;
   resetLandingLoginState();
-  document.getElementById('landing-login-email').value = 'adityabagas.official@gmail.com';
-  document.getElementById('landing-login-password').value = 'CESGS2026';
+  document.getElementById('landing-login-email').value = PRIMARY_SUPERADMIN_EMAIL;
+  document.getElementById('landing-login-password').value = PRIMARY_SUPERADMIN_PASSWORD;
   document.getElementById('landing-login-password').focus();
 }
 
@@ -4455,7 +4475,7 @@ function doAdminLogin(){
   }catch(e){}
   showUserHubPage();
 }
-function openPrimaryAdminUIDemo(){document.getElementById('admin-login-email').value='adityabagas.official@gmail.com';document.getElementById('admin-login-password').value='CESGS2026';doAdminLogin()}
+function openPrimaryAdminUIDemo(){document.getElementById('admin-login-email').value=PRIMARY_SUPERADMIN_EMAIL;document.getElementById('admin-login-password').value=PRIMARY_SUPERADMIN_PASSWORD;doAdminLogin()}
 function openAdminConsole(){document.getElementById('admin-console').style.display='block';renderAdminConsole()}
 function closeAdminConsole(){document.getElementById('admin-console').style.display='none';currentAdminEmail=''}
 
@@ -4868,17 +4888,34 @@ function normalizeUserSession(user){
     ...overlay,
     projects:[...new Set([...(Array.isArray(source.projects) ? source.projects : []), ...(Array.isArray(overlay.projects) ? overlay.projects : [])])]
   };
+  const normalizedEmail = String(mergedUser && mergedUser.email || '').toLowerCase();
+  if(isPrimarySuperadminEmail(normalizedEmail)){
+    return {
+      email: PRIMARY_SUPERADMIN_EMAIL,
+      password: PRIMARY_SUPERADMIN_PASSWORD,
+      name: PRIMARY_SUPERADMIN_NAME,
+      role: 'Superadmin',
+      projects: Object.keys(PROJECTS),
+      canManage: true,
+      isPrimary: true,
+      cv: String(mergedUser && mergedUser.cv || ''),
+      institution: String(mergedUser && mergedUser.institution || ''),
+      profileLink: sanitizeProfileLink(mergedUser && mergedUser.profileLink || ''),
+      photoUrl: sanitizeMediaUrl(mergedUser && mergedUser.photoUrl || '')
+    };
+  }
   const role = mergedUser && mergedUser.role ? mergedUser.role : 'Client / Partner';
   const canManage = typeof mergedUser.canManage === 'boolean' ? mergedUser.canManage : isManagementRole(role);
   let projects = Array.isArray(mergedUser && mergedUser.projects) ? mergedUser.projects.filter(pid => !!PROJECTS[pid]) : [];
   if (canManage && !projects.length) projects = hasGlobalProjectAccess({role}) ? Object.keys(PROJECTS) : [];
   return {
-    email: String(mergedUser && mergedUser.email || '').toLowerCase(),
+    email: normalizedEmail,
     password: mergedUser && mergedUser.password ? mergedUser.password : '',
     name: mergedUser && mergedUser.name ? mergedUser.name : ((mergedUser && mergedUser.email) ? mergedUser.email.split('@')[0] : 'Project User'),
     role,
     projects:[...new Set(projects)],
     canManage,
+    isPrimary: !!(mergedUser && mergedUser.isPrimary),
     cv: String(mergedUser && mergedUser.cv || ''),
     institution: String(mergedUser && mergedUser.institution || ''),
     profileLink: sanitizeProfileLink(mergedUser && mergedUser.profileLink || ''),
@@ -5065,7 +5102,7 @@ function authenticateUser(email, password) {
     return normalizeUserSession({
       email:forcedAdmin.email,
       password:forcedAdmin.password,
-      name:forcedAdmin.name || 'Aditya Bagas',
+      name:forcedAdmin.name || PRIMARY_SUPERADMIN_NAME,
       role:forcedAdmin.isPrimary ? 'Superadmin' : (forcedAdmin.role || 'Admin'),
       projects:Array.isArray(forcedAdmin.projects) && forcedAdmin.projects.length ? forcedAdmin.projects.filter(pid => !!PROJECTS[pid]) : Object.keys(PROJECTS),
       canManage:true,
@@ -7997,11 +8034,11 @@ function getAccountManagementRows(){
   });
   return deduped.sort((a,b) => a.name.localeCompare(b.name));
 }
-function renderAccountProjectPicker(selectedProjects){
+function renderAccountProjectPicker(selectedProjects, disabled=false){
   const selected = new Set((selectedProjects || []).filter(pid => !!PROJECTS[pid]));
   return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px">${Object.keys(PROJECTS).map(pid => `
-    <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer">
-      <input type="checkbox" name="managed-account-project" value="${pid}" ${selected.has(pid) ? 'checked' : ''} style="margin-top:3px"/>
+    <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:${disabled ? 'not-allowed' : 'pointer'};opacity:${disabled ? '0.9' : '1'}">
+      <input type="checkbox" name="managed-account-project" value="${pid}" ${selected.has(pid) ? 'checked' : ''} ${disabled ? 'disabled' : ''} style="margin-top:3px"/>
       <span style="display:flex;flex-direction:column;gap:4px">
         <strong style="font-size:13px;color:var(--ink)}">${escapeHtml(PROJECTS[pid]?.name || pid)}</strong>
         <span style="font-size:11px;color:var(--ink3)}">${escapeHtml(PROJECTS[pid]?.org || '')}</span>
@@ -8022,14 +8059,14 @@ function resetManagedAccountForm(){
   const photoEl = document.getElementById('managed-account-photo-url');
   if(nameEl) nameEl.value = '';
   if(emailEl){ emailEl.value = ''; emailEl.readOnly = false; }
-  if(passEl) passEl.value = '';
-  if(typeEl) typeEl.value = 'client';
+  if(passEl){ passEl.value = ''; passEl.readOnly = false; }
+  if(typeEl){ typeEl.value = 'client'; typeEl.disabled = false; }
   if(sendEl) sendEl.checked = false;
   if(cvEl) cvEl.value = '';
   if(institutionEl) institutionEl.value = '';
   if(profileLinkEl) profileLinkEl.value = '';
   if(photoEl) photoEl.value = '';
-  document.querySelectorAll('input[name="managed-account-project"]').forEach(el => { el.checked = false; });
+  document.querySelectorAll('input[name="managed-account-project"]').forEach(el => { el.checked = false; el.disabled = false; });
   if(currentProjectId){
     const current = document.querySelector(`input[name="managed-account-project"][value="${currentProjectId}"]`);
     if(current) current.checked = true;
@@ -8093,6 +8130,7 @@ function saveManagedAccount(){
   const sendEmail = !!document.getElementById('managed-account-send-email')?.checked;
   const originalRow = editingManagedAccountKey ? getAccountManagementRows().find(item => item.key === editingManagedAccountKey) : null;
 
+  if(originalRow && originalRow.locked) return toast('Primary superadmin account is locked and cannot be changed');
   if(!name) return toast('Masukkan nama akun terlebih dahulu');
   if(!email || !email.includes('@')) return toast('Masukkan email yang valid');
   if(!password) return toast('Masukkan password akun');
@@ -8165,13 +8203,13 @@ function editManagedAccount(key){
   if(!isSuperadminSession()) return toast('Only superadmin can manage accounts');
   const row = getAccountManagementRows().find(item => item.key === key);
   if(!row) return;
-  if(row.locked){
-    const emailField = document.getElementById('managed-account-email');
-    if(emailField) emailField.readOnly = true;
-  } else {
-    const emailField = document.getElementById('managed-account-email');
-    if(emailField) emailField.readOnly = false;
-  }
+  const emailField = document.getElementById('managed-account-email');
+  const passwordField = document.getElementById('managed-account-password');
+  const typeField = document.getElementById('managed-account-type');
+  if(emailField) emailField.readOnly = !!row.locked;
+  if(passwordField) passwordField.readOnly = !!row.locked;
+  if(typeField) typeField.disabled = !!row.locked;
+  document.querySelectorAll('input[name="managed-account-project"]').forEach(el => { el.disabled = !!row.locked; });
   editingManagedAccountKey = key;
   document.getElementById('managed-account-name').value = row.name || '';
   document.getElementById('managed-account-email').value = row.email || '';
@@ -8247,22 +8285,22 @@ function renderManagedAccountProfilePage(){
             <span class="badge ${isPrimary ? 'badge-blue' : 'badge-ink'}">${escapeHtml(row.role || 'Account')}</span>
           </div>
           <div class="form-grid-2" style="margin-top:16px">
-            <div class="form-row"><label class="inp-label">Full Name</label><input class="inp" id="managed-edit-name" value="${escapeHtml(row.name || '')}" placeholder="Nama akun"/></div>
+            <div class="form-row"><label class="inp-label">Full Name</label><input class="inp" id="managed-edit-name" value="${escapeHtml(row.name || '')}" placeholder="Nama akun" ${isPrimary ? 'readonly' : ''}/></div>
             <div class="form-row"><label class="inp-label">Email</label><input class="inp" id="managed-edit-email" value="${escapeHtml(row.email || '')}" placeholder="nama@domain.com" ${isPrimary ? 'readonly' : ''}/></div>
-            <div class="form-row"><label class="inp-label">Password</label><input class="inp" id="managed-edit-password" type="text" value="${escapeHtml(row.password || '')}" placeholder="Perbarui password"/></div>
+            <div class="form-row"><label class="inp-label">Password</label><input class="inp" id="managed-edit-password" type="text" value="${escapeHtml(row.password || '')}" placeholder="Perbarui password" ${isPrimary ? 'readonly' : ''}/></div>
             <div class="form-row"><label class="inp-label">Account Type</label><select class="inp" id="managed-edit-type" onchange="updateManagedAccountEditRoleHint()" ${isPrimary ? 'disabled' : ''}><option value="client" ${roleValue==='client' ? 'selected' : ''}>Client / Partner</option><option value="expert" ${roleValue==='expert' ? 'selected' : ''}>Expert</option><option value="project_manager" ${roleValue==='project_manager' ? 'selected' : ''}>Project Manager</option><option value="staff" ${roleValue==='staff' ? 'selected' : ''}>Staff</option><option value="admin" ${roleValue==='admin' ? 'selected' : ''}>Admin</option></select></div>
-            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Assigned Projects</label>${renderAccountProjectPicker(selectedProjects)}</div>
-            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Institution</label><input class="inp" id="managed-edit-institution" value="${escapeHtml(row.institution || '')}" placeholder="Contoh: Universitas Airlangga / PLN / Kementerian terkait"/></div>
-            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">CV / Professional Profile</label><textarea class="textarea" id="managed-edit-cv" placeholder="Ringkasan CV, keahlian, jabatan, pengalaman, atau bio profesional yang akan tampil pada profil proyek client.">${escapeHtml(row.cv || '')}</textarea></div>
-            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Link Profil</label><input class="inp" id="managed-edit-profile-link" type="url" value="${escapeHtml(row.profileLink || '')}" placeholder="Contoh: linkedin.com/in/nama, scholar.google.com, portfolio pribadi, dll."/></div>
-            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Photo URL</label><input class="inp" id="managed-edit-photo-url" type="url" value="${escapeHtml(row.photoUrl || '')}" placeholder="Contoh: https://.../foto-profil.jpg"/></div>
+            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Assigned Projects</label>${renderAccountProjectPicker(selectedProjects, isPrimary)}</div>
+            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Institution</label><input class="inp" id="managed-edit-institution" value="${escapeHtml(row.institution || '')}" placeholder="Contoh: Universitas Airlangga / PLN / Kementerian terkait" ${isPrimary ? 'readonly' : ''}/></div>
+            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">CV / Professional Profile</label><textarea class="textarea" id="managed-edit-cv" placeholder="Ringkasan CV, keahlian, jabatan, pengalaman, atau bio profesional yang akan tampil pada profil proyek client." ${isPrimary ? 'readonly' : ''}>${escapeHtml(row.cv || '')}</textarea></div>
+            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Link Profil</label><input class="inp" id="managed-edit-profile-link" type="url" value="${escapeHtml(row.profileLink || '')}" placeholder="Contoh: linkedin.com/in/nama, scholar.google.com, portfolio pribadi, dll." ${isPrimary ? 'readonly' : ''}/></div>
+            <div class="form-row" style="grid-column:1/-1"><label class="inp-label">Photo URL</label><input class="inp" id="managed-edit-photo-url" type="url" value="${escapeHtml(row.photoUrl || '')}" placeholder="Contoh: https://.../foto-profil.jpg" ${isPrimary ? 'readonly' : ''}/></div>
           </div>
           <div class="helper-text" id="managed-edit-role-hint" style="margin-top:10px"></div>
-          ${isPrimary ? '<div class="note-box" style="margin-top:14px"></div>' : ''}
+          ${isPrimary ? '<div class="note-box" style="margin-top:14px">Akun primary superadmin dikunci permanen. Email, password, role, dan assignment project tidak bisa diubah dari panel ini.</div>' : ''}
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);margin:14px 0 0"><input type="checkbox" id="managed-edit-send-email"/> Buka draft email pembaruan akun setelah disimpan</label>
           <div class="manager-form-actions" style="margin-top:16px">
             <button class="btn btn-outline" type="button" onclick="showPage('account-management')">Back</button>
-            <button class="btn btn-teal" type="button" onclick="saveManagedAccountProfileEdit()">Save Changes</button>
+            <button class="btn btn-teal" type="button" onclick="saveManagedAccountProfileEdit()" ${isPrimary ? 'disabled' : ''}>${isPrimary ? 'Primary Superadmin Locked' : 'Save Changes'}</button>
           </div>
         </div>
       </div>
@@ -8325,6 +8363,7 @@ function saveManagedAccountProfileEdit(){
   const photoUrl = sanitizeMediaUrl(document.getElementById('managed-edit-photo-url')?.value.trim() || '');
   const projects = collectManagedAccountProjectsFromPage('page-account-profile-edit');
   const sendEmail = !!document.getElementById('managed-edit-send-email')?.checked;
+  if(originalRow.locked) return toast('Primary superadmin account is locked and cannot be changed');
   if(!name) return toast('Masukkan nama akun terlebih dahulu');
   if(!email || !email.includes('@')) return toast('Masukkan email yang valid');
   if(!password) return toast('Masukkan password akun');
