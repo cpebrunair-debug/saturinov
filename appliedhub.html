@@ -2451,20 +2451,22 @@ function renderLanding(){
   const grid=document.getElementById('project-grid');
   if(!grid) return;
   const disabled = typeof getProjectDisabledList === 'function' ? getProjectDisabledList() : [];
-  grid.innerHTML=Object.values(PROJECTS).filter(p => !disabled.includes(p.id) && (typeof isProjectActive!=='function'||isProjectActive(p.id))).map(p=>{
-    const data=projectData[p.id];
-    const collabCount=data?data.collaborators.length:0;
-    const docCount=data?data.documents.length:p.seedDocs.length;
-    const meetCount=data?data.meetings.length:0;
+  grid.innerHTML=Object.values(PROJECTS).filter(p => p && !disabled.includes(p.id) && (typeof isProjectActive!=='function'||isProjectActive(p.id))).map(p=>{
+    const stats=getProjectCardStats(p.id);
+    const collabCount=stats.collaborators;
+    const docCount=stats.documents;
+    const meetCount=stats.meetings;
+    const accent=p.accent||'#0B8C7A';
+    const desc=String(p.sub||'Project collaboration workspace.').slice(0,100);
     const avColors=['#7C3AED','#DB2777','#059669','#D97706','#2563EB'];
     return`<div class="project-card" data-project-id="${p.id}" onclick="requestAccess('${p.id}')">
-      <div class="pc-accent" style="background:linear-gradient(90deg,${p.accent},${p.accent}88)"></div>
+      <div class="pc-accent" style="background:linear-gradient(90deg,${accent},${accent}88)"></div>
       <div class="pc-body">
-        <div class="pc-icon" style="background:${p.accent}18">${p.icon}</div>
-        <div class="pc-name">${p.name}</div>
-        <div class="pc-org" style="color:${p.accent}">${p.org}</div>
-        <div class="pc-desc">${p.sub.slice(0,100)}...</div>
-        <div class="pc-status" style="background:${p.accent}18;color:${p.accent}">
+        <div class="pc-icon" style="background:${accent}18">${p.icon||'📁'}</div>
+        <div class="pc-name">${escapeHtml(String(p.name||p.id||'Project'))}</div>
+        <div class="pc-org" style="color:${accent}">${escapeHtml(String(p.org||'Project Hub'))}</div>
+        <div class="pc-desc">${escapeHtml(desc)}...</div>
+        <div class="pc-status" style="background:${accent}18;color:${accent}">
           <span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span> Active
         </div>
         <div class="pc-collab">
@@ -2526,42 +2528,50 @@ function closePwGate(){
    ENTER PROJECT
 ═══════════════════════════════════ */
 function enterProject(pid){
+  if(!(pid && PROJECTS[pid])){ toast('Project not found'); return; }
   currentProjectId=pid;
   currentProjectMode='project';
-  const p=PROJECTS[pid];
-  const s=getState();
+  const p=PROJECTS[pid]||{};
+  ensureProjectStateById(pid);
 
-  // Hide landing, show app
-  document.getElementById('landing-page').style.display='none';
-  document.getElementById('sidebar').style.display='flex';
-  document.getElementById('main-content').style.display='block';
-  document.getElementById('hamburger-btn').style.display='';
+  const landing=document.getElementById('landing-page');
+  const sidebar=document.getElementById('sidebar');
+  const main=document.getElementById('main-content');
+  const hamburger=document.getElementById('hamburger-btn');
+  if(landing) landing.style.display='none';
+  if(sidebar) sidebar.style.display='flex';
+  if(main) main.style.display='block';
+  if(hamburger) hamburger.style.display='';
+  const hub=document.getElementById('user-hub-page');
+  if(hub) hub.classList.remove('show');
+  clearRenderFailsafe();
 
-  // Sidebar
-  document.getElementById('sidebar-logo').innerHTML=`
+  const sidebarLogo=document.getElementById('sidebar-logo');
+  if(sidebarLogo) sidebarLogo.innerHTML=`
     <div class="sidebar-brand-wrap">
-      
       <div>
-        <div class="logo-tag">${p.tag}</div>
+        <div class="logo-tag">${escapeHtml(String(p.tag||'Project Workspace'))}</div>
         <div class="logo-main">Project Hub Dashboard</div>
-        <div class="logo-sub">${p.name}</div>
+        <div class="logo-sub">${escapeHtml(String(p.name||pid))}</div>
       </div>
     </div>`;
 
-  document.getElementById('sidebar-nav').innerHTML=`
+  const sidebarNav=document.getElementById('sidebar-nav');
+  if(sidebarNav) sidebarNav.innerHTML=`
     <button class="back-to-hub" onclick="goToLanding()" title="Kembali ke laman login">⌂ Home</button>`;
 
-  // Hero
-  document.getElementById('hero-tag').textContent=p.tag;
-  document.getElementById('hero-title').textContent=p.title;
-  document.getElementById('hero-sub').textContent=p.sub;
+  const heroTag=document.getElementById('hero-tag');
+  const heroTitle=document.getElementById('hero-title');
+  const heroSub=document.getElementById('hero-sub');
+  if(heroTag) heroTag.textContent=p.tag||'Project Workspace';
+  if(heroTitle) heroTitle.textContent=p.title||`${p.name||pid} Hub`;
+  if(heroSub) heroSub.textContent=p.sub||'Project collaboration workspace.';
 
-  // Quick links
-  renderProjectQuickLinks();
+  try{ renderProjectQuickLinks(); }catch(err){ showRenderFailsafe('enterProject.renderProjectQuickLinks', err); }
 
   activeDocTab='all';
   selectedOverlapDays=new Set();
-  showPage('dashboard');
+  try{ showPage('dashboard'); }catch(err){ showRenderFailsafe('enterProject.showPage', err); }
 }
 
 function resolveLoginPrefill(prefill){
@@ -2618,24 +2628,32 @@ function logoutToLanding(){
    NAVIGATION
 ═══════════════════════════════════ */
 function showPage(id){
+  const targetId=document.getElementById('page-'+id) ? id : 'dashboard';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  const map={dashboard:0,schedule:1,'meetings-list':2,documents:3,mom:4,email:5,collaborators:6,tasks:7,'task-detail':7,notifications:8,timeline:9,'project-control':10};
-  document.querySelectorAll('.nav-item')[map[id]]?.classList.add('active');
-  if(id==='dashboard') refreshDashboard();
-  if(id==='schedule'){populateScheduleOwnerOptions();renderChips();renderCalendar();}
-  if(id==='meetings-list') renderMeetingsList();
-  if(id==='documents') renderDocs();
-  if(id==='mom') renderMoMs();
-  if(id==='email') renderEmailOverlapDays();
-  if(id==='collaborators') renderCollaborators();
-  if(id==='tasks') renderTaskCenter();
-  if(id==='task-detail') renderTaskDetailPage();
-  if(id==='notifications') renderNotificationsPage();
-  if(id==='timeline') renderTimelinePage();
-  if(id==='project-control') renderProjectControlPage();
-  if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
+  const targetEl=document.getElementById('page-'+targetId);
+  if(!targetEl){ showRenderFailsafe('showPage.missingTarget', new Error(`Missing page section: ${targetId}`)); return; }
+  targetEl.classList.add('active');
+  const map={dashboard:0,profile:1,schedule:2,'meetings-list':3,documents:4,mom:5,email:6,collaborators:7,tasks:8,'task-detail':8,notifications:9,timeline:10,'project-control':11};
+  document.querySelectorAll('.nav-item')[map[targetId]]?.classList.add('active');
+  try{
+    if(targetId==='dashboard') refreshDashboard();
+    if(targetId==='profile') renderProfilePage();
+    if(targetId==='schedule'){populateScheduleOwnerOptions();renderChips();renderCalendar();}
+    if(targetId==='meetings-list') renderMeetingsList();
+    if(targetId==='documents') renderDocs();
+    if(targetId==='mom') renderMoMs();
+    if(targetId==='email') renderEmailOverlapDays();
+    if(targetId==='collaborators') renderCollaborators();
+    if(targetId==='tasks') renderTaskCenter();
+    if(targetId==='task-detail') renderTaskDetailPage();
+    if(targetId==='notifications') renderNotificationsPage();
+    if(targetId==='timeline') renderTimelinePage();
+    if(targetId==='project-control') renderProjectControlPage();
+  }catch(err){
+    showRenderFailsafe(`showPage.${targetId}`, err);
+  }
+  if(window.innerWidth<=768) document.getElementById('sidebar')?.classList.remove('open');
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
 
@@ -4457,13 +4475,20 @@ function doAdminLogin(){
   err.textContent='';
   if(!email){err.textContent='Enter your email.';document.getElementById('admin-login-email').focus();return}
   if(!password){err.textContent='Enter your password.';document.getElementById('admin-login-password').focus();return}
-  currentAdminEmail = '';
-  try{ localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY); }catch(e){}
   const user = authenticateUser(email, password);
   if(!user){err.textContent='Incorrect email or password. Please try again.';return}
-  finalizeAuthenticatedUserSession(user, {source:'project-hub'});
+  currentUserSession = normalizeUserSession(user);
+  currentUserSession.projects.forEach(pid => { authenticatedProjects[pid] = true; ensureProjectStateById(pid); });
+  const admin = getAdminByEmail(email);
+  currentAdminEmail = admin ? admin.email : '';
   closeAdminLoginModal();
   closeIntegratedSuperAdmin();
+  saveAll();
+  try{
+    if(admin){
+      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:'project-hub'}));
+    }
+  }catch(e){}
   showUserHubPage();
 }
 function openPrimaryAdminUIDemo(){document.getElementById('admin-login-email').value=PRIMARY_SUPERADMIN_EMAIL;document.getElementById('admin-login-password').value=PRIMARY_SUPERADMIN_PASSWORD;doAdminLogin()}
@@ -4677,6 +4702,7 @@ function adminAddProjectWithAssignments(){
   PROJECTS[pid]={...(PROJECTS[pid]||{}),id:pid,name,org,password,accent,icon,iconBg:'#EAF9F6',orgColor:'var(--teal)',statusBg:'var(--teal-light)',statusColor:'var(--teal)',tag:`${name} · ${org}`,title:`${name} Hub`,sub:desc,teamName:'Applied Research CESGS Team',teamOrg:'Universitas Airlangga',links:(nextLinks.concat(extraLinks.length ? extraLinks : fallbackExtras)),seedDocs:(PROJECTS[pid]?.seedDocs||[])};
   adminState.customProjects=adminState.customProjects||{};
   adminState.customProjects[pid]=PROJECTS[pid];
+  ensureProjectStateById(pid);
   const accounts=getUserAccounts().filter(a=>a&&a.email);
   let assignedCount=0;
   accounts.forEach((acc,i)=>{
@@ -4686,12 +4712,17 @@ function adminAddProjectWithAssignments(){
     const newRole=roleEl?roleEl.value:acc.role;
     const existingProjects=Array.isArray(acc.projects)?acc.projects.filter(p=>!!PROJECTS[p]):[];
     const updatedProjects=chk.checked ? [...new Set([...existingProjects,pid])] : existingProjects.filter(p=>p!==pid);
-    if(String(updatedProjects.sort())!==String(existingProjects.sort()) || String(newRole||'')!==String(acc.role||'')){
+    const projectsChanged=JSON.stringify([...existingProjects].sort())!==JSON.stringify([...updatedProjects].sort());
+    const roleChanged=String(newRole||'')!==String(acc.role||'');
+    if(projectsChanged || roleChanged){
       updateStoredAccountProfile(acc.email,{projects:updatedProjects,role:newRole});
-      if(chk.checked) assignedCount++;
+      refreshCurrentSessionFromStores();
+      if(chk.checked && updatedProjects.includes(pid)) syncAssignedAccountProjectAccess(acc.email, pid);
     }
+    if(chk.checked && updatedProjects.includes(pid)) assignedCount++;
   });
-  saveAll();renderLanding();renderAdminConsole();
+  saveAll();
+  refreshAllViewsAfterDataChange();
   toast(editPid?`Project "${name}" diperbarui`:`Project "${name}" ditambahkan${assignedCount?` · ${assignedCount} akun diassign`:''}`);
   adminResetProjectForm();
 }/* ── Admin Console Account Manager ── */
@@ -4972,6 +5003,76 @@ function ensureProjectStateById(pid){
 }
 function ensureAllProjectEnhancements(){Object.keys(PROJECTS).forEach(pid=>ensureProjectStateById(pid));}
 
+function safeArray(value){return Array.isArray(value)?value:[]}
+function getProjectSafeState(pid){
+  if(!(pid && PROJECTS[pid])) return null;
+  try{return ensureProjectStateById(pid)}catch(err){console.error('Failed to ensure project state', pid, err); return projectData[pid]||null;}
+}
+function getProjectCardStats(pid){
+  const project=PROJECTS[pid]||{};
+  const state=getProjectSafeState(pid);
+  const collaborators=safeArray(state&&state.collaborators).length;
+  const documents=(state&&Array.isArray(state.documents)?state.documents.length:safeArray(project.seedDocs).length) || safeArray(project.seedDocs).length;
+  const meetings=state&&Array.isArray(state.meetings)?state.meetings.length:0;
+  return {project,state,collaborators,documents,meetings};
+}
+function showRenderFailsafe(scope, err){
+  try{
+    console.error(`[CESGS fail-safe] ${scope}`, err);
+    let box=document.getElementById('cesgs-render-failsafe');
+    if(!box){
+      box=document.createElement('div');
+      box.id='cesgs-render-failsafe';
+      box.style.position='fixed';
+      box.style.right='16px';
+      box.style.bottom='16px';
+      box.style.zIndex='3000';
+      box.style.maxWidth='420px';
+      box.style.background='rgba(13,10,30,0.94)';
+      box.style.color='#fff';
+      box.style.border='1px solid rgba(255,255,255,0.12)';
+      box.style.borderRadius='16px';
+      box.style.padding='16px 18px';
+      box.style.boxShadow='0 18px 48px rgba(13,10,30,0.28)';
+      document.body.appendChild(box);
+    }
+    const firstProject=(typeof getSessionProjects==='function' ? getSessionProjects().filter(pid=>!!PROJECTS[pid])[0] : null) || (currentProjectId&&PROJECTS[currentProjectId]?currentProjectId:null);
+    box.innerHTML=`
+      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#9ff0df;font-weight:700;margin-bottom:8px">UI Recovery Mode</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Some page blocks failed to render.</div>
+      <div style="font-size:12px;line-height:1.6;color:rgba(255,255,255,0.75)">The app kept the session alive and switched to a safer fallback so the screen does not stay blank.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button type="button" onclick="const b=document.getElementById('cesgs-render-failsafe'); if(b) b.remove(); showLandingScreen(resolveLoginPrefill());" style="border:none;border-radius:10px;padding:9px 12px;background:#fff;color:#0D0A1E;font-size:12px;font-weight:700;cursor:pointer">Back to Login</button>
+        ${firstProject ? `<button type="button" onclick="const b=document.getElementById('cesgs-render-failsafe'); if(b) b.remove(); enterProject('${firstProject}');" style="border:none;border-radius:10px;padding:9px 12px;background:linear-gradient(135deg,#0B8C7A,#1A55C9);color:#fff;font-size:12px;font-weight:700;cursor:pointer">Open First Project</button>` : ''}
+      </div>`;
+  }catch(_e){}
+}
+function clearRenderFailsafe(){const box=document.getElementById('cesgs-render-failsafe');if(box) box.remove();}
+function renderMinimalUserHub(message){
+  const user=currentUserSession;
+  const hub=document.getElementById('user-hub-page');
+  const topActions=document.getElementById('hub-topbar-actions');
+  const profileWrap=document.getElementById('hub-profile-card-wrap');
+  const cal=document.getElementById('hub-calendar-section');
+  const projectsGrid=document.getElementById('hub-projects-grid');
+  const saSection=document.getElementById('hub-superadmin-section');
+  const projectsTitle=document.getElementById('hub-projects-title');
+  if(hub) hub.classList.add('show');
+  if(topActions) topActions.innerHTML=`<button class="hub-btn hub-btn-logout" onclick="hubLogout()">Logout</button>`;
+  if(profileWrap){
+    profileWrap.innerHTML=`<div class="hub-profile-card">${getHubAvatarHtml(user||{})}<div class="hub-profile-info"><div class="hub-greeting-tag">Recovery mode</div><div class="hub-name">${escapeHtml((user&&user.name)||'User')}</div><div class="hub-bio">${escapeHtml(message||'The hub switched to a minimal safe view to prevent a blank page.')}</div><div class="hub-action-row">${((typeof getSessionProjects==='function' ? getSessionProjects() : []).filter(pid=>!!PROJECTS[pid]).slice(0,1).map(pid=>`<button class="hub-btn hub-btn-console" onclick="enterProjectFromHub('${pid}')">Open Project</button>`).join(''))}<button class="hub-btn hub-btn-logout" onclick="hubLogout()">Logout</button></div></div></div>`;
+  }
+  if(cal) cal.innerHTML='<div class="card card-pad"><div class="empty-state">Calendar summary is temporarily unavailable in recovery mode.</div></div>';
+  if(saSection) saSection.style.display='none';
+  if(projectsTitle) projectsTitle.textContent='📂 Accessible Projects';
+  if(projectsGrid){
+    const accessible=(typeof getSessionProjects==='function'?getSessionProjects():[]).filter(pid=>!!PROJECTS[pid]&&isProjectActive(pid));
+    projectsGrid.innerHTML=accessible.length?accessible.map(pid=>{const p=PROJECTS[pid]||{};const stats=getProjectCardStats(pid);return `<div class="hub-project-card" onclick="enterProjectFromHub('${pid}')"><div class="hub-pc-accent" style="background:linear-gradient(90deg,${p.accent||'#0B8C7A'},${(p.accent||'#0B8C7A')}77)"></div><div class="hub-pc-body"><div class="hub-pc-icon" style="background:${(p.accent||'#0B8C7A')}18">${p.icon||'📁'}</div><div class="hub-pc-name">${escapeHtml(p.name||pid)}</div><div class="hub-pc-org" style="color:${p.accent||'#0B8C7A'}">${escapeHtml(p.org||'Project')}</div><div class="hub-pc-desc">${escapeHtml(((p.sub||'Project workspace')).slice(0,88))}...</div><div style="display:flex;gap:6px;margin-bottom:12px"><span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📄 ${stats.documents} docs</span><span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📅 ${stats.meetings} meetings</span></div><div class="hub-pc-btn" style="background:${p.accent||'#0B8C7A'};color:#fff">Open Project</div></div></div>`;}).join(''):'<div class="hub-empty-msg">No accessible active project found for this account.</div>';
+  }
+}
+window.addEventListener('error', evt=>{ if(evt && evt.error) showRenderFailsafe('window.error', evt.error); });
+window.addEventListener('unhandledrejection', evt=>{ showRenderFailsafe('promise', evt && evt.reason ? evt.reason : 'Unhandled promise rejection'); });
+
 const __baseLoadAll = loadAll;
 loadAll = function(){ __baseLoadAll(); ensureAllProjectEnhancements(); };
 const __baseGetState = getState;
@@ -5027,9 +5128,20 @@ function dedupeAccountsByEmail(accounts){
   return Array.from(map.values());
 }
 function getUserAccounts(){
-  const accounts = [];
+  const accountMap = new Map();
+  const register = (account) => {
+    if(!account || !account.email) return;
+    const normalized = normalizeUserSession(account);
+    const email = String(normalized.email || '').toLowerCase();
+    if(!email) return;
+    accountMap.set(email, normalized);
+  };
+
+  USER_ACCOUNTS_FALLBACK.forEach(acc=>register(acc));
+  MANAGEMENT_DEMO_ACCOUNTS.forEach(acc=>register({...acc, projects:Array.isArray(acc.projects) && acc.projects.length ? acc.projects.filter(pid => !!PROJECTS[pid]) : Object.keys(PROJECTS)}));
+
   (adminState.admins||[]).forEach((admin,idx)=>{
-    accounts.push({
+    register({
       email:admin.email,
       password:admin.password,
       name:admin.name || `Admin ${idx+1}`,
@@ -5042,7 +5154,7 @@ function getUserAccounts(){
       photoUrl:admin.photoUrl || ''
     });
   });
-  MANAGEMENT_DEMO_ACCOUNTS.forEach(acc=>accounts.push({...acc, projects:Array.isArray(acc.projects) && acc.projects.length ? acc.projects.filter(pid => !!PROJECTS[pid]) : Object.keys(PROJECTS)}));
+
   const superState = parseJSONSafe(SUPERADMIN_STORAGE_KEY, null);
   if (superState) {
     const storedAccounts = [
@@ -5058,8 +5170,8 @@ function getUserAccounts(){
       const canManage = isManagementRole(role);
       let projects = Array.isArray(client.projects) ? client.projects.filter(pid => !!PROJECTS[pid]) : [];
       if (canManage && !projects.length) projects = Object.keys(PROJECTS);
-      if (client.email && client.password) {
-        accounts.push({
+      if (client.email && client.password && (projects.length || !canManage)) {
+        register({
           email:client.email,
           password:client.password,
           name:client.name || client.email.split('@')[0] || `Client ${idx+1}`,
@@ -5074,14 +5186,16 @@ function getUserAccounts(){
       }
     });
   }
+
   const profileDb = getAccountProfileDatabase();
   Object.values(profileDb.accounts || {}).forEach((account) => {
     if(!account || !account.email || (account.status || 'active') === 'inactive') return;
     const normalized = normalizeUserSession(account);
-    if(normalized.email && normalized.password) accounts.push(normalized);
+    if(normalized.email && normalized.password && (normalized.projects.length || !normalized.canManage)) register(normalized);
   });
-  USER_ACCOUNTS_FALLBACK.forEach(acc=>accounts.push(acc));
-  return dedupeAccountsByEmail(accounts);
+
+  if(currentUserSession && currentUserSession.email) register(currentUserSession);
+  return Array.from(accountMap.values());
 }
 function authenticateUser(email, password) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
@@ -5104,53 +5218,46 @@ function authenticateUser(email, password) {
   }
   return null;
 }
-
-function finalizeAuthenticatedUserSession(user, options={}) {
-  const resolvedUser = normalizeUserSession(user || {});
-  authenticatedProjects = {};
-  currentProjectId = null;
-  currentProjectMode = 'project';
-  currentUserSession = resolvedUser;
-  currentUserSession.projects.forEach(pid => {
-    authenticatedProjects[pid] = true;
-    ensureProjectStateById(pid);
-  });
-  const admin = getAdminByEmail(resolvedUser.email || '');
-  currentAdminEmail = admin ? admin.email : '';
-  try{
-    localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession));
-  }catch(e){}
-  try{
-    if(admin){
-      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:options.source || 'project-hub'}));
-    } else {
-      localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY);
-    }
-  }catch(e){}
-  saveAll();
-  return currentUserSession;
-}
 function performUserLogin(email, password, mode) {
   const isLanding = mode === 'landing';
   const errEl = document.getElementById(isLanding ? 'landing-login-err' : 'login-err');
   const emailEl = document.getElementById(isLanding ? 'landing-login-email' : 'login-email');
   const passwordEl = document.getElementById(isLanding ? 'landing-login-password' : 'login-password');
-  errEl.textContent = '';
-  if (!email) { errEl.textContent = 'Enter your email.'; emailEl.focus(); return; }
-  if (!password) { errEl.textContent = 'Enter your password.'; passwordEl.focus(); return; }
-  currentAdminEmail = '';
-  try{ localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY); }catch(e){}
+  if(errEl) errEl.textContent = '';
+  if (!email) { if(errEl) errEl.textContent = 'Enter your email.'; if(emailEl) emailEl.focus(); return; }
+  if (!password) { if(errEl) errEl.textContent = 'Enter your password.'; if(passwordEl) passwordEl.focus(); return; }
   const user = authenticateUser(email, password);
   if (!user) {
-    errEl.textContent = 'Incorrect email or password. Please try again.';
-    emailEl.classList.add('error');
-    passwordEl.classList.add('error');
-    setTimeout(() => { emailEl.classList.remove('error'); passwordEl.classList.remove('error'); }, 500);
+    if(errEl) errEl.textContent = 'Incorrect email or password. Please try again.';
+    if(emailEl) emailEl.classList.add('error');
+    if(passwordEl) passwordEl.classList.add('error');
+    setTimeout(() => { if(emailEl) emailEl.classList.remove('error'); if(passwordEl) passwordEl.classList.remove('error'); }, 500);
     return;
   }
-  finalizeAuthenticatedUserSession(user, {source:'project-hub'});
+  clearRenderFailsafe();
+  currentUserSession = normalizeUserSession(user);
+  safeArray(currentUserSession.projects).forEach(pid => { authenticatedProjects[pid] = true; ensureProjectStateById(pid); });
+  const admin = getAdminByEmail(email);
+  currentAdminEmail = admin ? admin.email : '';
+  try{
+    if(admin){
+      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:'project-hub'}));
+    } else {
+      localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY);
+    }
+  }catch(e){}
+  try{ saveAll(); }catch(err){ console.error('Failed to persist login session', err); }
   if (!isLanding) closeLoginModal();
-  showUserHubPage();
+  try{
+    showUserHubPage();
+  }catch(err){
+    showRenderFailsafe('performUserLogin.showUserHubPage', err);
+    const firstProject = getSessionProjects().filter(pid=>!!PROJECTS[pid])[0];
+    if(firstProject){
+      try{ enterProject(firstProject); toast('Hub entered recovery mode. Opened the first accessible project instead.'); return; }catch(innerErr){ console.error('Fallback enterProject failed', innerErr); }
+    }
+    renderMinimalUserHub('The main hub hit a rendering issue, so a smaller safe view was opened.');
+  }
 }
 
 function statusBadgeClass(status){
@@ -5483,107 +5590,51 @@ function calculatePersonalWorkStats(state, emailOverride){
   };
 }
 
-function resolvePortfolioProjectIds(projectIds, options={}){
-  const allProjectIds = Object.keys(PROJECTS).filter(pid => !!PROJECTS[pid]);
-  const requested = Array.isArray(projectIds) && projectIds.length
-    ? projectIds.filter(pid => !!PROJECTS[pid])
-    : allProjectIds;
-  const uniqueIds = [...new Set(requested)];
-  if(options && options.activeOnly) return uniqueIds.filter(pid => isProjectActive(pid));
-  return uniqueIds;
-}
-function resolveAccountScopedProjectIds(acc, projectIds){
-  const scoped = resolvePortfolioProjectIds(projectIds);
-  if(hasGlobalProjectAccess(acc)) return scoped;
-  const assigned = Array.isArray(acc && acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]) : [];
-  return scoped.filter(pid => assigned.includes(pid));
-}
-function calculatePortfolioProjectStats(projectIds, options={}){
-  const scopedProjectIds = resolvePortfolioProjectIds(projectIds, options);
+function calculatePortfolioProjectStats(){
+  const allProjectIds = Object.keys(PROJECTS);
+  const activeProjectIds = allProjectIds.filter(pid => isProjectActive(pid));
   let totalTimeline = 0;
   let completedTimeline = 0;
-  let inProgressTimeline = 0;
-  let pendingTimeline = 0;
+  let activeTimeline = 0;
   let openTasks = 0;
   let completedTasks = 0;
-  const rows = scopedProjectIds.map(pid => {
+  allProjectIds.forEach(pid => {
     const state = ensureProjectStateById(pid);
-    const progress = calculateProjectProgress(state);
+    const timeline = Array.isArray(state.timeline) ? state.timeline : [];
     const tasks = Array.isArray(state.tasks) ? state.tasks : [];
-    const openTaskCount = tasks.filter(task => !isTaskDone(task)).length;
-    const completedTaskCount = tasks.filter(isTaskDone).length;
-    totalTimeline += progress.total;
-    completedTimeline += progress.done;
-    inProgressTimeline += progress.inProgress;
-    pendingTimeline += progress.pending;
-    openTasks += openTaskCount;
-    completedTasks += completedTaskCount;
-    return {
-      id: pid,
-      project: PROJECTS[pid],
-      ...progress,
-      openTasks: openTaskCount,
-      completedTasks: completedTaskCount,
-      summary: String((state.projectMeta && state.projectMeta.summary) || '').trim()
-    };
-  }).sort((a,b) => {
-    const aActive = isProjectActive(a.id) ? 1 : 0;
-    const bActive = isProjectActive(b.id) ? 1 : 0;
-    if(bActive !== aActive) return bActive - aActive;
-    if(b.percent !== a.percent) return b.percent - a.percent;
-    return String(a.project?.name || a.id).localeCompare(String(b.project?.name || b.id));
+    totalTimeline += timeline.length;
+    completedTimeline += timeline.filter(isTimelineItemDone).length;
+    activeTimeline += timeline.filter(item => !isTimelineItemDone(item)).length;
+    openTasks += tasks.filter(task => !isTaskDone(task)).length;
+    completedTasks += tasks.filter(isTaskDone).length;
   });
-  const averagePercent = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.percent, 0) / rows.length) : 0;
-  const overallPercent = totalTimeline ? Math.round((completedTimeline / totalTimeline) * 100) : averagePercent;
-  const nextDeadline = rows.map(row => row.nextDeadline).filter(Boolean).sort()[0] || '';
-  const lastUpdate = rows.map(row => row.lastUpdate).filter(Boolean).sort().slice(-1)[0] || '';
-  const estimatedDeadline = rows.map(row => row.estimatedDeadline).filter(Boolean).sort()[0] || '';
   return {
-    projectIds: scopedProjectIds,
-    rows,
-    totalProjects: scopedProjectIds.length,
-    activeProjects: scopedProjectIds.filter(pid => isProjectActive(pid)).length,
+    totalProjects: allProjectIds.length,
+    activeProjects: activeProjectIds.length,
     totalTimeline,
     completedTimeline,
-    inProgressTimeline,
-    pendingTimeline,
-    activeTimeline: inProgressTimeline + pendingTimeline,
+    activeTimeline,
     openTasks,
-    completedTasks,
-    overallPercent,
-    averagePercent,
-    nextDeadline,
-    lastUpdate,
-    estimatedDeadline
+    completedTasks
   };
 }
-function calculateInternalAccountPortfolioStats(projectIds, options={}){
-  const scopedProjectIds = resolvePortfolioProjectIds(projectIds, options);
+function calculateInternalAccountPortfolioStats(){
   const internalAccounts = getUserAccounts().filter(acc => acc && acc.email && isCesgsManagementAccount(acc));
   const rows = internalAccounts.map(acc => {
-    const accountProjectIds = resolveAccountScopedProjectIds(acc, scopedProjectIds);
     let total = 0;
     let completed = 0;
     let inProgress = 0;
     let pending = 0;
     let taskTotal = 0;
     let timelineTotal = 0;
-    let lastUpdate = '';
-    let nextDeadline = '';
-    accountProjectIds.forEach(pid => {
-      const state = ensureProjectStateById(pid);
-      const stats = calculatePersonalWorkStats(state, acc.email);
-      const personalTimeline = calculatePersonalTimelineStats(state, acc.email);
+    Object.keys(PROJECTS).forEach(pid => {
+      const stats = calculatePersonalWorkStats(ensureProjectStateById(pid), acc.email);
       total += stats.total;
       completed += stats.completed;
       inProgress += stats.inProgress;
       pending += stats.pending;
       taskTotal += stats.taskTotal;
       timelineTotal += stats.timelineTotal;
-      const candidateUpdate = personalTimeline.lastUpdate || '';
-      if(candidateUpdate && candidateUpdate > lastUpdate) lastUpdate = candidateUpdate;
-      const candidateDeadline = personalTimeline.nextDeadline || '';
-      if(candidateDeadline && (!nextDeadline || candidateDeadline < nextDeadline)) nextDeadline = candidateDeadline;
     });
     const percent = total ? Math.round((completed / total) * 100) : 0;
     return {
@@ -5595,30 +5646,22 @@ function calculateInternalAccountPortfolioStats(projectIds, options={}){
       taskTotal,
       timelineTotal,
       percent,
-      projectCount: Array.isArray(acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]).length : 0,
-      filteredProjectCount: accountProjectIds.length,
-      scopedProjectIds: accountProjectIds,
-      lastUpdate,
-      nextDeadline
+      projectCount: Array.isArray(acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]).length : 0
     };
   }).sort((a,b) => {
-    if((b.filteredProjectCount > 0) !== (a.filteredProjectCount > 0)) return (b.filteredProjectCount > 0) - (a.filteredProjectCount > 0);
     if(b.total !== a.total) return b.total - a.total;
     return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''));
   });
   const totals = rows.reduce((acc, item) => {
     acc.accounts += 1;
-    if(item.filteredProjectCount > 0) acc.activeAccounts += 1;
     acc.total += item.total;
     acc.completed += item.completed;
     acc.inProgress += item.inProgress;
     acc.pending += item.pending;
-    acc.taskTotal += item.taskTotal;
-    acc.timelineTotal += item.timelineTotal;
     return acc;
-  }, {accounts:0,activeAccounts:0,total:0,completed:0,inProgress:0,pending:0,taskTotal:0,timelineTotal:0});
+  }, {accounts:0,total:0,completed:0,inProgress:0,pending:0});
   totals.percent = totals.total ? Math.round((totals.completed / totals.total) * 100) : 0;
-  return { rows, totals, projectIds: scopedProjectIds };
+  return { rows, totals };
 }
 
 function calculateProjectProgress(state){
@@ -5703,11 +5746,14 @@ function updateStoredAccountProfile(email, fields){
   if(!normalizedEmail) return false;
   const normalizedFields = {
     ...(fields && typeof fields === 'object' ? fields : {}),
-    cv: String(fields?.cv || ''),
-    institution: String(fields?.institution || ''),
-    profileLink: sanitizeProfileLink(fields?.profileLink || ''),
-    photoUrl: sanitizeMediaUrl(fields?.photoUrl || '')
+    cv: Object.prototype.hasOwnProperty.call(fields || {}, 'cv') ? String(fields?.cv || '') : undefined,
+    institution: Object.prototype.hasOwnProperty.call(fields || {}, 'institution') ? String(fields?.institution || '') : undefined,
+    profileLink: Object.prototype.hasOwnProperty.call(fields || {}, 'profileLink') ? sanitizeProfileLink(fields?.profileLink || '') : undefined,
+    photoUrl: Object.prototype.hasOwnProperty.call(fields || {}, 'photoUrl') ? sanitizeMediaUrl(fields?.photoUrl || '') : undefined
   };
+  Object.keys(normalizedFields).forEach(key => {
+    if(typeof normalizedFields[key] === 'undefined') delete normalizedFields[key];
+  });
   let updated = false;
   const currentProfile = getAccountProfileRecord(normalizedEmail) || getCurrentAccountProfile() || currentUserSession || {email: normalizedEmail};
   upsertAccountProfileRecord(normalizedEmail, {...currentProfile, ...normalizedFields}, {source:'profile_edit'});
@@ -5753,6 +5799,36 @@ function updateStoredAccountProfile(email, fields){
   syncAccountProfileDatabaseFromStores();
   if(updated) saveAll();
   return updated;
+}
+
+function broadcastProjectAssignmentSync(email, projectId){
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedProjectId = String(projectId || '').trim();
+  if(!normalizedEmail || !normalizedProjectId) return;
+  try{
+    localStorage.setItem('cesgs_assignment_sync', JSON.stringify({
+      email: normalizedEmail,
+      projectId: normalizedProjectId,
+      at: Date.now()
+    }));
+  }catch(e){}
+  try{ window.dispatchEvent(new CustomEvent('projecthub:assignment-changed', {detail:{email: normalizedEmail, projectId: normalizedProjectId, at: Date.now()}})); }catch(e){}
+}
+
+function syncAssignedAccountProjectAccess(email, projectId){
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedProjectId = String(projectId || '').trim();
+  refreshCurrentSessionFromStores();
+  if(currentUserSession && String(currentUserSession.email || '').toLowerCase() === normalizedEmail){
+    const nextProjects = Array.isArray(currentUserSession.projects) ? currentUserSession.projects.filter(pid => !!PROJECTS[pid]) : [];
+    if(normalizedProjectId && PROJECTS[normalizedProjectId] && !nextProjects.includes(normalizedProjectId)) nextProjects.push(normalizedProjectId);
+    currentUserSession = normalizeUserSession({...currentUserSession, projects: nextProjects});
+    if((!currentProjectId || !currentUserCanAccessProject(currentProjectId)) && normalizedProjectId && currentUserCanAccessProject(normalizedProjectId)){
+      currentProjectId = normalizedProjectId;
+    }
+    try{ localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession)); }catch(e){}
+  }
+  broadcastProjectAssignmentSync(normalizedEmail, normalizedProjectId);
 }
 function saveCurrentUserCv(){
   if(!userCanManage()) return toast('Only management users can save a CV');
@@ -6903,10 +6979,11 @@ function assignSelectedAccountToCurrentProject(){
   const projects=[...new Set([...(Array.isArray(acc.projects)?acc.projects:[]),currentProjectId])];
   const ok=updateStoredAccountProfile(email,{projects,role});
   if(!ok) return toast('Gagal menambahkan akun ke project');
+  syncAssignedAccountProjectAccess(email, currentProjectId);
   populateProjectAccountAssignmentOptions();
   renderAdminAccountManager();
-  renderUserHubPage();
-  toast(`Akun ${acc.name||acc.email} ditambahkan ke project ini`);
+  refreshAllViewsAfterDataChange();
+  toast(`Akun ${acc.name||acc.email} ditambahkan ke project ini dan akses dashboard telah disinkronkan`);
 }
 
 function renderProjectQuickLinks(){
@@ -8916,12 +8993,23 @@ function isProjectActive(pid){
 }
 
 function showUserHubPage(){
-  document.getElementById('landing-page').style.display='none';
-  document.getElementById('sidebar').style.display='none';
-  document.getElementById('main-content').style.display='none';
-  document.getElementById('hamburger-btn').style.display='none';
-  document.getElementById('user-hub-page').classList.add('show');
-  renderUserHubPage();
+  const landing=document.getElementById('landing-page');
+  const sidebar=document.getElementById('sidebar');
+  const main=document.getElementById('main-content');
+  const hamburger=document.getElementById('hamburger-btn');
+  const hub=document.getElementById('user-hub-page');
+  if(landing) landing.style.display='none';
+  if(sidebar) sidebar.style.display='none';
+  if(main) main.style.display='none';
+  if(hamburger) hamburger.style.display='none';
+  if(hub) hub.classList.add('show');
+  clearRenderFailsafe();
+  try{
+    renderUserHubPage();
+  }catch(err){
+    showRenderFailsafe('showUserHubPage.renderUserHubPage', err);
+    renderMinimalUserHub('The hub switched to a safe fallback view because one of the advanced sections failed to render.');
+  }
 }
 
 function hubLogout(){
@@ -9434,160 +9522,8 @@ function saveUserProfileEditPage(){
   closeProfileEditPage();
 }
 
-const CEO_HUB_ALL_ACTIVE_FILTER = '__all_active__';
-let ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
-function getCeoHubActiveProjectIds(){
-  return Object.keys(PROJECTS).filter(pid => isProjectActive(pid));
-}
-function getCeoHubFilteredProjectIds(filterValue){
-  const activeProjectIds = getCeoHubActiveProjectIds();
-  const normalized = String(filterValue || ceoHubProjectFilter || CEO_HUB_ALL_ACTIVE_FILTER);
-  if(normalized !== CEO_HUB_ALL_ACTIVE_FILTER && activeProjectIds.includes(normalized)) return [normalized];
-  return activeProjectIds;
-}
-function getCeoHubProjectFilterLabel(projectIds){
-  if(projectIds.length === 1 && PROJECTS[projectIds[0]]) return PROJECTS[projectIds[0]].name;
-  return projectIds.length ? `${projectIds.length} project berjalan` : 'Belum ada project berjalan';
-}
-function updateCeoHubProjectFilter(value){
-  ceoHubProjectFilter = value || CEO_HUB_ALL_ACTIVE_FILTER;
-  renderUserHubPage();
-}
-function renderCeoExecutiveOverviewSection(sectionEl){
-  if(!sectionEl) return;
-  const activeProjectIds = getCeoHubActiveProjectIds();
-  if(!activeProjectIds.length){
-    ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
-    sectionEl.style.display='block';
-    sectionEl.innerHTML = `
-      <div class="sadmin-hub">
-        <div class="hub-section-head" style="margin-bottom:6px">
-          <div class="hub-section-title">👑 CEO Executive Overview</div>
-        </div>
-        <div class="hub-empty-msg">Belum ada project yang aktif. Aktifkan project terlebih dahulu agar statistik executive dapat ditampilkan.</div>
-      </div>`;
-    return;
-  }
-  if(ceoHubProjectFilter !== CEO_HUB_ALL_ACTIVE_FILTER && !activeProjectIds.includes(ceoHubProjectFilter)){
-    ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
-  }
-  const filteredProjectIds = getCeoHubFilteredProjectIds();
-  const filterLabel = getCeoHubProjectFilterLabel(filteredProjectIds);
-  const portfolio = calculatePortfolioProjectStats(filteredProjectIds);
-  const workload = calculateInternalAccountPortfolioStats(filteredProjectIds);
-  const visibleWorkloadRows = workload.rows.filter(item => item.filteredProjectCount > 0 || item.total > 0);
-  const visibleProjectRows = portfolio.rows;
-  const summaryText = filteredProjectIds.length === 1 && PROJECTS[filteredProjectIds[0]]
-    ? `Ringkasan CEO saat ini difokuskan pada ${escapeHtml(PROJECTS[filteredProjectIds[0]].name)}. Statistik personal akun internal dan progress project diambil langsung dari dashboard project tersebut.`
-    : `Ringkasan CEO saat ini menggabungkan seluruh project yang sedang berjalan. Statistik personal akun internal dan progress project ditarik otomatis dari semua dashboard project aktif.`;
-  sectionEl.style.display='block';
-  sectionEl.innerHTML = `
-    <div class="sadmin-hub">
-      <div class="hub-section-head" style="margin-bottom:10px;gap:14px;align-items:flex-start;flex-wrap:wrap">
-        <div>
-          <div class="hub-section-title">👑 CEO Executive Overview</div>
-          <div class="sadmin-sub" style="margin:8px 0 0">${summaryText}</div>
-        </div>
-        <div style="min-width:250px;max-width:340px;width:100%">
-          <div class="section-label" style="margin-bottom:6px">Filter project berjalan</div>
-          <select class="inp" onchange="updateCeoHubProjectFilter(this.value)">
-            <option value="${CEO_HUB_ALL_ACTIVE_FILTER}" ${ceoHubProjectFilter===CEO_HUB_ALL_ACTIVE_FILTER?'selected':''}>Semua project berjalan</option>
-            ${activeProjectIds.map(pid => `<option value="${pid}" ${ceoHubProjectFilter===pid?'selected':''}>${escapeHtml(PROJECTS[pid].name)}</option>`).join('')}
-          </select>
-          <div class="helper-text">Filter aktif: <strong>${escapeHtml(filterLabel)}</strong></div>
-        </div>
-      </div>
-
-      <div class="sadmin-stats">
-        <div class="stat-tile st-teal"><div class="st-num">${portfolio.totalProjects}</div><div class="st-label">Project dalam Filter</div></div>
-        <div class="stat-tile st-blue"><div class="st-num">${portfolio.overallPercent}%</div><div class="st-label">Overall Project Progress</div></div>
-        <div class="stat-tile st-gold"><div class="st-num">${workload.totals.activeAccounts}</div><div class="st-label">Akun Internal Terlibat</div></div>
-        <div class="stat-tile st-ink"><div class="st-num">${portfolio.openTasks}</div><div class="st-label">Open Task Internal</div></div>
-      </div>
-
-      <div class="grid-2" style="margin-top:16px;align-items:start">
-        <div class="card card-pad">
-          <div class="section-label">Statistik Keseluruhan Progress Project</div>
-          <div class="progress-wrap">
-            <div>
-              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
-                <div style="font-size:28px;font-weight:700;color:var(--ink)">${portfolio.overallPercent}%</div>
-                <div class="badge badge-blue">Avg per project ${portfolio.averagePercent}%</div>
-              </div>
-              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${portfolio.overallPercent}%"></div></div>
-              <div class="progress-meta"><span>${portfolio.completedTimeline} timeline selesai</span><span>${portfolio.inProgressTimeline} berjalan · ${portfolio.pendingTimeline} pending</span></div>
-            </div>
-            <div class="info-list">
-              <div class="info-row"><span>Total timeline lintas dashboard</span><strong>${portfolio.totalTimeline}</strong></div>
-              <div class="info-row"><span>Task selesai / terbuka</span><strong>${portfolio.completedTasks} selesai · ${portfolio.openTasks} terbuka</strong></div>
-              <div class="info-row"><span>Last portfolio update</span><strong>${formatDateFancy(portfolio.lastUpdate)}</strong></div>
-              <div class="info-row"><span>Deadline terdekat</span><strong>${formatDateFancy(portfolio.nextDeadline || portfolio.estimatedDeadline)}</strong></div>
-            </div>
-          </div>
-        </div>
-        <div class="card card-pad">
-          <div class="section-label">Statistik Personal Semua Akun Internal</div>
-          <div class="progress-wrap">
-            <div>
-              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
-                <div style="font-size:28px;font-weight:700;color:var(--ink)">${workload.totals.percent}%</div>
-                <div class="badge badge-gold">${workload.totals.activeAccounts}/${workload.totals.accounts} akun aktif di filter</div>
-              </div>
-              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${workload.totals.percent}%"></div></div>
-              <div class="progress-meta"><span>${workload.totals.completed} work item selesai</span><span>${workload.totals.inProgress} berjalan · ${workload.totals.pending} pending</span></div>
-            </div>
-            <div class="info-list">
-              <div class="info-row"><span>Total work item internal</span><strong>${workload.totals.total}</strong></div>
-              <div class="info-row"><span>Task vs timeline personal</span><strong>${workload.totals.taskTotal} task · ${workload.totals.timelineTotal} timeline PIC</strong></div>
-              <div class="info-row"><span>Cakupan filter</span><strong>${escapeHtml(filterLabel)}</strong></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="hub-section-head" style="margin:18px 0 12px">
-        <div style="font-size:14px;font-weight:700;color:var(--ink)">Progress Tiap Project dari Dashboard</div>
-        <div class="inline-actions">
-          ${filteredProjectIds.length === 1 ? `<button class="btn btn-outline btn-sm" onclick="enterProjectFromHub('${filteredProjectIds[0]}')">▦ Buka ${escapeHtml(PROJECTS[filteredProjectIds[0]].name)}</button>` : `<button class="btn btn-outline btn-sm" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Dashboard</button>`}
-        </div>
-      </div>
-      <div class="manager-grid">
-        ${visibleProjectRows.map(row => `
-          <div class="project-card-mini">
-            <div style="flex:1;min-width:0">
-              <strong>${escapeHtml(row.project?.name || row.id)}</strong>
-              <span>${escapeHtml(row.project?.org || '')}</span>
-              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${row.percent}%"></div></div>
-              <div class="progress-meta" style="margin-top:8px"><span>${row.percent}% · ${escapeHtml(row.status)}</span><span>${row.done}/${row.total || 0} timeline selesai</span></div>
-              <div class="helper-text">Open task ${row.openTasks} · Deadline ${formatDateFancy(row.nextDeadline || row.estimatedDeadline)} · Update ${formatDateFancy(row.lastUpdate)}</div>
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="enterProjectFromHub('${row.id}')">Buka</button>
-          </div>`).join('')}
-      </div>
-
-      <div class="hub-section-head" style="margin:18px 0 12px">
-        <div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Personal Semua Akun Internal</div>
-      </div>
-      <div class="admin-list">
-        ${visibleWorkloadRows.length ? visibleWorkloadRows.map(item => `
-          <div class="admin-row">
-            <div>
-              <div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div>
-              <div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.filteredProjectCount} project pada filter</div>
-              <div class="helper-text">Task ${item.taskTotal} · Timeline PIC ${item.timelineTotal} · Deadline ${formatDateFancy(item.nextDeadline)} · Update ${formatDateFancy(item.lastUpdate)}</div>
-            </div>
-            <div class="admin-actions">
-              <span class="badge badge-ink">Total ${item.total}</span>
-              <span class="badge badge-teal">Done ${item.completed}</span>
-              <span class="badge badge-blue">Open ${item.inProgress}</span>
-              <span class="badge badge-gold">${item.percent}%</span>
-            </div>
-          </div>`).join('') : '<div class="hub-empty-msg">Belum ada aktivitas akun internal pada project yang difilter.</div>'}
-      </div>
-    </div>`;
-}
-
 function renderUserHubPage(){
+  refreshCurrentSessionFromStores();
   const user=currentUserSession;
   if(!user){hubLogout();return;}
   const isSA=isSuperadminSession();
@@ -9696,7 +9632,58 @@ function renderUserHubPage(){
           </div>
         </div>`;
     } else if(isCEO) {
-      renderCeoExecutiveOverviewSection(saSection);
+      saSection.style.display='block';
+      const portfolio = calculatePortfolioProjectStats();
+      const workload = calculateInternalAccountPortfolioStats();
+      saSection.innerHTML = `
+        <div class="sadmin-hub">
+          <div class="hub-section-head" style="margin-bottom:6px">
+            <div class="hub-section-title">👑 CEO Executive Overview</div>
+          </div>
+          <div class="sadmin-sub">Ringkasan ini menampilkan statistik seluruh project CESGS dan statistik pekerjaan semua akun internal. CEO dapat membuka detail setiap project dari daftar proyek di bawah.</div>
+          <div class="sadmin-stats">
+            <div class="stat-tile st-teal"><div class="st-num">${portfolio.totalProjects}</div><div class="st-label">Total Proyek</div></div>
+            <div class="stat-tile st-blue"><div class="st-num">${portfolio.activeProjects}</div><div class="st-label">Proyek Aktif</div></div>
+            <div class="stat-tile st-gold"><div class="st-num">${workload.totals.accounts}</div><div class="st-label">Akun Internal</div></div>
+            <div class="stat-tile st-ink"><div class="st-num">${workload.totals.percent}%</div><div class="st-label">Completion Internal</div></div>
+          </div>
+          <div class="grid-2" style="margin-top:16px">
+            <div class="card card-pad">
+              <div class="section-label">Portfolio Snapshot</div>
+              <div class="info-list">
+                <div class="info-row"><span>Total timeline seluruh project</span><strong>${portfolio.totalTimeline}</strong></div>
+                <div class="info-row"><span>Timeline selesai</span><strong>${portfolio.completedTimeline}</strong></div>
+                <div class="info-row"><span>Timeline aktif / pending</span><strong>${portfolio.activeTimeline}</strong></div>
+                <div class="info-row"><span>Task open internal</span><strong>${workload.totals.inProgress}</strong></div>
+                <div class="info-row"><span>Task / work item selesai</span><strong>${workload.totals.completed}</strong></div>
+              </div>
+            </div>
+            <div class="card card-pad">
+              <div class="section-label">Executive Notes</div>
+              <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Pertama</button>
+              </div>
+            </div>
+          </div>
+          <div class="hub-section-head" style="margin:18px 0 12px">
+            <div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Pekerjaan Akun Internal</div>
+          </div>
+          <div class="admin-list">
+            ${workload.rows.length ? workload.rows.map(item => `
+              <div class="admin-row">
+                <div>
+                  <div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div>
+                  <div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.projectCount} project</div>
+                </div>
+                <div class="admin-actions">
+                  <span class="badge badge-ink">Total ${item.total}</span>
+                  <span class="badge badge-teal">Done ${item.completed}</span>
+                  <span class="badge badge-blue">Open ${item.inProgress}</span>
+                  <span class="badge badge-gold">${item.percent}%</span>
+                </div>
+              </div>`).join('') : '<div class="hub-empty-msg">Belum ada akun internal CESGS yang terdeteksi.</div>'}
+          </div>
+        </div>`;
     } else {
       saSection.style.display='none';
     }
@@ -9729,9 +9716,9 @@ function renderUserHubPage(){
     const p=PROJECTS[pid];
     if(!p) return '';
     const caption=(isMA || isCEO)?'Buka Project Dashboard →':'Buka Client Dashboard →';
-    const data=projectData[pid];
-    const docCount=data?data.documents.length:(p.seedDocs||[]).length;
-    const meetCount=data?data.meetings.length:0;
+    const stats=getProjectCardStats(pid);
+    const docCount=stats.documents;
+    const meetCount=stats.meetings;
     return `<div class="hub-project-card" onclick="enterProjectFromHub('${pid}')">
       <div class="hub-pc-accent" style="background:linear-gradient(90deg,${p.accent},${p.accent}77)"></div>
       <div class="hub-pc-body">
@@ -9767,12 +9754,16 @@ const bookingAccountSelect=document.getElementById('bk-name-account');
 if(bookingAccountSelect) bookingAccountSelect.addEventListener('change', handleBookingAccountChange);
 renderBookingAccountChecklist();
 window.addEventListener('storage', (e) => {
-  if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data', ACCOUNT_PROFILE_DB_KEY, 'cesgs_hub_session'].includes(e.key)) return;
+  if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data', ACCOUNT_PROFILE_DB_KEY, 'cesgs_hub_session', 'cesgs_assignment_sync'].includes(e.key)) return;
   loadAll();
   refreshCurrentSessionFromStores();
   refreshAllViewsAfterDataChange();
 });
 window.addEventListener('projecthub:data-changed', () => {
+  refreshAllViewsAfterDataChange();
+});
+window.addEventListener('projecthub:assignment-changed', () => {
+  refreshCurrentSessionFromStores();
   refreshAllViewsAfterDataChange();
 });
 setTimeout(()=>{ if(currentUserSession) renderUserProfileEditPage(); }, 0);
