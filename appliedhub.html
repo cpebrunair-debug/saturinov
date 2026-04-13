@@ -2360,11 +2360,12 @@ function saveAll(){
   try{localStorage.setItem('cesgs_hub_data',JSON.stringify(projectData))}catch(e){}
   try{localStorage.setItem('cesgs_hub_auth',JSON.stringify(authenticatedProjects))}catch(e){}
   try{localStorage.setItem('cesgs_admin_state',JSON.stringify(adminState))}catch(e){}
+  syncAccountProfileDatabaseFromStores();
+  refreshCurrentSessionFromStores();
   try{
     if(currentUserSession) localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession));
     else localStorage.removeItem('cesgs_hub_session');
   }catch(e){}
-  syncAccountProfileDatabaseFromStores();
   pushProjectHubToSuperState();
   try{ window.dispatchEvent(new CustomEvent('projecthub:data-changed', {detail:{projectId:currentProjectId||'', at:Date.now()}})); }catch(e){}
 }
@@ -2438,10 +2439,7 @@ function loadAll(){
   Object.values(adminState.customProjects||{}).forEach(p=>{PROJECTS[p.id]=p});
   pullSuperAdminState();
   syncAccountProfileDatabaseFromStores();
-  if(currentUserSession && currentUserSession.email){
-    const stored = getCurrentAccountProfile();
-    if(stored) currentUserSession = normalizeUserSession({...currentUserSession, ...stored});
-  }
+  refreshCurrentSessionFromStores();
 }
 
 let authenticatedProjects={};
@@ -4459,20 +4457,13 @@ function doAdminLogin(){
   err.textContent='';
   if(!email){err.textContent='Enter your email.';document.getElementById('admin-login-email').focus();return}
   if(!password){err.textContent='Enter your password.';document.getElementById('admin-login-password').focus();return}
+  currentAdminEmail = '';
+  try{ localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY); }catch(e){}
   const user = authenticateUser(email, password);
   if(!user){err.textContent='Incorrect email or password. Please try again.';return}
-  currentUserSession = normalizeUserSession(user);
-  currentUserSession.projects.forEach(pid => { authenticatedProjects[pid] = true; ensureProjectStateById(pid); });
-  const admin = getAdminByEmail(email);
-  currentAdminEmail = admin ? admin.email : '';
+  finalizeAuthenticatedUserSession(user, {source:'project-hub'});
   closeAdminLoginModal();
   closeIntegratedSuperAdmin();
-  saveAll();
-  try{
-    if(admin){
-      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:'project-hub'}));
-    }
-  }catch(e){}
   showUserHubPage();
 }
 function openPrimaryAdminUIDemo(){document.getElementById('admin-login-email').value=PRIMARY_SUPERADMIN_EMAIL;document.getElementById('admin-login-password').value=PRIMARY_SUPERADMIN_PASSWORD;doAdminLogin()}
@@ -5067,7 +5058,7 @@ function getUserAccounts(){
       const canManage = isManagementRole(role);
       let projects = Array.isArray(client.projects) ? client.projects.filter(pid => !!PROJECTS[pid]) : [];
       if (canManage && !projects.length) projects = Object.keys(PROJECTS);
-      if (client.email && client.password && projects.length) {
+      if (client.email && client.password) {
         accounts.push({
           email:client.email,
           password:client.password,
@@ -5087,7 +5078,7 @@ function getUserAccounts(){
   Object.values(profileDb.accounts || {}).forEach((account) => {
     if(!account || !account.email || (account.status || 'active') === 'inactive') return;
     const normalized = normalizeUserSession(account);
-    if(normalized.email && normalized.password && (normalized.projects.length || !normalized.canManage)) accounts.push(normalized);
+    if(normalized.email && normalized.password) accounts.push(normalized);
   });
   USER_ACCOUNTS_FALLBACK.forEach(acc=>accounts.push(acc));
   return dedupeAccountsByEmail(accounts);
@@ -5113,6 +5104,32 @@ function authenticateUser(email, password) {
   }
   return null;
 }
+
+function finalizeAuthenticatedUserSession(user, options={}) {
+  const resolvedUser = normalizeUserSession(user || {});
+  authenticatedProjects = {};
+  currentProjectId = null;
+  currentProjectMode = 'project';
+  currentUserSession = resolvedUser;
+  currentUserSession.projects.forEach(pid => {
+    authenticatedProjects[pid] = true;
+    ensureProjectStateById(pid);
+  });
+  const admin = getAdminByEmail(resolvedUser.email || '');
+  currentAdminEmail = admin ? admin.email : '';
+  try{
+    localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession));
+  }catch(e){}
+  try{
+    if(admin){
+      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:options.source || 'project-hub'}));
+    } else {
+      localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY);
+    }
+  }catch(e){}
+  saveAll();
+  return currentUserSession;
+}
 function performUserLogin(email, password, mode) {
   const isLanding = mode === 'landing';
   const errEl = document.getElementById(isLanding ? 'landing-login-err' : 'login-err');
@@ -5121,6 +5138,8 @@ function performUserLogin(email, password, mode) {
   errEl.textContent = '';
   if (!email) { errEl.textContent = 'Enter your email.'; emailEl.focus(); return; }
   if (!password) { errEl.textContent = 'Enter your password.'; passwordEl.focus(); return; }
+  currentAdminEmail = '';
+  try{ localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY); }catch(e){}
   const user = authenticateUser(email, password);
   if (!user) {
     errEl.textContent = 'Incorrect email or password. Please try again.';
@@ -5129,18 +5148,7 @@ function performUserLogin(email, password, mode) {
     setTimeout(() => { emailEl.classList.remove('error'); passwordEl.classList.remove('error'); }, 500);
     return;
   }
-  currentUserSession = normalizeUserSession(user);
-  currentUserSession.projects.forEach(pid => { authenticatedProjects[pid] = true; ensureProjectStateById(pid); });
-  const admin = getAdminByEmail(email);
-  currentAdminEmail = admin ? admin.email : '';
-  try{
-    if(admin){
-      localStorage.setItem(SUPERADMIN_LOGIN_BRIDGE_KEY, JSON.stringify({email:admin.email,password:admin.password,at:Date.now(),source:'project-hub'}));
-    } else {
-      localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY);
-    }
-  }catch(e){}
-  saveAll();
+  finalizeAuthenticatedUserSession(user, {source:'project-hub'});
   if (!isLanding) closeLoginModal();
   showUserHubPage();
 }
@@ -5475,51 +5483,107 @@ function calculatePersonalWorkStats(state, emailOverride){
   };
 }
 
-function calculatePortfolioProjectStats(){
-  const allProjectIds = Object.keys(PROJECTS);
-  const activeProjectIds = allProjectIds.filter(pid => isProjectActive(pid));
+function resolvePortfolioProjectIds(projectIds, options={}){
+  const allProjectIds = Object.keys(PROJECTS).filter(pid => !!PROJECTS[pid]);
+  const requested = Array.isArray(projectIds) && projectIds.length
+    ? projectIds.filter(pid => !!PROJECTS[pid])
+    : allProjectIds;
+  const uniqueIds = [...new Set(requested)];
+  if(options && options.activeOnly) return uniqueIds.filter(pid => isProjectActive(pid));
+  return uniqueIds;
+}
+function resolveAccountScopedProjectIds(acc, projectIds){
+  const scoped = resolvePortfolioProjectIds(projectIds);
+  if(hasGlobalProjectAccess(acc)) return scoped;
+  const assigned = Array.isArray(acc && acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]) : [];
+  return scoped.filter(pid => assigned.includes(pid));
+}
+function calculatePortfolioProjectStats(projectIds, options={}){
+  const scopedProjectIds = resolvePortfolioProjectIds(projectIds, options);
   let totalTimeline = 0;
   let completedTimeline = 0;
-  let activeTimeline = 0;
+  let inProgressTimeline = 0;
+  let pendingTimeline = 0;
   let openTasks = 0;
   let completedTasks = 0;
-  allProjectIds.forEach(pid => {
+  const rows = scopedProjectIds.map(pid => {
     const state = ensureProjectStateById(pid);
-    const timeline = Array.isArray(state.timeline) ? state.timeline : [];
+    const progress = calculateProjectProgress(state);
     const tasks = Array.isArray(state.tasks) ? state.tasks : [];
-    totalTimeline += timeline.length;
-    completedTimeline += timeline.filter(isTimelineItemDone).length;
-    activeTimeline += timeline.filter(item => !isTimelineItemDone(item)).length;
-    openTasks += tasks.filter(task => !isTaskDone(task)).length;
-    completedTasks += tasks.filter(isTaskDone).length;
+    const openTaskCount = tasks.filter(task => !isTaskDone(task)).length;
+    const completedTaskCount = tasks.filter(isTaskDone).length;
+    totalTimeline += progress.total;
+    completedTimeline += progress.done;
+    inProgressTimeline += progress.inProgress;
+    pendingTimeline += progress.pending;
+    openTasks += openTaskCount;
+    completedTasks += completedTaskCount;
+    return {
+      id: pid,
+      project: PROJECTS[pid],
+      ...progress,
+      openTasks: openTaskCount,
+      completedTasks: completedTaskCount,
+      summary: String((state.projectMeta && state.projectMeta.summary) || '').trim()
+    };
+  }).sort((a,b) => {
+    const aActive = isProjectActive(a.id) ? 1 : 0;
+    const bActive = isProjectActive(b.id) ? 1 : 0;
+    if(bActive !== aActive) return bActive - aActive;
+    if(b.percent !== a.percent) return b.percent - a.percent;
+    return String(a.project?.name || a.id).localeCompare(String(b.project?.name || b.id));
   });
+  const averagePercent = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.percent, 0) / rows.length) : 0;
+  const overallPercent = totalTimeline ? Math.round((completedTimeline / totalTimeline) * 100) : averagePercent;
+  const nextDeadline = rows.map(row => row.nextDeadline).filter(Boolean).sort()[0] || '';
+  const lastUpdate = rows.map(row => row.lastUpdate).filter(Boolean).sort().slice(-1)[0] || '';
+  const estimatedDeadline = rows.map(row => row.estimatedDeadline).filter(Boolean).sort()[0] || '';
   return {
-    totalProjects: allProjectIds.length,
-    activeProjects: activeProjectIds.length,
+    projectIds: scopedProjectIds,
+    rows,
+    totalProjects: scopedProjectIds.length,
+    activeProjects: scopedProjectIds.filter(pid => isProjectActive(pid)).length,
     totalTimeline,
     completedTimeline,
-    activeTimeline,
+    inProgressTimeline,
+    pendingTimeline,
+    activeTimeline: inProgressTimeline + pendingTimeline,
     openTasks,
-    completedTasks
+    completedTasks,
+    overallPercent,
+    averagePercent,
+    nextDeadline,
+    lastUpdate,
+    estimatedDeadline
   };
 }
-function calculateInternalAccountPortfolioStats(){
+function calculateInternalAccountPortfolioStats(projectIds, options={}){
+  const scopedProjectIds = resolvePortfolioProjectIds(projectIds, options);
   const internalAccounts = getUserAccounts().filter(acc => acc && acc.email && isCesgsManagementAccount(acc));
   const rows = internalAccounts.map(acc => {
+    const accountProjectIds = resolveAccountScopedProjectIds(acc, scopedProjectIds);
     let total = 0;
     let completed = 0;
     let inProgress = 0;
     let pending = 0;
     let taskTotal = 0;
     let timelineTotal = 0;
-    Object.keys(PROJECTS).forEach(pid => {
-      const stats = calculatePersonalWorkStats(ensureProjectStateById(pid), acc.email);
+    let lastUpdate = '';
+    let nextDeadline = '';
+    accountProjectIds.forEach(pid => {
+      const state = ensureProjectStateById(pid);
+      const stats = calculatePersonalWorkStats(state, acc.email);
+      const personalTimeline = calculatePersonalTimelineStats(state, acc.email);
       total += stats.total;
       completed += stats.completed;
       inProgress += stats.inProgress;
       pending += stats.pending;
       taskTotal += stats.taskTotal;
       timelineTotal += stats.timelineTotal;
+      const candidateUpdate = personalTimeline.lastUpdate || '';
+      if(candidateUpdate && candidateUpdate > lastUpdate) lastUpdate = candidateUpdate;
+      const candidateDeadline = personalTimeline.nextDeadline || '';
+      if(candidateDeadline && (!nextDeadline || candidateDeadline < nextDeadline)) nextDeadline = candidateDeadline;
     });
     const percent = total ? Math.round((completed / total) * 100) : 0;
     return {
@@ -5531,22 +5595,30 @@ function calculateInternalAccountPortfolioStats(){
       taskTotal,
       timelineTotal,
       percent,
-      projectCount: Array.isArray(acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]).length : 0
+      projectCount: Array.isArray(acc.projects) ? acc.projects.filter(pid => !!PROJECTS[pid]).length : 0,
+      filteredProjectCount: accountProjectIds.length,
+      scopedProjectIds: accountProjectIds,
+      lastUpdate,
+      nextDeadline
     };
   }).sort((a,b) => {
+    if((b.filteredProjectCount > 0) !== (a.filteredProjectCount > 0)) return (b.filteredProjectCount > 0) - (a.filteredProjectCount > 0);
     if(b.total !== a.total) return b.total - a.total;
     return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''));
   });
   const totals = rows.reduce((acc, item) => {
     acc.accounts += 1;
+    if(item.filteredProjectCount > 0) acc.activeAccounts += 1;
     acc.total += item.total;
     acc.completed += item.completed;
     acc.inProgress += item.inProgress;
     acc.pending += item.pending;
+    acc.taskTotal += item.taskTotal;
+    acc.timelineTotal += item.timelineTotal;
     return acc;
-  }, {accounts:0,total:0,completed:0,inProgress:0,pending:0});
+  }, {accounts:0,activeAccounts:0,total:0,completed:0,inProgress:0,pending:0,taskTotal:0,timelineTotal:0});
   totals.percent = totals.total ? Math.round((totals.completed / totals.total) * 100) : 0;
-  return { rows, totals };
+  return { rows, totals, projectIds: scopedProjectIds };
 }
 
 function calculateProjectProgress(state){
@@ -7539,24 +7611,28 @@ function syncAccountProfileDatabaseFromStores(){
     const normalizedEmail = String(account.email || '').trim().toLowerCase();
     if(!normalizedEmail) return;
     const current = db.accounts[normalizedEmail] || {};
+    const hasAccountProjects = Array.isArray(account.projects);
+    const hasCurrentProjects = Array.isArray(current.projects);
     db.accounts[normalizedEmail] = buildAccountProfileRecord(normalizedEmail, {
-      ...account,
       ...current,
+      ...account,
       email: normalizedEmail,
-      password: current.password || account.password || '',
-      name: current.name || account.name || '',
-      role: current.role || account.role || 'Client / Partner',
-      projects: (Array.isArray(current.projects) && current.projects.length ? current.projects : (Array.isArray(account.projects) ? account.projects : [])),
-      canManage: typeof current.canManage === 'boolean' ? current.canManage : (typeof account.canManage === 'boolean' ? account.canManage : isManagementRole(account.role)),
-      institution: current.institution || account.institution || '',
-      cv: current.cv || account.cv || '',
-      profileLink: current.profileLink || account.profileLink || '',
-      photoUrl: current.photoUrl || account.photoUrl || '',
-      status: current.status || account.status || 'active',
+      password: ('password' in account) ? String(account.password || '') : String(current.password || ''),
+      name: ('name' in account) ? String(account.name || '') : String(current.name || ''),
+      role: ('role' in account) ? String(account.role || 'Client / Partner') : String(current.role || 'Client / Partner'),
+      projects: hasAccountProjects ? account.projects : (hasCurrentProjects ? current.projects : []),
+      canManage: typeof account.canManage === 'boolean' ? account.canManage : (typeof current.canManage === 'boolean' ? current.canManage : isManagementRole(account.role || current.role)),
+      institution: ('institution' in account) ? String(account.institution || '') : String(current.institution || ''),
+      cv: ('cv' in account) ? String(account.cv || '') : String(current.cv || ''),
+      profileLink: ('profileLink' in account) ? sanitizeProfileLink(account.profileLink || '') : sanitizeProfileLink(current.profileLink || ''),
+      photoUrl: ('photoUrl' in account) ? sanitizeMediaUrl(account.photoUrl || '') : sanitizeMediaUrl(current.photoUrl || ''),
+      status: ('status' in account) ? String(account.status || 'active') : String(current.status || 'active'),
       createdAt: current.createdAt || account.createdAt || new Date().toISOString().slice(0,10),
-      source: current.source || source || 'store_sync'
+      updatedAt: new Date().toISOString(),
+      source: source || current.source || 'store_sync'
     });
   };
+  if(currentUserSession && currentUserSession.email) register(currentUserSession, 'current_session');
   (adminState.admins || []).forEach(acc => register({
     email: acc.email,
     password: acc.password,
@@ -7575,9 +7651,28 @@ function syncAccountProfileDatabaseFromStores(){
   ['userAccounts','clients'].forEach(pool => {
     (Array.isArray(superState[pool]) ? superState[pool] : []).forEach(acc => register(acc, `superadmin_${pool}`));
   });
-  if(currentUserSession && currentUserSession.email) register(currentUserSession, 'current_session');
   saveAccountProfileDatabase(db);
   return db;
+}
+function refreshCurrentSessionFromStores(){
+  if(!currentUserSession || !currentUserSession.email) return currentUserSession;
+  const normalizedEmail = String(currentUserSession.email || '').trim().toLowerCase();
+  if(!normalizedEmail) return currentUserSession;
+  const matchingAccount = getUserAccounts().find(acc => String(acc.email || '').toLowerCase() === normalizedEmail);
+  const matchingProfile = getAccountProfileRecord(normalizedEmail);
+  if(matchingAccount || matchingProfile){
+    currentUserSession = normalizeUserSession({
+      ...(currentUserSession || {}),
+      ...(matchingAccount || {}),
+      ...(matchingProfile || {})
+    });
+    try{ localStorage.setItem('cesgs_hub_session', JSON.stringify(currentUserSession)); }catch(e){}
+    if(currentProjectId && !currentUserCanAccessProject(currentProjectId)){
+      const fallbackProject = getSessionProjects()[0] || null;
+      currentProjectId = fallbackProject;
+    }
+  }
+  return currentUserSession;
 }
 function buildJsonBackupPayload(){
   syncAccountProfileDatabaseFromStores();
@@ -9339,6 +9434,159 @@ function saveUserProfileEditPage(){
   closeProfileEditPage();
 }
 
+const CEO_HUB_ALL_ACTIVE_FILTER = '__all_active__';
+let ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
+function getCeoHubActiveProjectIds(){
+  return Object.keys(PROJECTS).filter(pid => isProjectActive(pid));
+}
+function getCeoHubFilteredProjectIds(filterValue){
+  const activeProjectIds = getCeoHubActiveProjectIds();
+  const normalized = String(filterValue || ceoHubProjectFilter || CEO_HUB_ALL_ACTIVE_FILTER);
+  if(normalized !== CEO_HUB_ALL_ACTIVE_FILTER && activeProjectIds.includes(normalized)) return [normalized];
+  return activeProjectIds;
+}
+function getCeoHubProjectFilterLabel(projectIds){
+  if(projectIds.length === 1 && PROJECTS[projectIds[0]]) return PROJECTS[projectIds[0]].name;
+  return projectIds.length ? `${projectIds.length} project berjalan` : 'Belum ada project berjalan';
+}
+function updateCeoHubProjectFilter(value){
+  ceoHubProjectFilter = value || CEO_HUB_ALL_ACTIVE_FILTER;
+  renderUserHubPage();
+}
+function renderCeoExecutiveOverviewSection(sectionEl){
+  if(!sectionEl) return;
+  const activeProjectIds = getCeoHubActiveProjectIds();
+  if(!activeProjectIds.length){
+    ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
+    sectionEl.style.display='block';
+    sectionEl.innerHTML = `
+      <div class="sadmin-hub">
+        <div class="hub-section-head" style="margin-bottom:6px">
+          <div class="hub-section-title">👑 CEO Executive Overview</div>
+        </div>
+        <div class="hub-empty-msg">Belum ada project yang aktif. Aktifkan project terlebih dahulu agar statistik executive dapat ditampilkan.</div>
+      </div>`;
+    return;
+  }
+  if(ceoHubProjectFilter !== CEO_HUB_ALL_ACTIVE_FILTER && !activeProjectIds.includes(ceoHubProjectFilter)){
+    ceoHubProjectFilter = CEO_HUB_ALL_ACTIVE_FILTER;
+  }
+  const filteredProjectIds = getCeoHubFilteredProjectIds();
+  const filterLabel = getCeoHubProjectFilterLabel(filteredProjectIds);
+  const portfolio = calculatePortfolioProjectStats(filteredProjectIds);
+  const workload = calculateInternalAccountPortfolioStats(filteredProjectIds);
+  const visibleWorkloadRows = workload.rows.filter(item => item.filteredProjectCount > 0 || item.total > 0);
+  const visibleProjectRows = portfolio.rows;
+  const summaryText = filteredProjectIds.length === 1 && PROJECTS[filteredProjectIds[0]]
+    ? `Ringkasan CEO saat ini difokuskan pada ${escapeHtml(PROJECTS[filteredProjectIds[0]].name)}. Statistik personal akun internal dan progress project diambil langsung dari dashboard project tersebut.`
+    : `Ringkasan CEO saat ini menggabungkan seluruh project yang sedang berjalan. Statistik personal akun internal dan progress project ditarik otomatis dari semua dashboard project aktif.`;
+  sectionEl.style.display='block';
+  sectionEl.innerHTML = `
+    <div class="sadmin-hub">
+      <div class="hub-section-head" style="margin-bottom:10px;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <div class="hub-section-title">👑 CEO Executive Overview</div>
+          <div class="sadmin-sub" style="margin:8px 0 0">${summaryText}</div>
+        </div>
+        <div style="min-width:250px;max-width:340px;width:100%">
+          <div class="section-label" style="margin-bottom:6px">Filter project berjalan</div>
+          <select class="inp" onchange="updateCeoHubProjectFilter(this.value)">
+            <option value="${CEO_HUB_ALL_ACTIVE_FILTER}" ${ceoHubProjectFilter===CEO_HUB_ALL_ACTIVE_FILTER?'selected':''}>Semua project berjalan</option>
+            ${activeProjectIds.map(pid => `<option value="${pid}" ${ceoHubProjectFilter===pid?'selected':''}>${escapeHtml(PROJECTS[pid].name)}</option>`).join('')}
+          </select>
+          <div class="helper-text">Filter aktif: <strong>${escapeHtml(filterLabel)}</strong></div>
+        </div>
+      </div>
+
+      <div class="sadmin-stats">
+        <div class="stat-tile st-teal"><div class="st-num">${portfolio.totalProjects}</div><div class="st-label">Project dalam Filter</div></div>
+        <div class="stat-tile st-blue"><div class="st-num">${portfolio.overallPercent}%</div><div class="st-label">Overall Project Progress</div></div>
+        <div class="stat-tile st-gold"><div class="st-num">${workload.totals.activeAccounts}</div><div class="st-label">Akun Internal Terlibat</div></div>
+        <div class="stat-tile st-ink"><div class="st-num">${portfolio.openTasks}</div><div class="st-label">Open Task Internal</div></div>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px;align-items:start">
+        <div class="card card-pad">
+          <div class="section-label">Statistik Keseluruhan Progress Project</div>
+          <div class="progress-wrap">
+            <div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div style="font-size:28px;font-weight:700;color:var(--ink)">${portfolio.overallPercent}%</div>
+                <div class="badge badge-blue">Avg per project ${portfolio.averagePercent}%</div>
+              </div>
+              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${portfolio.overallPercent}%"></div></div>
+              <div class="progress-meta"><span>${portfolio.completedTimeline} timeline selesai</span><span>${portfolio.inProgressTimeline} berjalan · ${portfolio.pendingTimeline} pending</span></div>
+            </div>
+            <div class="info-list">
+              <div class="info-row"><span>Total timeline lintas dashboard</span><strong>${portfolio.totalTimeline}</strong></div>
+              <div class="info-row"><span>Task selesai / terbuka</span><strong>${portfolio.completedTasks} selesai · ${portfolio.openTasks} terbuka</strong></div>
+              <div class="info-row"><span>Last portfolio update</span><strong>${formatDateFancy(portfolio.lastUpdate)}</strong></div>
+              <div class="info-row"><span>Deadline terdekat</span><strong>${formatDateFancy(portfolio.nextDeadline || portfolio.estimatedDeadline)}</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="section-label">Statistik Personal Semua Akun Internal</div>
+          <div class="progress-wrap">
+            <div>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div style="font-size:28px;font-weight:700;color:var(--ink)">${workload.totals.percent}%</div>
+                <div class="badge badge-gold">${workload.totals.activeAccounts}/${workload.totals.accounts} akun aktif di filter</div>
+              </div>
+              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${workload.totals.percent}%"></div></div>
+              <div class="progress-meta"><span>${workload.totals.completed} work item selesai</span><span>${workload.totals.inProgress} berjalan · ${workload.totals.pending} pending</span></div>
+            </div>
+            <div class="info-list">
+              <div class="info-row"><span>Total work item internal</span><strong>${workload.totals.total}</strong></div>
+              <div class="info-row"><span>Task vs timeline personal</span><strong>${workload.totals.taskTotal} task · ${workload.totals.timelineTotal} timeline PIC</strong></div>
+              <div class="info-row"><span>Cakupan filter</span><strong>${escapeHtml(filterLabel)}</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hub-section-head" style="margin:18px 0 12px">
+        <div style="font-size:14px;font-weight:700;color:var(--ink)">Progress Tiap Project dari Dashboard</div>
+        <div class="inline-actions">
+          ${filteredProjectIds.length === 1 ? `<button class="btn btn-outline btn-sm" onclick="enterProjectFromHub('${filteredProjectIds[0]}')">▦ Buka ${escapeHtml(PROJECTS[filteredProjectIds[0]].name)}</button>` : `<button class="btn btn-outline btn-sm" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Dashboard</button>`}
+        </div>
+      </div>
+      <div class="manager-grid">
+        ${visibleProjectRows.map(row => `
+          <div class="project-card-mini">
+            <div style="flex:1;min-width:0">
+              <strong>${escapeHtml(row.project?.name || row.id)}</strong>
+              <span>${escapeHtml(row.project?.org || '')}</span>
+              <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:${row.percent}%"></div></div>
+              <div class="progress-meta" style="margin-top:8px"><span>${row.percent}% · ${escapeHtml(row.status)}</span><span>${row.done}/${row.total || 0} timeline selesai</span></div>
+              <div class="helper-text">Open task ${row.openTasks} · Deadline ${formatDateFancy(row.nextDeadline || row.estimatedDeadline)} · Update ${formatDateFancy(row.lastUpdate)}</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="enterProjectFromHub('${row.id}')">Buka</button>
+          </div>`).join('')}
+      </div>
+
+      <div class="hub-section-head" style="margin:18px 0 12px">
+        <div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Personal Semua Akun Internal</div>
+      </div>
+      <div class="admin-list">
+        ${visibleWorkloadRows.length ? visibleWorkloadRows.map(item => `
+          <div class="admin-row">
+            <div>
+              <div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div>
+              <div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.filteredProjectCount} project pada filter</div>
+              <div class="helper-text">Task ${item.taskTotal} · Timeline PIC ${item.timelineTotal} · Deadline ${formatDateFancy(item.nextDeadline)} · Update ${formatDateFancy(item.lastUpdate)}</div>
+            </div>
+            <div class="admin-actions">
+              <span class="badge badge-ink">Total ${item.total}</span>
+              <span class="badge badge-teal">Done ${item.completed}</span>
+              <span class="badge badge-blue">Open ${item.inProgress}</span>
+              <span class="badge badge-gold">${item.percent}%</span>
+            </div>
+          </div>`).join('') : '<div class="hub-empty-msg">Belum ada aktivitas akun internal pada project yang difilter.</div>'}
+      </div>
+    </div>`;
+}
+
 function renderUserHubPage(){
   const user=currentUserSession;
   if(!user){hubLogout();return;}
@@ -9448,58 +9696,7 @@ function renderUserHubPage(){
           </div>
         </div>`;
     } else if(isCEO) {
-      saSection.style.display='block';
-      const portfolio = calculatePortfolioProjectStats();
-      const workload = calculateInternalAccountPortfolioStats();
-      saSection.innerHTML = `
-        <div class="sadmin-hub">
-          <div class="hub-section-head" style="margin-bottom:6px">
-            <div class="hub-section-title">👑 CEO Executive Overview</div>
-          </div>
-          <div class="sadmin-sub">Ringkasan ini menampilkan statistik seluruh project CESGS dan statistik pekerjaan semua akun internal. CEO dapat membuka detail setiap project dari daftar proyek di bawah.</div>
-          <div class="sadmin-stats">
-            <div class="stat-tile st-teal"><div class="st-num">${portfolio.totalProjects}</div><div class="st-label">Total Proyek</div></div>
-            <div class="stat-tile st-blue"><div class="st-num">${portfolio.activeProjects}</div><div class="st-label">Proyek Aktif</div></div>
-            <div class="stat-tile st-gold"><div class="st-num">${workload.totals.accounts}</div><div class="st-label">Akun Internal</div></div>
-            <div class="stat-tile st-ink"><div class="st-num">${workload.totals.percent}%</div><div class="st-label">Completion Internal</div></div>
-          </div>
-          <div class="grid-2" style="margin-top:16px">
-            <div class="card card-pad">
-              <div class="section-label">Portfolio Snapshot</div>
-              <div class="info-list">
-                <div class="info-row"><span>Total timeline seluruh project</span><strong>${portfolio.totalTimeline}</strong></div>
-                <div class="info-row"><span>Timeline selesai</span><strong>${portfolio.completedTimeline}</strong></div>
-                <div class="info-row"><span>Timeline aktif / pending</span><strong>${portfolio.activeTimeline}</strong></div>
-                <div class="info-row"><span>Task open internal</span><strong>${workload.totals.inProgress}</strong></div>
-                <div class="info-row"><span>Task / work item selesai</span><strong>${workload.totals.completed}</strong></div>
-              </div>
-            </div>
-            <div class="card card-pad">
-              <div class="section-label">Executive Notes</div>
-              <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-outline" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Pertama</button>
-              </div>
-            </div>
-          </div>
-          <div class="hub-section-head" style="margin:18px 0 12px">
-            <div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Pekerjaan Akun Internal</div>
-          </div>
-          <div class="admin-list">
-            ${workload.rows.length ? workload.rows.map(item => `
-              <div class="admin-row">
-                <div>
-                  <div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div>
-                  <div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.projectCount} project</div>
-                </div>
-                <div class="admin-actions">
-                  <span class="badge badge-ink">Total ${item.total}</span>
-                  <span class="badge badge-teal">Done ${item.completed}</span>
-                  <span class="badge badge-blue">Open ${item.inProgress}</span>
-                  <span class="badge badge-gold">${item.percent}%</span>
-                </div>
-              </div>`).join('') : '<div class="hub-empty-msg">Belum ada akun internal CESGS yang terdeteksi.</div>'}
-          </div>
-        </div>`;
+      renderCeoExecutiveOverviewSection(saSection);
     } else {
       saSection.style.display='none';
     }
@@ -9570,8 +9767,9 @@ const bookingAccountSelect=document.getElementById('bk-name-account');
 if(bookingAccountSelect) bookingAccountSelect.addEventListener('change', handleBookingAccountChange);
 renderBookingAccountChecklist();
 window.addEventListener('storage', (e) => {
-  if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data'].includes(e.key)) return;
+  if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data', ACCOUNT_PROFILE_DB_KEY, 'cesgs_hub_session'].includes(e.key)) return;
   loadAll();
+  refreshCurrentSessionFromStores();
   refreshAllViewsAfterDataChange();
 });
 window.addEventListener('projecthub:data-changed', () => {
