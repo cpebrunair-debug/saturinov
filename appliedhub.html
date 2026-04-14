@@ -1104,22 +1104,30 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
 .quick-link-editor-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 @media(max-width:700px){.quick-link-editor-grid{grid-template-columns:1fr}}
 
-.global-json-toolbar{position:fixed;top:16px;right:16px;z-index:1705;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,0.92);border:1px solid rgba(28,95,168,0.16);box-shadow:0 14px 34px rgba(26,85,201,0.12);backdrop-filter:blur(14px)}
+.global-json-toolbar{position:fixed;top:16px;right:16px;z-index:1705;display:flex;flex-direction:row-reverse;align-items:center;gap:8px}
+.global-json-toolbar-trigger{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border:none;border-radius:14px;background:rgba(13,27,46,0.82);color:#fff;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;box-shadow:0 14px 34px rgba(26,85,201,0.16);backdrop-filter:blur(14px)}
+.global-json-toolbar-trigger::before{content:'☰';font-size:12px;line-height:1}
+.global-json-toolbar-panel{display:flex;align-items:center;gap:8px;max-width:0;opacity:0;overflow:hidden;padding:0;pointer-events:none;transform:translateX(10px);border-radius:16px;background:rgba(255,255,255,0.94);border:1px solid rgba(28,95,168,0.16);box-shadow:0 14px 34px rgba(26,85,201,0.12);backdrop-filter:blur(14px);transition:max-width .25s ease,opacity .2s ease,transform .25s ease,padding .25s ease,border-color .2s ease}
+.global-json-toolbar:hover .global-json-toolbar-panel,.global-json-toolbar:focus-within .global-json-toolbar-panel{max-width:520px;opacity:1;pointer-events:auto;transform:translateX(0);padding:10px 12px}
+.global-json-toolbar:hover .global-json-toolbar-trigger,.global-json-toolbar:focus-within .global-json-toolbar-trigger{background:rgba(28,95,168,0.92)}
 .global-json-toolbar-label{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--teal);white-space:nowrap}
-.global-json-toolbar .btn{height:34px;padding:0 14px;border-radius:10px;font-size:12px}
+.global-json-toolbar .btn{height:34px;padding:0 14px;border-radius:10px;font-size:12px;white-space:nowrap}
 .global-json-toolbar .btn-outline{background:rgba(255,255,255,0.88)}
 .helper-text:empty,.note-box:empty,.page-desc:empty,.signin-sub:empty,.signin-quick-sub:empty,.landing-sub:empty,.bk-step-sub:empty{display:none!important}
-@media(max-width:768px){.global-json-toolbar{top:12px;right:12px;padding:8px 10px;gap:6px}.global-json-toolbar-label{display:none}.global-json-toolbar .btn{height:32px;padding:0 10px;font-size:11px}}
+@media(max-width:768px){.global-json-toolbar{top:12px;right:12px}.global-json-toolbar-trigger{height:36px;padding:0 12px;font-size:11px}.global-json-toolbar:hover .global-json-toolbar-panel,.global-json-toolbar:focus-within .global-json-toolbar-panel{max-width:min(92vw,420px);padding:8px 10px;gap:6px}.global-json-toolbar-label{display:none}.global-json-toolbar .btn{height:32px;padding:0 10px;font-size:11px}}
 
 </style>
 </head>
 <body>
 
 <div class="global-json-toolbar" aria-label="Database JSON tools">
-  <div class="global-json-toolbar-label">Database JSON</div>
-  <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
-  <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
-  <button class="btn btn-red" type="button" onclick="deleteImportedJsonData()">Delete JSON</button>
+  <button class="global-json-toolbar-trigger" type="button" aria-label="Show JSON tools">JSON</button>
+  <div class="global-json-toolbar-panel">
+    <div class="global-json-toolbar-label">Database JSON</div>
+    <button class="btn btn-teal" type="button" onclick="exportJsonBackup()">Export JSON</button>
+    <button class="btn btn-outline" type="button" onclick="triggerJsonBackupImport()">Import JSON</button>
+    <button class="btn btn-red" type="button" onclick="deleteImportedJsonData()">Delete JSON</button>
+  </div>
 </div>
 
 <div class="landing" id="landing-page">
