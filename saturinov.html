@@ -371,7 +371,125 @@
       .logo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .logo-item{min-height:76px;font-size:1.05rem}
     }
-  </style>
+  
+
+/* ===================== NAVY BLUE SCREENSHOT OVERRIDE ===================== */
+:root{
+  --bg-1:#ffffff !important;
+  --bg-2:#f6f9fc !important;
+  --surface:#ffffff !important;
+  --surface-soft:rgba(255,255,255,.96) !important;
+  --text:#1f3145 !important;
+  --muted:#6e8296 !important;
+  --line:rgba(31,59,89,.10) !important;
+  --line-strong:rgba(31,59,89,.16) !important;
+  --green:#1f6faa !important;
+  --green-soft:#eef5fb !important;
+  --blue:#2f7fbe !important;
+  --blue-soft:#eef5fb !important;
+  --gold:#4f94c9 !important;
+  --gold-soft:#eef5fb !important;
+  --gradient-main:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
+  --shadow-lg:0 22px 54px rgba(15,55,86,.10) !important;
+  --shadow-md:0 12px 30px rgba(15,55,86,.08) !important;
+}
+body{
+  background:#ffffff !important;
+  color:var(--text) !important;
+}
+.page{width:min(1180px, calc(100% - 36px)) !important; padding:24px 0 42px !important;}
+.hero-copy{
+  background:
+    radial-gradient(circle at 16% 20%, rgba(110,170,219,.15) 0%, transparent 26%),
+    radial-gradient(circle at 82% 76%, rgba(110,170,219,.10) 0%, transparent 28%),
+    linear-gradient(160deg,#154d78 0%,#0d3d61 48%,#082c46 100%) !important;
+  border:0 !important;
+}
+.hero-copy::after{background:radial-gradient(circle, rgba(255,255,255,.13), transparent 70%) !important;}
+.eyebrow{
+  background:rgba(255,255,255,.10) !important;
+  color:#ffffff !important;
+  border:1px solid rgba(255,255,255,.15) !important;
+}
+.eyebrow::before{background:linear-gradient(135deg,#9fd0f3 0%,#ffffff 100%) !important; box-shadow:0 0 0 5px rgba(255,255,255,.10) !important;}
+.hero-title,
+.hero-sub,
+.hero-sub strong{color:#ffffff !important;}
+.gradient-text{
+  background:linear-gradient(135deg,#ffffff 0%,#b7dbf5 100%) !important;
+  -webkit-background-clip:text !important;
+  background-clip:text !important;
+  color:transparent !important;
+}
+.hero-sub{color:rgba(255,255,255,.76) !important; max-width:760px !important;}
+.nav-card,
+.collab-card,
+.footer-note,
+.logo-item{
+  background:#ffffff !important;
+  border:1px solid #dbe5ef !important;
+  box-shadow:0 12px 30px rgba(15,55,86,.07) !important;
+}
+.nav-card:hover,.collab-card:hover{box-shadow:0 16px 36px rgba(15,55,86,.11) !important;}
+.nav-card::before,
+.nav-card.applied::before,
+.nav-card.fundamental::before,
+.nav-card.monitoring::before,
+.nav-card.portfolio::before{
+  background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
+}
+.badge.applied,.badge.fundamental,.badge.monitoring,.badge.portfolio,
+.pill.applied,.pill.fundamental{
+  background:#eef5fb !important;
+  color:#2f7fbe !important;
+}
+.icon.applied,.icon.fundamental,.icon.monitoring,.icon.portfolio{
+  background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
+  box-shadow:0 16px 30px rgba(17,76,119,.18) !important;
+}
+.hint,.nav-card p,.footer-note{color:#6e8296 !important;}
+.logo-item{background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important; color:#21405e !important;}
+.footer-note{
+  background:linear-gradient(135deg, rgba(31,111,170,.05), rgba(102,173,220,.06)) !important;
+}
+@media (max-width: 700px){
+  .cards{grid-template-columns:1fr !important;}
+}
+
+
+/* ===================== TYPOGRAPHY UNIFORM OVERRIDE ===================== */
+:root{
+  --font-title:Helvetica, "Helvetica Neue", Arial, sans-serif;
+  --font-body:"Aptos Display", Aptos, "Segoe UI", Arial, sans-serif;
+}
+body, button, input, select, textarea {
+  font-family: var(--font-body) !important;
+}
+h1, h2, h3, h4, .hero-title, .page-title, .section-title, .section-title-wrap h2, .nav-card h3, .collab-card h4 {
+  font-family: var(--font-title) !important;
+}
+.hero-copy,
+.hero-copy * {
+  color:#ffffff;
+}
+.nav-card,
+.nav-card h3,
+.collab-card,
+.collab-card h4,
+.logo-item,
+.footer-note,
+.footer-note strong,
+.page,
+body {
+  color: var(--text);
+}
+.nav-card p,
+.footer-note,
+.hint {
+  color: var(--muted) !important;
+}
+
+</style>
 </head>
 <body>
   <main class="page">
