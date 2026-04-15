@@ -4841,6 +4841,7 @@ function acmDeleteAccount(email){
    EXTENDED ROLE / PROFILE / TASK / TIMELINE LAYER
 ═══════════════════════════════════ */
 let currentUserSession = null;
+let timelineStatusFilter = 'all';
 
 function buildBaseProjectState(pid){
   return {
@@ -5243,6 +5244,18 @@ function timelineStatusOptionsHtml(selectedStatus){
 function renderTimelineStatusControl(item){
   const currentStatus = String(item && item.status || 'planned').trim().toLowerCase() || 'planned';
   return `<span class="badge ${statusBadgeClass(currentStatus)}">${escapeHtml(timelineStatusLabel(currentStatus))}</span>`;
+}
+function normalizeTimelineFilterStatus(status){
+  return String(status || 'all').trim().toLowerCase() || 'all';
+}
+function setTimelineStatusFilter(status){
+  timelineStatusFilter = normalizeTimelineFilterStatus(status);
+  renderTimelinePage();
+}
+function renderTimelineStatusFilterBar(activeStatus){
+  const current = normalizeTimelineFilterStatus(activeStatus);
+  const buttons = [{ value:'all', label:'All' }].concat(TIMELINE_STATUS_OPTIONS.map(opt => ({ value:opt.value, label:opt.label })));
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">${buttons.map(btn => `<button class="btn ${btn.value===current ? 'btn-teal' : 'btn-outline'} btn-sm" type="button" onclick="setTimelineStatusFilter('${btn.value}')">${escapeHtml(btn.label)}</button>`).join('')}</div>`;
 }
 function taskTypeLabel(type){
   if (type==='upload_document') return 'Upload document';
@@ -8887,13 +8900,19 @@ function renderTaskCenter(){
 function renderTimelinePage(){
   const state = getState(); if(!state) return;
   const container = document.getElementById('timeline-page-container'); if(!container) return;
-  const items = [...(state.timeline||[])].sort((a,b)=>String(b.updatedAt||b.date||'').localeCompare(String(a.updatedAt||a.date||'')));
+  const allItems = [...(state.timeline||[])].sort((a,b)=>String(b.updatedAt||b.date||'').localeCompare(String(a.updatedAt||a.date||'')));
+  const activeFilter = normalizeTimelineFilterStatus(timelineStatusFilter);
+  const items = activeFilter==='all'
+    ? allItems
+    : allItems.filter(item => normalizeTimelineFilterStatus(item && item.status || 'planned') === activeFilter);
   const canManageTimeline = userCanManageTimeline();
+  const filterBar = renderTimelineStatusFilterBar(activeFilter);
   const managerTools = canManageTimeline ? `
     <div class="card card-pad" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
         <div>
           <div class="section-label">Timeline &amp; Milestone Tools</div>
+          ${filterBar}
         </div>
         <div class="switcher-inline">${projectSwitchSelectHtml('timeline-project-select', currentProjectId, 'timeline')}</div>
       </div>
@@ -8902,9 +8921,17 @@ function renderTimelinePage(){
         <button class="btn btn-outline" type="button" onclick="showPage('tasks')">Open Tasks</button>
         <button class="btn btn-teal" type="button" onclick="showPage('project-control');document.getElementById('tl-title')?.focus()">Add / Edit Timeline</button>
       </div>
-    </div>` : '';
-  if(!items.length){
+    </div>` : `
+    <div class="card card-pad" style="margin-bottom:16px">
+      <div class="section-label">Filter Timeline by Status</div>
+      ${filterBar}
+    </div>`;
+  if(!allItems.length){
     container.innerHTML = managerTools + '<div class="empty-state">Timeline belum tersedia. Timeline dan milestone akan muncul di sini setelah dibuat oleh akun internal CESGS pada proyek ini.</div>';
+    return;
+  }
+  if(!items.length){
+    container.innerHTML = managerTools + '<div class="empty-state">Tidak ada timeline dengan status yang dipilih.</div>';
     return;
   }
   container.innerHTML = managerTools + `<div class="timeline-list">${items.map(item => `
@@ -9722,7 +9749,7 @@ function renderUserHubPage(){
 const HARDCODED_JSON_BACKUP = {
   "backupType": "cesgs_project_hub_backup",
   "version": 1,
-  "exportedAt": "2026-04-14T23:26:17.827Z",
+  "exportedAt": "2026-04-15T04:05:05.669Z",
   "currentProjectId": "",
   "sessionHint": null,
   "data": {
@@ -10016,6 +10043,7 @@ const HARDCODED_JSON_BACKUP = {
             "title": "Rapat di Solo",
             "date": "2026-04-22",
             "time": "09:00-17:00",
+            "duration": 30,
             "location": "Solo",
             "agenda": "",
             "attendees": [
@@ -10023,18 +10051,6 @@ const HARDCODED_JSON_BACKUP = {
               "Bakdiyatul Mukarromah",
               "Fajar Kristanto",
               "Iman Harymawan"
-            ],
-            "accounts": [
-              "Bagas Aditya",
-              "Bakdiyatul Mukarromah",
-              "Fajar Kristanto",
-              "Iman Harymawan"
-            ],
-            "accountEmails": [
-              "adityabagas.official@gmail.com",
-              "bakdiyatulmukarromah@gmail.com",
-              "putra.fajar@feb.unair.ac.id",
-              "iman.harymawan@feb.unair.ac.id"
             ],
             "status": "upcoming"
           },
@@ -10043,6 +10059,7 @@ const HARDCODED_JSON_BACKUP = {
             "title": "Rapat di Solo",
             "date": "2026-04-23",
             "time": "09:00-17:00",
+            "duration": 30,
             "location": "Solo",
             "agenda": "",
             "attendees": [
@@ -10050,18 +10067,6 @@ const HARDCODED_JSON_BACKUP = {
               "Bakdiyatul Mukarromah",
               "Fajar Kristanto",
               "Iman Harymawan"
-            ],
-            "accounts": [
-              "Bagas Aditya",
-              "Bakdiyatul Mukarromah",
-              "Fajar Kristanto",
-              "Iman Harymawan"
-            ],
-            "accountEmails": [
-              "adityabagas.official@gmail.com",
-              "bakdiyatulmukarromah@gmail.com",
-              "putra.fajar@feb.unair.ac.id",
-              "iman.harymawan@feb.unair.ac.id"
             ],
             "status": "upcoming"
           }
@@ -10180,10 +10185,34 @@ const HARDCODED_JSON_BACKUP = {
         },
         "timeline": [
           {
+            "id": 1776225826461,
+            "title": "Revisi draft laporan",
+            "type": "activity",
+            "status": "in progress",
+            "date": "2026-04-14",
+            "updatedAt": "2026-04-15",
+            "deadline": "2026-04-30",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Fajar Kristanto",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
             "id": 1776208901126,
             "title": "Perbaikan lembar kerja ekonomi makro",
             "type": "activity",
-            "status": "planned",
+            "status": "in progress",
             "date": "2026-04-14",
             "updatedAt": "2026-04-15",
             "deadline": "2026-04-30",
@@ -10412,6 +10441,32 @@ const HARDCODED_JSON_BACKUP = {
         ],
         "tasks": [],
         "notifications": [
+          {
+            "id": 1776225826461.736,
+            "title": "",
+            "message": "Timeline item added: Revisi draft laporan · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-15T04:03:46.461Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776225777691.1843,
+            "title": "",
+            "message": "Timeline updated: Perbaikan lembar kerja ekonomi makro · PIC: Fajar Kristanto",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-15T04:02:57.691Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
           {
             "id": 1776209000916.9465,
             "title": "",
@@ -10878,11 +10933,7 @@ const HARDCODED_JSON_BACKUP = {
             "plts-terapung",
             "kajian-risiko-dan-"
           ],
-          "canManage": true,
-          "institution": "",
-          "cv": "Project manager yang berpengalaman mengkoordinasikan penjadwalan, komunikasi klien, monitoring proyek, dan milestone follow-up.",
-          "profileLink": "",
-          "photoUrl": ""
+          "canManage": true
         }
       ],
       "customProjects": {
@@ -11471,7 +11522,7 @@ const HARDCODED_JSON_BACKUP = {
             "kajian-risiko-dan-"
           ],
           "isPrimary": true,
-          "createdAt": "2026-04-14"
+          "createdAt": "2026-04-15"
         },
         {
           "id": "a-1",
@@ -11486,7 +11537,7 @@ const HARDCODED_JSON_BACKUP = {
             "kajian-risiko-dan-"
           ],
           "isPrimary": false,
-          "createdAt": "2026-04-14"
+          "createdAt": "2026-04-15"
         },
         {
           "id": "adm-1775622649342",
@@ -11502,7 +11553,7 @@ const HARDCODED_JSON_BACKUP = {
             "kajian-risiko-dan-"
           ],
           "isPrimary": false,
-          "createdAt": "2026-04-14"
+          "createdAt": "2026-04-15"
         }
       ],
       "availability": {
@@ -11833,7 +11884,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-14T23:26:17.825Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "admin_state"
         },
         "iman.harymawan@feb.unair.ac.id": {
@@ -11856,7 +11907,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "pm@cesgs.id": {
@@ -11876,7 +11927,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "expert@cesgs.id": {
@@ -11896,7 +11947,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "staff@cesgs.id": {
@@ -11916,7 +11967,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@gmail.com": {
@@ -11939,7 +11990,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "ghalyfarras0@gmail.com": {
@@ -11959,7 +12010,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "putra.fajar@feb.unair.ac.id": {
@@ -11982,7 +12033,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "harisdwi2020@mail.ugm.ac.id": {
@@ -12003,7 +12054,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "adityabagas.official@gmail.com": {
@@ -12025,7 +12076,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-14T23:26:17.825Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "admin_state"
         },
         "adityabagas86@gmail.com": {
@@ -12123,7 +12174,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "inactive",
           "createdAt": "2026-03-01",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_clients"
         },
         "vidy.pln@gmail.com": {
@@ -12161,7 +12212,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@cesgs.or.id": {
@@ -12184,7 +12235,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-14T23:26:17.827Z",
+          "updatedAt": "2026-04-15T04:05:05.669Z",
           "source": "superadmin_userAccounts"
         }
       }
