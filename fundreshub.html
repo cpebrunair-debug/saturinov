@@ -2876,11 +2876,7 @@ body,
 
         <input type="file" id="import-json-input" accept="application/json,.json" hidden>
 
-        <div class="role-hints quick-login-panel">
-          <div class="role-hints-title"><i class="fas fa-bolt"></i> Quick Login Semua Akun</div>
-          <div class="quick-login-grid" id="quick-login-grid"></div>
-          <div class="login-data-note"><strong>Tip:</strong> Klik salah satu akun untuk langsung masuk tanpa mengetik email dan password.</div>
-        </div>
+
       </div>
     </div>
   </section>
@@ -3173,6 +3169,15 @@ body,
         <label class="form-label">Bio / Deskripsi Singkat</label>
         <textarea class="form-textarea" id="account-bio" placeholder="Deskripsi singkat profil pengguna..."></textarea>
       </div>
+      <div class="form-group" id="account-email-confirmation-wrap">
+        <label class="form-label">Konfirmasi Pembuatan Akun</label>
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
+          <input type="checkbox" id="account-send-confirmation" checked style="margin-top:3px;accent-color:var(--accent);">
+          <span style="font-size:13px;line-height:1.6;color:var(--text2);">
+            Kirim email konfirmasi ke pengguna setelah akun baru dibuat. Sistem akan membuka draft email di aplikasi email default superadmin dan menyalin isi email sebagai cadangan.
+          </span>
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-account')">Batal</button>
@@ -3431,125 +3436,34 @@ body,
 // ======================================================
 // DATA LAYER
 // ======================================================
-const STORAGE_KEY = 'CESGS_RESEARCH_HUB_STATE_V3';
+const STORAGE_KEY = 'CESGS_RESEARCH_HUB_STATE_V4';
 
 const USERS = {
-  'superadmin@gmail.com': {
+  'info@cesgs.or.id': {
     pass: 'CESGS2026',
     role: 'superadmin',
-    name: 'Admin Platform',
-    initials: 'AP',
+    name: 'Admin CESGS',
+    initials: 'AC',
     position: 'Super Admin',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Administrasi platform dan koordinasi riset',
+    institution: 'CESGS',
+    expertise: 'Administrasi platform dan kontrol akun',
     scholar: '',
     linkedin: '',
     orcid: '',
-    bio: 'Mengelola akun, alur kerja, dan monitoring platform kolaborasi riset.'
+    bio: 'Mengelola akun, hak akses, dan konfigurasi platform.'
   },
-  'researchers@gmail.com': {
-    pass: 'CESGS2026',
-    role: 'researcher',
-    name: 'Researcher 01',
-    initials: 'R1',
-    position: 'Researcher',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Sustainability, urban studies, dan penulisan ilmiah',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Fokus pada pengembangan manuskrip, analisis data, dan koordinasi paper.'
-  },
-  'projectm@gmail.com': {
-    pass: 'CESGS2026',
+  'rosyadatul.u@gmail.com': {
+    pass: 'Rosya_2026',
     role: 'pm',
-    name: 'Project Manager 01',
-    initials: 'PM',
+    name: 'Rosyadatul U',
+    initials: 'RU',
     position: 'Project Manager',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Perencanaan proyek, milestone, dan koordinasi tim',
+    institution: 'CESGS',
+    expertise: 'Monitoring progress researcher, koordinasi proyek, dan manajemen deliverable',
     scholar: '',
     linkedin: '',
     orcid: '',
-    bio: 'Mengelola timeline, distribusi tugas, dan sinkronisasi antar peran.'
-  },
-  'dosens@gmail.com': {
-    pass: 'CESGS2026',
-    role: 'supervisor',
-    name: 'Supervisor 01',
-    initials: 'S1',
-    position: 'Dosen Supervisor',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Supervisi akademik, metodologi, dan review naskah',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Memberikan arahan akademik, evaluasi metodologi, dan review substansi.'
-  },
-  'proofr@gmail.com': {
-    pass: 'CESGS2026',
-    role: 'proofreader',
-    name: 'Proof Reader 01',
-    initials: 'P1',
-    position: 'Proof Reader',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Penyuntingan bahasa, konsistensi gaya, dan proofreading',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Berfokus pada penyelarasan gaya bahasa, tata tulis, dan finalisasi dokumen.'
-  },
-  'profzhaf@gmail.com': {
-    pass: 'CESGS2026',
-    role: 'supervisor',
-    name: 'Prof. Nabila Zhafirra',
-    initials: 'NZ',
-    position: 'Dosen Supervisor',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Supervisi akademik dan pengembangan metodologi riset',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Mendampingi peneliti dalam penyusunan metodologi, substansi, dan evaluasi akademik.'
-  },
-  'zayyanah@gmail.com': {
-    pass: 'CESGS 2026',
-    role: 'researcher',
-    name: 'Zayyan Ahmad, S.Si, M.A.K',
-    initials: 'ZA',
-    position: 'Researcher',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Riset terapan, analisis data, dan penulisan akademik',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Mendukung pengembangan naskah, analisis penelitian, dan kolaborasi proyek ilmiah.'
-  },
-  'rosya@gmail.com': {
-    pass: 'CESGS',
-    role: 'pm',
-    name: 'Rosya',
-    initials: 'RO',
-    position: 'Project Manager',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Koordinasi proyek, penjadwalan, dan monitoring deliverable',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Mengelola alur kerja proyek, jadwal meeting, dan koordinasi lintas tim.'
-  },
-  'bakdi@gmail.com': {
-    pass: 'CESGS2026',
-    role: 'proofreader',
-    name: 'Bakdiyatul Mukarromah',
-    initials: 'BM',
-    position: 'Proof Reader',
-    institution: 'Universitas Airlangga - CESGS',
-    expertise: 'Proofreading, penyuntingan bahasa, dan quality check naskah',
-    scholar: '',
-    linkedin: '',
-    orcid: '',
-    bio: 'Menangani request proofread, memberikan umpan balik bahasa, dan menutup review final dokumen.'
+    bio: 'Project Manager yang memantau progress personal seluruh researcher dan sinkronisasi target tim.'
   }
 };
 
@@ -3604,15 +3518,8 @@ const CHAT_MESSAGES = {
 };
 
 const ACCOUNTS = [
-  { email:'superadmin@gmail.com', name:'Admin Platform', role:'Super Admin', status:'Aktif', joined:'Jan 2024' },
-  { email:'researchers@gmail.com', name:'Researcher 01', role:'Researcher', status:'Aktif', joined:'Feb 2024' },
-  { email:'projectm@gmail.com', name:'Project Manager 01', role:'Project Manager', status:'Aktif', joined:'Feb 2024' },
-  { email:'dosens@gmail.com', name:'Supervisor 01', role:'Dosen Supervisor', status:'Aktif', joined:'Jan 2024' },
-  { email:'proofr@gmail.com', name:'Proof Reader 01', role:'Proof Reader', status:'Aktif', joined:'Mar 2024' },
-  { email:'profzhaf@gmail.com', name:'Prof. Nabila Zhafirra', role:'Dosen Supervisor', status:'Aktif', joined:'Apr 2024' },
-  { email:'zayyanah@gmail.com', name:'Zayyan Ahmad, S.Si, M.A.K', role:'Researcher', status:'Aktif', joined:'Apr 2024' },
-  { email:'rosya@gmail.com', name:'Rosya', role:'Project Manager', status:'Aktif', joined:'Apr 2024' },
-  { email:'bakdi@gmail.com', name:'Bakdiyatul Mukarromah', role:'Proof Reader', status:'Aktif', joined:'Apr 2024' },
+  { email:'info@cesgs.or.id', name:'Admin CESGS', role:'Super Admin', status:'Aktif', joined:'Apr 2026' },
+  { email:'rosyadatul.u@gmail.com', name:'Rosyadatul U', role:'Project Manager', status:'Aktif', joined:'Apr 2026' },
 ];
 
 const MEETINGS = [
@@ -4123,6 +4030,70 @@ function getLinkedProjectsForUser(user = currentUser) {
   return visibleProjects.filter(project => Array.isArray(project.authors) && project.authors.includes(user.name));
 }
 
+function getResearchersList() {
+  return Object.entries(USERS)
+    .filter(([, user]) => user.role === 'researcher')
+    .map(([email, user]) => ({ email, ...user }));
+}
+
+function getPersonalProgressStats(user = currentUser) {
+  if (!user) return {
+    totalProjects: 0,
+    activeTasks: 0,
+    completedTasks: 0,
+    completionRate: 0,
+    averageProjectProgress: 0,
+    upcomingDeadlines: 0,
+    linkedProjects: []
+  };
+
+  const linkedProjects = getLinkedProjectsForUser(user);
+  const personalTasks = TASKS.filter(task => task.assignee === user.name);
+  const completedTasks = personalTasks.filter(task => task.done).length;
+  const activeTasks = personalTasks.filter(task => !task.done).length;
+  const averageProjectProgress = linkedProjects.length
+    ? Math.round(linkedProjects.reduce((sum, project) => sum + (Number(project.progress) || 0), 0) / linkedProjects.length)
+    : 0;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const upcomingDeadlines = personalTasks.filter(task => {
+    if (task.done || !task.deadline) return false;
+    const diff = Math.ceil((new Date(task.deadline) - today) / 86400000);
+    return diff >= 0 && diff <= 7;
+  }).length;
+
+  return {
+    totalProjects: linkedProjects.length,
+    activeTasks,
+    completedTasks,
+    completionRate: personalTasks.length ? Math.round((completedTasks / personalTasks.length) * 100) : 0,
+    averageProjectProgress,
+    upcomingDeadlines,
+    linkedProjects
+  };
+}
+
+function getResearcherProgressRows() {
+  return getResearchersList().map(researcher => {
+    const stats = getPersonalProgressStats(researcher);
+    return {
+      name: researcher.name,
+      initials: researcher.initials || computeInitials(researcher.name),
+      totalProjects: stats.totalProjects,
+      activeTasks: stats.activeTasks,
+      completedTasks: stats.completedTasks,
+      completionRate: stats.completionRate,
+      averageProjectProgress: stats.averageProjectProgress,
+      upcomingDeadlines: stats.upcomingDeadlines,
+      linkedProjects: stats.linkedProjects
+    };
+  }).sort((a, b) => {
+    if (b.averageProjectProgress !== a.averageProjectProgress) return b.averageProjectProgress - a.averageProjectProgress;
+    if (a.activeTasks !== b.activeTasks) return a.activeTasks - b.activeTasks;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function updateLandingStats() {
   const metrics = getDashboardMetrics({ role: 'superadmin' });
   const bindings = {
@@ -4622,6 +4593,12 @@ function renderDashboard() {
   if (u.role === 'proofreader') return renderProofreaderDashboard();
   const visibleProjects = getVisibleProjects(u);
   const metrics = getDashboardMetrics(u);
+  const personalStats = getPersonalProgressStats(u);
+  const researcherRows = getResearcherProgressRows();
+  const taskSource = u.role === 'researcher'
+    ? TASKS.filter(task => task.assignee === u.name)
+    : TASKS;
+  const taskPreview = taskSource.slice(0,4);
 
   return `
     <div class="welcome-header">
@@ -4630,39 +4607,105 @@ function renderDashboard() {
     </div>
 
     <div class="grid-4" style="margin-bottom:24px;">
-      <div class="stat-card sc-blue" onclick="showSection('projects')">
-        <div class="sc-icon"><i class="fas fa-book-open"></i></div>
-        <div class="sc-value">${metrics.totalProjects}</div>
-        <div class="sc-label">Total Project</div>
-        <div class="sc-trend up"><i class="fas fa-arrow-up"></i> ${u.role === 'superadmin' ? 'termasuk yang nonaktif' : 'siap dikerjakan'}</div>
-      </div>
-      <div class="stat-card sc-purple" onclick="showSection('tasks')">
-        <div class="sc-icon"><i class="fas fa-tasks"></i></div>
-        <div class="sc-value">${metrics.activeTasks}</div>
-        <div class="sc-label">Task Aktif</div>
-        <div class="sc-trend up"><i class="fas fa-clock"></i> 3 mendekati deadline</div>
-      </div>
-      <div class="stat-card sc-green" onclick="showSection('milestones')">
-        <div class="sc-icon"><i class="fas fa-flag"></i></div>
-        <div class="sc-value">${metrics.completedMilestones}</div>
-        <div class="sc-label">Milestone Selesai</div>
-        <div class="sc-trend up"><i class="fas fa-check"></i> dari ${metrics.totalMilestones} total</div>
-      </div>
-      <div class="stat-card sc-yellow" onclick="showSection('calendar')">
-        <div class="sc-icon"><i class="fas fa-calendar-check"></i></div>
-        <div class="sc-value">${metrics.scheduledMeetings}</div>
-        <div class="sc-label">Meeting Terjadwal</div>
-        <div class="sc-trend up"><i class="fas fa-calendar"></i> minggu ini</div>
-      </div>
+      ${u.role === 'researcher' ? `
+        <div class="stat-card sc-blue" onclick="showSection('projects')">
+          <div class="sc-icon"><i class="fas fa-folder-open"></i></div>
+          <div class="sc-value">${personalStats.totalProjects}</div>
+          <div class="sc-label">Project Saya</div>
+          <div class="sc-trend up"><i class="fas fa-link"></i> terhubung ke akun Anda</div>
+        </div>
+        <div class="stat-card sc-purple" onclick="showSection('tasks')">
+          <div class="sc-icon"><i class="fas fa-list-check"></i></div>
+          <div class="sc-value">${personalStats.activeTasks}</div>
+          <div class="sc-label">Task Personal Aktif</div>
+          <div class="sc-trend up"><i class="fas fa-check-circle"></i> ${personalStats.completedTasks} task selesai</div>
+        </div>
+        <div class="stat-card sc-green" onclick="showSection('projects')">
+          <div class="sc-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="sc-value">${personalStats.averageProjectProgress}%</div>
+          <div class="sc-label">Rata-rata Progress</div>
+          <div class="sc-trend up"><i class="fas fa-pen"></i> dari semua project personal</div>
+        </div>
+        <div class="stat-card sc-yellow" onclick="showSection('tasks')">
+          <div class="sc-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="sc-value">${personalStats.upcomingDeadlines}</div>
+          <div class="sc-label">Deadline 7 Hari</div>
+          <div class="sc-trend up"><i class="fas fa-bell"></i> completion rate ${personalStats.completionRate}%</div>
+        </div>
+      ` : u.role === 'pm' ? `
+        <div class="stat-card sc-blue" onclick="showSection('projects')">
+          <div class="sc-icon"><i class="fas fa-book-open"></i></div>
+          <div class="sc-value">${metrics.totalProjects}</div>
+          <div class="sc-label">Total Project</div>
+          <div class="sc-trend up"><i class="fas fa-layer-group"></i> seluruh project aktif</div>
+        </div>
+        <div class="stat-card sc-purple" onclick="showSection('tasks')">
+          <div class="sc-icon"><i class="fas fa-users"></i></div>
+          <div class="sc-value">${researcherRows.length}</div>
+          <div class="sc-label">Total Researcher</div>
+          <div class="sc-trend up"><i class="fas fa-user-check"></i> termonitor di dashboard</div>
+        </div>
+        <div class="stat-card sc-green" onclick="showSection('tasks')">
+          <div class="sc-icon"><i class="fas fa-list-check"></i></div>
+          <div class="sc-value">${researcherRows.reduce((sum, row) => sum + row.activeTasks, 0)}</div>
+          <div class="sc-label">Task Researcher Aktif</div>
+          <div class="sc-trend up"><i class="fas fa-flag-checkered"></i> ${researcherRows.reduce((sum, row) => sum + row.completedTasks, 0)} task selesai</div>
+        </div>
+        <div class="stat-card sc-yellow" onclick="showSection('calendar')">
+          <div class="sc-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="sc-value">${researcherRows.length ? Math.round(researcherRows.reduce((sum, row) => sum + row.averageProjectProgress, 0) / researcherRows.length) : 0}%</div>
+          <div class="sc-label">Rata-rata Progress Researcher</div>
+          <div class="sc-trend up"><i class="fas fa-calendar"></i> ${metrics.scheduledMeetings} meeting terjadwal</div>
+        </div>
+      ` : `
+        <div class="stat-card sc-blue" onclick="showSection('projects')">
+          <div class="sc-icon"><i class="fas fa-book-open"></i></div>
+          <div class="sc-value">${metrics.totalProjects}</div>
+          <div class="sc-label">Total Project</div>
+          <div class="sc-trend up"><i class="fas fa-arrow-up"></i> ${u.role === 'superadmin' ? 'termasuk yang nonaktif' : 'siap dikerjakan'}</div>
+        </div>
+        <div class="stat-card sc-purple" onclick="showSection('tasks')">
+          <div class="sc-icon"><i class="fas fa-tasks"></i></div>
+          <div class="sc-value">${metrics.activeTasks}</div>
+          <div class="sc-label">Task Aktif</div>
+          <div class="sc-trend up"><i class="fas fa-clock"></i> 3 mendekati deadline</div>
+        </div>
+        <div class="stat-card sc-green" onclick="showSection('milestones')">
+          <div class="sc-icon"><i class="fas fa-flag"></i></div>
+          <div class="sc-value">${metrics.completedMilestones}</div>
+          <div class="sc-label">Milestone Selesai</div>
+          <div class="sc-trend up"><i class="fas fa-check"></i> dari ${metrics.totalMilestones} total</div>
+        </div>
+        <div class="stat-card sc-yellow" onclick="showSection('calendar')">
+          <div class="sc-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="sc-value">${metrics.scheduledMeetings}</div>
+          <div class="sc-label">Meeting Terjadwal</div>
+          <div class="sc-trend up"><i class="fas fa-calendar"></i> minggu ini</div>
+        </div>
+      `}
     </div>
 
     <div class="grid-2" style="margin-bottom:24px;">
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-project-diagram" style="color:var(--accent);margin-right:8px;"></i>Project Aktif</div>
-          <button class="card-action" onclick="showSection('projects')">Lihat Semua →</button>
+          <div class="card-title"><i class="fas ${u.role === 'pm' ? 'fa-users-viewfinder' : 'fa-project-diagram'}" style="color:var(--accent);margin-right:8px;"></i>${u.role === 'pm' ? 'Progress Personal Researcher' : 'Project Aktif'}</div>
+          <button class="card-action" onclick="showSection('${u.role === 'pm' ? 'tasks' : 'projects'}')">${u.role === 'pm' ? 'Pantau Task →' : 'Lihat Semua →'}</button>
         </div>
-        ${visibleProjects.length ? visibleProjects.map(p => `
+        ${u.role === 'pm' ? (researcherRows.length ? researcherRows.map(row => `
+          <div class="project-item" style="align-items:flex-start;cursor:default;">
+            <div class="project-icon pi-blue">${row.initials}</div>
+            <div class="project-info">
+              <div class="project-name">${row.name}</div>
+              <div class="project-meta">${row.totalProjects} project • ${row.activeTasks} task aktif • ${row.completedTasks} task selesai</div>
+              <div class="progress-bar" style="margin-top:8px;"><div class="progress-fill ${row.averageProjectProgress >= 80 ? 'green' : row.averageProjectProgress >= 50 ? '' : 'yellow'}" style="width:${row.averageProjectProgress}%"></div></div>
+              <div style="font-size:11px;color:var(--text3);margin-top:6px;">${row.linkedProjects.length ? row.linkedProjects.map(project => project.title).join(', ') : 'Belum terhubung ke project aktif'}</div>
+            </div>
+            <div class="project-status">
+              <span class="badge ${row.upcomingDeadlines > 0 ? 'badge-yellow' : 'badge-green'}">${row.upcomingDeadlines > 0 ? row.upcomingDeadlines + ' deadline dekat' : 'On track'}</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">${row.averageProjectProgress}% progress</div>
+            </div>
+          </div>
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-user-slash"></i><p>Belum ada akun researcher yang bisa dimonitor.</p></div>`) : (visibleProjects.length ? visibleProjects.map(p => `
           <div class="project-item" onclick="openProjectDetail(${p.id})" style="opacity:${p.isActive === false ? '0.72' : '1'};">
             <div class="project-icon pi-${p.color}"><i class="fas fa-file-alt"></i></div>
             <div class="project-info">
@@ -4675,15 +4718,15 @@ function renderDashboard() {
               <div style="font-size:11px;color:var(--text3);margin-top:4px;">${p.progress}%</div>
             </div>
           </div>
-        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-folder-open"></i><p>Belum ada project yang aktif untuk ditampilkan.</p></div>`}
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-folder-open"></i><p>Belum ada project yang aktif untuk ditampilkan.</p></div>`)}
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-tasks" style="color:var(--accent2);margin-right:8px;"></i>Task Terbaru</div>
+          <div class="card-title"><i class="fas fa-tasks" style="color:var(--accent2);margin-right:8px;"></i>${u.role === 'researcher' ? 'Task Personal Saya' : 'Task Terbaru'}</div>
           <button class="card-action" onclick="showSection('tasks')">Lihat Semua →</button>
         </div>
-        ${TASKS.slice(0,4).map(t => `
+        ${taskPreview.length ? taskPreview.map(t => `
           <div class="task-item" onclick="openTaskReply(${t.id})">
             <div class="task-check ${t.done ? 'done' : ''}" onclick="event.stopPropagation();toggleTask(${t.id})">${t.done ? '<i class="fas fa-check"></i>' : ''}</div>
             <div class="task-content">
@@ -4695,7 +4738,7 @@ function renderDashboard() {
               </div>
             </div>
           </div>
-        `).join('')}
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-clipboard-check"></i><p>Belum ada task yang sesuai untuk akun ini.</p></div>`}
       </div>
     </div>
 
@@ -4709,7 +4752,7 @@ function renderDashboard() {
           <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div style="background:rgba(79,142,247,0.1);color:var(--accent);border-radius:8px;padding:8px 12px;text-align:center;flex-shrink:0;">
               <div style="font-size:10px;font-weight:700;text-transform:uppercase;">${new Date(m.date).toLocaleDateString('id-ID',{month:'short'})}</div>
-              <div style="font-size:20px;font-weight:800;font-family:Helvetica, "Helvetica Neue", Arial, sans-serif;">${new Date(m.date).getDate()}</div>
+              <div style='font-size:20px;font-weight:800;font-family:Helvetica, "Helvetica Neue", Arial, sans-serif;'>${new Date(m.date).getDate()}</div>
             </div>
             <div style="flex:1;">
               <div style="font-size:14px;font-weight:600;">${m.title}</div>
@@ -4722,10 +4765,37 @@ function renderDashboard() {
 
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-flag" style="color:var(--warning);margin-right:8px;"></i>Progress Milestone</div>
-          <button class="card-action" onclick="showSection('milestones')">Detail →</button>
+          <div class="card-title"><i class="fas ${u.role === 'researcher' ? 'fa-bullseye' : 'fa-flag'}" style="color:var(--warning);margin-right:8px;"></i>${u.role === 'researcher' ? 'Ringkasan Progress Personal' : 'Progress Milestone'}</div>
+          <button class="card-action" onclick="showSection('${u.role === 'researcher' ? 'projects' : 'milestones'}')">Detail →</button>
         </div>
-        ${MILESTONES.slice(0,4).map(ms => `
+        ${u.role === 'researcher' ? `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div style="padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card2);">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Completion Rate Task</div>
+              <div style="font-size:28px;font-weight:800;font-family:Helvetica, 'Helvetica Neue', Arial, sans-serif;">${personalStats.completionRate}%</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">Berdasarkan seluruh task personal</div>
+            </div>
+            <div style="padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card2);">
+              <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Project On Track</div>
+              <div style="font-size:28px;font-weight:800;font-family:Helvetica, 'Helvetica Neue', Arial, sans-serif;">${personalStats.linkedProjects.filter(project => (Number(project.progress) || 0) >= 50).length}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">Dari ${personalStats.totalProjects} project personal</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            ${(personalStats.linkedProjects.length ? personalStats.linkedProjects : [{title:'Belum ada project', progress:0, status:'Menunggu'}]).map(project => `
+              <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:600;">${project.title}</div>
+                  <div style="font-size:11px;color:var(--text3);">${project.status || 'Belum ada status'}</div>
+                </div>
+                <div style="min-width:110px;">
+                  <div class="progress-bar"><div class="progress-fill ${(Number(project.progress) || 0) >= 80 ? 'green' : (Number(project.progress) || 0) >= 50 ? '' : 'yellow'}" style="width:${Number(project.progress) || 0}%"></div></div>
+                  <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">${Number(project.progress) || 0}%</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : MILESTONES.slice(0,4).map(ms => `
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div class="timeline-dot ${ms.status}" style="position:static;width:12px;height:12px;flex-shrink:0;"></div>
             <div style="flex:1;">
@@ -6104,6 +6174,10 @@ function openAddAccountModal() {
   document.getElementById('account-linkedin').value = '';
   document.getElementById('account-orcid').value = '';
   document.getElementById('account-bio').value = '';
+  const sendConfirmation = document.getElementById('account-send-confirmation');
+  const confirmationWrap = document.getElementById('account-email-confirmation-wrap');
+  if (sendConfirmation) sendConfirmation.checked = true;
+  if (confirmationWrap) confirmationWrap.style.display = 'block';
   openModal('modal-account');
 }
 
@@ -6127,7 +6201,65 @@ function openAccountEditModal(email) {
   document.getElementById('account-linkedin').value = profile.linkedin || '';
   document.getElementById('account-orcid').value = profile.orcid || '';
   document.getElementById('account-bio').value = profile.bio || '';
+  const sendConfirmation = document.getElementById('account-send-confirmation');
+  const confirmationWrap = document.getElementById('account-email-confirmation-wrap');
+  if (sendConfirmation) sendConfirmation.checked = false;
+  if (confirmationWrap) confirmationWrap.style.display = 'none';
   openModal('modal-account');
+}
+
+function buildAccountConfirmationEmailPayload({ recipientName, recipientEmail, roleLabel, password, senderName }) {
+  const safeRecipientName = recipientName || 'Pengguna';
+  const safeSenderName = senderName || 'Superadmin CESGS Hub';
+  const subject = 'Konfirmasi Pembuatan Akun CESGS Hub';
+  const body = [
+    `Halo ${safeRecipientName},`,
+    '',
+    'Akun Anda di CESGS Hub telah berhasil dibuat.',
+    '',
+    `Email: ${recipientEmail}`,
+    `Role: ${roleLabel}`,
+    `Password sementara: ${password}`,
+    '',
+    'Silakan login ke platform menggunakan kredensial di atas dan segera ganti password setelah berhasil masuk.',
+    '',
+    'Salam,',
+    safeSenderName
+  ].join('\n');
+
+  return { subject, body };
+}
+
+async function copyTextToClipboard(text) {
+  if (!navigator?.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.warn('Gagal menyalin ke clipboard:', error);
+    return false;
+  }
+}
+
+async function sendAccountConfirmationEmail({ recipientName, recipientEmail, roleLabel, password }) {
+  const { subject, body } = buildAccountConfirmationEmailPayload({
+    recipientName,
+    recipientEmail,
+    roleLabel,
+    password,
+    senderName: currentUser?.name || 'Superadmin CESGS Hub'
+  });
+
+  const copied = await copyTextToClipboard(`Subjek: ${subject}\n\n${body}`);
+  const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  try {
+    window.location.href = mailtoUrl;
+  } catch (error) {
+    console.warn('Gagal membuka draft email:', error);
+  }
+
+  return copied;
 }
 
 function saveAccount() {
@@ -6148,6 +6280,8 @@ function saveAccount() {
   const newLinkedin = document.getElementById('account-linkedin').value.trim();
   const newOrcid = document.getElementById('account-orcid').value.trim();
   const newBio = document.getElementById('account-bio').value.trim();
+  const sendConfirmation = Boolean(document.getElementById('account-send-confirmation')?.checked);
+  const isNewAccount = !originalEmail;
 
   if (!newName || !newEmail) {
     showToast('Nama dan email wajib diisi.');
@@ -6203,6 +6337,22 @@ function saveAccount() {
     if (document.getElementById('sidebar-role')) document.getElementById('sidebar-role').textContent = getRoleLabel(currentUser.role);
     showSection(currentSection);
   }
+
+  if (isNewAccount && sendConfirmation) {
+    sendAccountConfirmationEmail({
+      recipientName: newName,
+      recipientEmail: newEmail,
+      roleLabel: getRoleLabel(newRole),
+      password: nextPassword
+    }).then(copied => {
+      showToast(copied
+        ? 'Akun dibuat. Draft email konfirmasi dibuka dan isi email disalin ke clipboard.'
+        : 'Akun dibuat. Draft email konfirmasi dibuka di aplikasi email default.'
+      );
+    });
+    return;
+  }
+
   showToast(originalEmail ? 'Akun berhasil diperbarui.' : 'Akun baru berhasil ditambahkan.');
 }
 
@@ -6282,7 +6432,6 @@ if (importJsonInput) {
   importJsonInput.addEventListener('change', handleImportJson);
 }
 
-renderQuickLoginOptions();
 
 // Enter to login
 document.getElementById('login-password').addEventListener('keydown', e => {
