@@ -2300,20 +2300,33 @@ function getState(){
 ═══════════════════════════════════ */
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzwTrglBkDaebleMq-dDOzI-5Y-I_gl27cpmf1PoW5VErWBlJfQE-nZg_acnop4aMonEQ/exec';
 
-/* Helper: POST ke GAS (fire-and-forget, tidak memblokir UI) */
+/* Helper: POST ke GAS (fire-and-forget, tidak memblokir UI)
+   mode:'no-cors' + Content-Type:'text/plain' → tidak trigger OPTIONS preflight
+   GAS tetap menerima body JSON melalui e.postData.contents */
 function gasPost(action, payload){
   if(!GAS_URL) return;
   fetch(GAS_URL, {
-    method:'POST',
-    body: JSON.stringify({action, payload})
+    method: 'POST',
+    mode:   'no-cors',
+    headers:{ 'Content-Type': 'text/plain;charset=utf-8' },
+    body:   JSON.stringify({action, payload})
   }).catch(e => console.warn('[GAS] POST failed:', action, e.message));
 }
 
-/* Helper: GET dari GAS */
+/* Helper: GET dari GAS
+   GAS Web App deployments mengembalikan CORS header untuk GET
+   credentials:'omit' penting agar browser tidak kirim cookies */
 async function gasGet(action){
-  const res = await fetch(GAS_URL + '?action=' + (action||'getData'));
+  const url = GAS_URL + '?action=' + (action||'getData') + '&t=' + Date.now();
+  const res = await fetch(url, {
+    method: 'GET',
+    credentials: 'omit',
+    headers: { 'Accept': 'application/json' }
+  });
   if(!res.ok) throw new Error('HTTP ' + res.status);
-  return await res.json();
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch(e){ throw new Error('GAS response not JSON: ' + text.slice(0,120)); }
 }
 
 /* Sinkronisasi semua data proyek → GAS sheets (dipanggil tiap saveAll) */
