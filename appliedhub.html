@@ -1181,7 +1181,8 @@ input:checked+.toggle-slider::before{transform:translateX(20px)}
     </div>
   </div>
 
-  <div class="landing-footer">© 2026 CESGS — Center for Environmental, Social & Governance · Universitas Airlangga</div>
+  <div id="gas-sync-status" style="display:none;position:fixed;bottom:20px;right:20px;background:rgba(13,27,50,0.85);color:#fff;padding:8px 16px;border-radius:99px;font-size:12px;font-weight:600;z-index:9999;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.1);"></div>
+<div class="landing-footer">© 2026 CESGS — Center for Environmental, Social & Governance · Universitas Airlangga</div>
 </div>
 
 <div class="bk-overlay" id="bk-overlay">
@@ -2292,6 +2293,139 @@ function getState(){
   return projectData[currentProjectId];
 }
 
+
+/* ═══════════════════════════════════
+   GAS (Google Apps Script) BACKEND
+   Spreadsheet sebagai database utama
+═══════════════════════════════════ */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzwTrglBkDaebleMq-dDOzI-5Y-I_gl27cpmf1PoW5VErWBlJfQE-nZg_acnop4aMonEQ/exec';
+
+/* Helper: POST ke GAS (fire-and-forget, tidak memblokir UI) */
+function gasPost(action, payload){
+  if(!GAS_URL) return;
+  fetch(GAS_URL, {
+    method:'POST',
+    body: JSON.stringify({action, payload})
+  }).catch(e => console.warn('[GAS] POST failed:', action, e.message));
+}
+
+/* Helper: GET dari GAS */
+async function gasGet(action){
+  const res = await fetch(GAS_URL + '?action=' + (action||'getData'));
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+/* Sinkronisasi semua data proyek → GAS sheets (dipanggil tiap saveAll) */
+function gasSyncAll(){
+  if(!GAS_URL) return;
+  // Sync per-project entities
+  Object.entries(projectData||{}).forEach(([pid, pdata])=>{
+    if(!pdata) return;
+    // Meetings
+    (pdata.meetings||[]).forEach(m => gasPost('saveMeeting',{...m, projectId: m.projectId||pid}));
+    // Tasks
+    (pdata.tasks||[]).forEach(t => gasPost('saveTask',{...t, projectId: t.projectId||pid}));
+    // MoMs
+    (pdata.moms||[]).forEach(m => gasPost('saveMoM',{...m, projectId: m.projectId||pid}));
+    // Messages
+    (pdata.messages||[]).forEach(m => gasPost('saveMessage',{...m, projectId: m.projectId||pid}));
+    // Documents
+    (pdata.documents||[]).forEach(d => gasPost('saveDocument',{...d, projectId: d.projectId||pid}));
+    // Timeline
+    (pdata.timeline||[]).forEach(t => gasPost('saveTimeline',{...t, projectId: t.projectId||pid}));
+    // Booking requests
+    (pdata.bookingRequests||[]).forEach(r => gasPost('saveBookingRequest',{...r, project: r.project||pid}));
+    // CalNotes
+    if(pdata.calNotes && typeof pdata.calNotes === 'object'){
+      Object.entries(pdata.calNotes).forEach(([date, note]) =>
+        gasPost('saveCalNote', {projectId:pid, date, note})
+      );
+    }
+  });
+  // Sync admins
+  (adminState.admins||[]).forEach(a => gasPost('saveAdmin',{
+    id: a.id, name: a.name, email: a.email, password: a.password,
+    role: a.role||'admin', projects: a.projectAccess||a.projects||[],
+    isPrimary: !!a.isPrimary, createdAt: a.createdAt||''
+  }));
+  // Sync booking requests from adminState
+  (adminState.bookingRequests||[]).forEach(r => gasPost('saveBookingRequest',{...r}));
+}
+
+/* Load dari GAS saat startup → merge ke localStorage state */
+async function gasLoadAndInit(){
+  const statusEl = document.getElementById('gas-sync-status');
+  if(statusEl) { statusEl.textContent = '☁ Memuat dari database...'; statusEl.style.display='block'; }
+  try {
+    const json = await gasGet('getData');
+    if(!json.ok || !json.data) throw new Error(json.error||'No data');
+    const d = json.data;
+
+    // Merge hubData → projectData per proyek
+    if(d.hubData && typeof d.hubData === 'object'){
+      Object.entries(d.hubData).forEach(([pid, pdata])=>{
+        if(!pdata) return;
+        if(!projectData[pid]) projectData[pid] = {
+          partners:[], currentPartner:'', availability:{},
+          calNotes:{}, meetings:[], calendarEvents:[], documents:[],
+          moms:[], collaborators:[], bookingRequests:[]
+        };
+        const target = projectData[pid];
+        if(Array.isArray(pdata.meetings)     && pdata.meetings.length)     target.meetings     = pdata.meetings;
+        if(Array.isArray(pdata.tasks)        && pdata.tasks.length)        target.tasks        = pdata.tasks;
+        if(Array.isArray(pdata.moms)         && pdata.moms.length)         target.moms         = pdata.moms;
+        if(Array.isArray(pdata.documents)    && pdata.documents.length)    target.documents    = pdata.documents;
+        if(Array.isArray(pdata.messages)     && pdata.messages.length)     target.messages     = pdata.messages;
+        if(Array.isArray(pdata.timeline)     && pdata.timeline.length)     target.timeline     = pdata.timeline;
+        if(Array.isArray(pdata.collaborators)&& pdata.collaborators.length)target.collaborators= pdata.collaborators;
+        if(Array.isArray(pdata.bookingRequests)&&pdata.bookingRequests.length) target.bookingRequests = pdata.bookingRequests;
+        if(pdata.calNotes && typeof pdata.calNotes==='object')  target.calNotes  = pdata.calNotes;
+        if(Array.isArray(pdata.calendarEvents)&&pdata.calendarEvents.length) target.calendarEvents = pdata.calendarEvents;
+        if(Array.isArray(pdata.partners)     && pdata.partners.length)     target.partners     = pdata.partners;
+      });
+    }
+
+    // Merge admins & booking requests ke adminState
+    if(Array.isArray(d.admins) && d.admins.length){
+      adminState.admins = d.admins.map(a => ({
+        id: a.id, name: a.name, email: a.email, password: a.password,
+        role: a.role||'admin', projectAccess: a.projects||[],
+        isProjectAdmin: true, isPrimary: !!a.isPrimary,
+        createdAt: a.createdAt||''
+      }));
+    }
+    if(Array.isArray(d.bookingRequests) && d.bookingRequests.length){
+      adminState.bookingRequests = d.bookingRequests;
+    }
+    if(d.availability){
+      adminState.bookingConfig = {
+        start: d.availability.start||'08:00',
+        end:   d.availability.end||'16:30',
+        weekdays:  Array.isArray(d.availability.weekdays)  ? d.availability.weekdays  : [1,2,3,4,5],
+        durations: Array.isArray(d.availability.durations) ? d.availability.durations : [30,60,90],
+      };
+      if(Array.isArray(d.availability.blockedDates)){
+        adminState.blockedDates = d.availability.blockedDates;
+      }
+    }
+
+    // Persist ke localStorage agar offline tetap jalan
+    try{localStorage.setItem('cesgs_hub_data',JSON.stringify(projectData))}catch(e){}
+    try{localStorage.setItem('cesgs_admin_state',JSON.stringify(adminState))}catch(e){}
+
+    // Refresh UI
+    if(typeof renderLanding==='function') renderLanding();
+    if(typeof refreshAllViewsAfterDataChange==='function') refreshAllViewsAfterDataChange();
+
+    if(statusEl){ statusEl.textContent = '✔ Database tersinkron'; setTimeout(()=>{statusEl.style.display='none'},2500); }
+    console.log('[GAS] Data loaded successfully from spreadsheet.');
+  } catch(err){
+    if(statusEl){ statusEl.textContent = '⚠ Offline — data lokal digunakan'; setTimeout(()=>{statusEl.style.display='none'},3000); }
+    console.warn('[GAS] Load failed, using localStorage fallback:', err.message);
+  }
+}
+
 // Persistence via localStorage
 function saveAll(){
   adminState = ensurePrimarySuperadminAccount(adminState);
@@ -2309,6 +2443,8 @@ function saveAll(){
   }catch(e){}
   pushProjectHubToSuperState();
   try{ window.dispatchEvent(new CustomEvent('projecthub:data-changed', {detail:{projectId:currentProjectId||'', at:Date.now()}})); }catch(e){}
+  // Sinkronisasi ke Google Spreadsheet (fire-and-forget)
+  gasSyncAll();
 }
 function refreshAllViewsAfterDataChange(){
   renderLanding();
@@ -12261,6 +12397,8 @@ applyHardcodedJsonBackupOnStartup();
 
 ensureSeedManagedAccounts();
 loadAll();
+/* Load data dari Google Spreadsheet (async, tidak memblokir render) */
+gasLoadAndInit();
 /* Remove legacy PLN (plts) project data from localStorage if still present */
 try{
   delete PROJECTS['plts'];
