@@ -2298,7 +2298,7 @@ function getState(){
    GAS (Google Apps Script) BACKEND
    Spreadsheet sebagai database utama
 ═══════════════════════════════════ */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzwTrglBkDaebleMq-dDOzI-5Y-I_gl27cpmf1PoW5VErWBlJfQE-nZg_acnop4aMonEQ/exec';
+const GAS_URL = ''; // disabled so hardcoded JSON remains the source of truth
 
 /* Helper: POST ke GAS (fire-and-forget, tidak memblokir UI)
    mode:'no-cors' + Content-Type:'text/plain' → tidak trigger OPTIONS preflight
@@ -2526,8 +2526,9 @@ function loadAll(){
       if(parsed && parsed.email) currentUserSession = normalizeUserSession(parsed);
     }
   }catch(e){}
-  Object.values(adminState.customProjects||{}).forEach(p=>{PROJECTS[p.id]=p});
+  Object.values(adminState.customProjects||{}).forEach(p=>{if(p&&p.id) PROJECTS[p.id]=p});
   pullSuperAdminState();
+  ensureAllProjectEnhancements();
   syncAccountProfileDatabaseFromStores();
   refreshCurrentSessionFromStores();
 }
@@ -2910,7 +2911,7 @@ function getCalendarEventsAcrossProjects(dateKey, projectIds){
   const items=[];
   const seen=new Set();
   (projectIds||[]).forEach(projectId=>{
-    const state=projectData[projectId];
+    const state=getProjectSafeState(projectId);
     if(!state) return;
     ensureCalendarState(state);
     const rows = [
@@ -4027,7 +4028,7 @@ function refreshDashboard(){
   document.getElementById('dash-partners').textContent=s.partners.length;
   document.getElementById('dash-docs').textContent=s.documents.length;
   document.getElementById('dash-meetings').textContent=s.meetings.length;
-  const openActions=s.moms.flatMap(m=>m.actions).filter(a=>!a.done).length;
+  const openActions=(s.moms||[]).flatMap(m=>Array.isArray(m&&m.actions)?m.actions:[]).filter(a=>!a.done).length;
   document.getElementById('dash-actions').textContent=openActions;
 
   const upcoming=[...s.meetings].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
@@ -4994,7 +4995,7 @@ let timelineStatusFilter = 'all';
 
 function buildBaseProjectState(pid){
   return {
-    partners:[],currentPartner:'',availability:{},calNotes:{},meetings:[],
+    partners:[],currentPartner:'',availability:{},calNotes:{},meetings:[],calendarEvents:[],importedCalendarSources:[],
     documents:[...(PROJECTS[pid]?.seedDocs || [])],moms:[],collaborators:[],bookingRequests:[],
     projectMeta:{status:'Active',lastUpdate:new Date().toISOString().slice(0,10),estimatedDeadline:'',summary:''},
     timeline:[],tasks:[],notifications:[],messages:[]
@@ -5086,8 +5087,11 @@ function ensureEnhancedProjectState(state,pid){
   if(!state.availability || typeof state.availability!=='object') state.availability={};
   if(!state.calNotes || typeof state.calNotes!=='object') state.calNotes={};
   if(!Array.isArray(state.meetings)) state.meetings=[];
+  if(!Array.isArray(state.calendarEvents)) state.calendarEvents=[];
+  if(!Array.isArray(state.importedCalendarSources)) state.importedCalendarSources=[];
   if(!Array.isArray(state.documents)) state.documents=[...(PROJECTS[pid]?.seedDocs || [])];
   if(!Array.isArray(state.moms)) state.moms=[];
+  state.moms = state.moms.map(m => ({...m, actions:Array.isArray(m&&m.actions)?m.actions:[], decisions:Array.isArray(m&&m.decisions)?m.decisions:[], attendees:Array.isArray(m&&m.attendees)?m.attendees:[]}));
   if(!Array.isArray(state.collaborators)) state.collaborators=[];
   if(!Array.isArray(state.bookingRequests)) state.bookingRequests=[];
   if(!state.projectMeta || typeof state.projectMeta!=='object') state.projectMeta={status:'Active',lastUpdate:new Date().toISOString().slice(0,10),estimatedDeadline:'',summary:''};
@@ -5106,6 +5110,14 @@ function ensureProjectStateById(pid){
   return ensureEnhancedProjectState(projectData[pid],pid);
 }
 function ensureAllProjectEnhancements(){Object.keys(PROJECTS).forEach(pid=>ensureProjectStateById(pid));}
+function sanitizeUnknownProjectReferences(){
+  try{
+    const known = new Set(Object.keys(PROJECTS));
+    const normalizeReq = req => ({...req, project: known.has(req&&req.project) ? req.project : (req&&req.project||''), projectName: (req&&req.projectName) || (known.has(req&&req.project) ? (PROJECTS[req.project]?.name || req.project) : (req&&req.project==='umum' ? 'General Consultation' : (req&&req.project || '')))});
+    if(Array.isArray(adminState?.bookingRequests)) adminState.bookingRequests = adminState.bookingRequests.map(normalizeReq);
+    Object.keys(projectData||{}).forEach(pid => { if(known.has(pid)) ensureProjectStateById(pid); });
+  }catch(err){ console.warn('sanitizeUnknownProjectReferences failed', err); }
+}
 
 function safeArray(value){return Array.isArray(value)?value:[]}
 function getProjectSafeState(pid){
@@ -9898,21 +9910,32 @@ function renderUserHubPage(){
 const HARDCODED_JSON_BACKUP = {
   "backupType": "cesgs_project_hub_backup",
   "version": 1,
-  "exportedAt": "2026-04-15T04:05:05.669Z",
-  "currentProjectId": "",
-  "sessionHint": null,
+  "exportedAt": "2026-04-17T02:25:48.680Z",
+  "currentProjectId": "plts-terapung",
+  "sessionHint": {
+    "email": "info@cesgs.or.id",
+    "password": "CESGS2026",
+    "role": "Superadmin"
+  },
   "data": {
     "projectData": {
       "bi": {
-        "partners": [],
+        "partners": [
+          {
+            "name": "Bank Indonesia",
+            "note": "Client utama Blue Building"
+          }
+        ],
         "currentPartner": "",
         "availability": {},
-        "calNotes": {},
+        "calNotes": {
+          "2026-04-15": "Review sesi 1 — Anisa hadir, siapkan slide revisi."
+        },
         "meetings": [
           {
-            "id": 1775654823109,
+            "id": "1775654823109",
             "title": "Meeting with Bagas",
-            "date": "2026-04-09",
+            "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
             "time": "08:30 – 09:00 WIB",
             "duration": 30,
             "location": "Google Meet / CESGS",
@@ -9922,39 +9945,222 @@ const HARDCODED_JSON_BACKUP = {
               "adityabagas68@gmail.com"
             ],
             "status": "confirmed"
+          },
+          {
+            "id": "m2",
+            "title": "Review Blue Building Concept",
+            "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "time": "13:00 – 14:30 WIB",
+            "duration": 90,
+            "location": "Google Meet",
+            "agenda": "Review konsep desain dan feedback dari BI.",
+            "attendees": [
+              "Tim CESGS",
+              "Tim BI"
+            ],
+            "status": "confirmed"
           }
         ],
         "documents": [
           {
-            "id": 1,
-            "title": "Proposal Blue Building BI v1.0",
-            "cat": "proposal",
-            "url": "https://drive.google.com",
-            "desc": "Blue Building project proposal for Bank Indonesia.",
-            "author": "CESGS Team",
-            "date": "2026-02-01"
-          },
-          {
-            "id": 2,
+            "id": "2",
             "title": "Panduan Green Building BI",
             "cat": "reference",
             "url": "https://drive.google.com",
             "desc": "Panduan standar bangunan hijau Bank Indonesia.",
             "author": "Bank Indonesia",
-            "date": "2026-01-10"
+            "date": "Sat Jan 10 2026 07:00:00 GMT+0700 (Western Indonesia Time)"
           }
         ],
-        "moms": [],
-        "collaborators": [],
-        "bookingRequests": [],
+        "moms": [
+          {
+            "id": "1002",
+            "projectId": "bi",
+            "title": "Review Konsep Blue Building Sesi 1",
+            "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "time": "Sat Dec 30 1899 20:07:12 GMT+0707 (Waktu Indonesia Barat)",
+            "location": "Google Meet",
+            "attendees": [
+              "Tim CESGS",
+              "Anisa Putri",
+              "Budi BI"
+            ],
+            "summary": "Review konsep desain bangunan hijau. BI meminta penambahan modul analisis energi.",
+            "nextSteps": "CESGS menyiapkan revisi proposal dan analisis energi.",
+            "actions": [
+              {
+                "id": "4",
+                "text": "Revisi proposal tambahkan modul analisis energi",
+                "owner": "Tim CESGS",
+                "deadline": "Wed Apr 22 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "done": false
+              },
+              {
+                "id": "5",
+                "text": "Review standar GBCI untuk komponen HVAC",
+                "owner": "Tim BI",
+                "deadline": "Sat Apr 25 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "done": false
+              }
+            ],
+            "decisions": [
+              {
+                "id": "3",
+                "text": "Proposal direvisi dengan tambahan bab analisis energi dan simulasi HVAC."
+              },
+              {
+                "id": "4",
+                "text": "Target sertifikasi GBCI Platinum ditetapkan sebagai KPI utama."
+              }
+            ]
+          }
+        ],
+        "collaborators": [
+          {
+            "email": "anisa@bi.go.id",
+            "role": "editor",
+            "addedAt": "2026-02-15"
+          }
+        ],
+        "bookingRequests": [
+          {
+            "id": "102",
+            "name": "Siti Rahma",
+            "email": "siti@bank.co.id",
+            "org": "BNI Persero",
+            "project": "bi",
+            "duration": 30,
+            "agenda": "Konsultasi standar green building untuk gedung kantor baru.",
+            "preferences": [
+              {
+                "date": "Tue Apr 14 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "time": "Sat Dec 30 1899 17:07:12 GMT+0707 (Waktu Indonesia Barat)"
+              },
+              {
+                "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "time": "Sat Dec 30 1899 21:07:12 GMT+0707 (Waktu Indonesia Barat)"
+              },
+              {
+                "date": "Thu Apr 16 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Waktu Indonesia Barat)"
+              }
+            ],
+            "status": "requested",
+            "submittedAt": "Sat Apr 04 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "confirmedDate": "",
+            "confirmedTime": ""
+          }
+        ],
         "projectMeta": {
           "status": "Active",
           "lastUpdate": "2026-04-13",
           "estimatedDeadline": "",
           "summary": ""
         },
-        "timeline": [],
-        "tasks": [],
+        "timeline": [
+          {
+            "id": "5",
+            "projectId": "bi",
+            "title": "Konsep Desain Awal",
+            "type": "deliverable",
+            "status": "in progress",
+            "date": "Thu Apr 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "deadline": "Thu Apr 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "note": "Konsep desain bangunan hijau sesi 1",
+            "picEmails": [
+              "adityabagas86@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ]
+          },
+          {
+            "id": "6",
+            "projectId": "bi",
+            "title": "Laporan Analisis Energi",
+            "type": "deliverable",
+            "status": "planned",
+            "date": "Tue Jun 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "deadline": "Tue Jun 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "note": "Simulasi energi dan rekomendasi HVAC",
+            "picEmails": [
+              "adityabagas86@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ]
+          },
+          {
+            "id": "1776240852532",
+            "projectId": "bi",
+            "title": "Rapat kick off",
+            "type": "milestone",
+            "status": "done",
+            "date": "Mon Apr 13 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "deadline": "Mon Apr 13 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "note": "",
+            "picEmails": [
+              "bakdiyatulmukarromah@cesgs.or.id"
+            ],
+            "picNames": [
+              "Bakdiyatul Mukarromah"
+            ]
+          },
+          {
+            "id": "1776240906431",
+            "projectId": "bi",
+            "title": "Kick off meeting",
+            "type": "milestone",
+            "status": "done",
+            "date": "Mon Apr 13 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "deadline": "Mon Apr 13 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+            "note": "",
+            "picEmails": [
+              "bakdiyatulmukarromah@cesgs.or.id"
+            ],
+            "picNames": [
+              "Bakdiyatul Mukarromah"
+            ]
+          }
+        ],
+        "tasks": [
+          {
+            "id": "2003",
+            "projectId": "bi",
+            "title": "Kirim feedback proposal revisi",
+            "type": "general",
+            "assignedTo": "anisa@bi.go.id",
+            "deadline": "Wed Apr 22 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "detail": "Berikan catatan dan persetujuan untuk proposal Blue Building revisi.",
+            "status": "open",
+            "createdAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "createdBy": "Aditya Bagas",
+            "createdByEmail": "adityabagas86@gmail.com",
+            "createdByRole": "admin",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "completedAt": ""
+          },
+          {
+            "id": "2004",
+            "projectId": "bi",
+            "title": "Upload referensi standar GBCI",
+            "type": "upload_document",
+            "assignedTo": "anisa@bi.go.id",
+            "deadline": "Tue Apr 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "detail": "Upload dokumen standar GBCI terbaru untuk referensi tim CESGS.",
+            "status": "open",
+            "createdAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "createdBy": "Aditya Bagas",
+            "createdByEmail": "adityabagas86@gmail.com",
+            "createdByRole": "admin",
+            "updatedAt": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "completedAt": ""
+          }
+        ],
         "notifications": [
           {
             "id": 1775652698482.375,
@@ -9996,87 +10202,328 @@ const HARDCODED_JSON_BACKUP = {
             "actionPage": "schedule"
           }
         ],
-        "messages": [],
-        "calendarEvents": [],
+        "messages": [
+          {
+            "id": "3002",
+            "projectId": "bi",
+            "subject": "Revisi Proposal Diupload",
+            "body": "Dear Anisa,
+
+Revisi proposal Blue Building telah diupload ke Google Drive. Mohon review dan feedback paling lambat 22 April 2026.",
+            "fromName": "Aditya Bagas",
+            "fromEmail": "adityabagas86@gmail.com",
+            "createdAt": "Thu Apr 16 2026 21:00:00 GMT+0700 (Waktu Indonesia Barat)"
+          }
+        ],
+        "calendarEvents": [
+          {
+            "id": "1002",
+            "projectId": "bi",
+            "owner": "Aditya Bagas",
+            "ownerEmail": "adityabagas86@gmail.com",
+            "title": "Review Blue Building",
+            "mode": "overlap",
+            "date": "2026-04-15",
+            "startTime": "13:00",
+            "endTime": "14:30",
+            "source": "manual"
+          }
+        ],
         "importedCalendarSources": []
       },
       "cbhe": {
         "partners": [
-          "Bakdi - CESGS",
-          "Bagas - CESGS",
-          "Fajar - CESGS"
+          {
+            "name": "Universidade do Porto",
+            "note": "Partner Erasmus+ Portugal"
+          },
+          {
+            "name": "Universitat Politecnica de Catalunya",
+            "note": "Partner Erasmus+ Spanyol"
+          }
         ],
         "currentPartner": "Fajar - CESGS",
         "availability": {
           "2026-04-06": []
         },
         "calNotes": {
-          "2026-04-06": "ADAD"
+          "2026-04-20": "WP review — undang Prof. Santos via Zoom jam 15:00 WIB.",
+          "Mon Apr 06 2026 07:00:00 GMT+0700 (Western Indonesia Time)": "ADAD",
+          "Mon Apr 06 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)": "ADAD"
         },
-        "meetings": [],
+        "meetings": [
+          {
+            "id": "m3",
+            "title": "CBHE Work Package Review",
+            "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "time": "15:00 – 16:30 WIB",
+            "duration": 90,
+            "location": "Zoom International",
+            "agenda": "Review WP progress dan koordinasi dengan partner Eropa.",
+            "attendees": [
+              "Prof. Maria Santos",
+              "Tim CESGS"
+            ],
+            "status": "confirmed"
+          }
+        ],
         "documents": [
           {
-            "id": 1,
+            "id": "1",
             "title": "CBHE Project Proposal v1.0",
             "cat": "proposal",
             "url": "https://drive.google.com",
             "desc": "Initial project proposal submitted to Erasmus+ CBHE.",
             "author": "CESGS Team",
-            "date": "2026-01-10"
+            "date": "Sat Jan 10 2026 07:00:00 GMT+0700 (Western Indonesia Time)"
           },
           {
-            "id": 2,
-            "title": "Work Package Description",
-            "cat": "proposal",
-            "url": "https://drive.google.com",
-            "desc": "Detailed work packages and milestones.",
-            "author": "Coord. Office",
-            "date": "2026-02-01"
-          },
-          {
-            "id": 3,
+            "id": "3",
             "title": "Erasmus+ CBHE Guidelines 2025",
             "cat": "reference",
             "url": "https://erasmus-plus.ec.europa.eu",
             "desc": "Official CBHE guidelines.",
             "author": "EU Commission",
-            "date": "2025-09-01"
+            "date": "Mon Sep 01 2025 07:00:00 GMT+0700 (Western Indonesia Time)"
           },
           {
-            "id": 4,
+            "id": "4",
             "title": "Partner Agreement Template",
             "cat": "reference",
             "url": "https://drive.google.com",
             "desc": "Inter-institutional agreement template.",
             "author": "Legal Team",
-            "date": "2026-01-20"
-          }
-        ],
-        "moms": [],
-        "collaborators": [
-          {
-            "email": "ghalyfarras0@gmail.com",
-            "role": "editor",
-            "addedAt": "2026-04-06T03:50:57.103Z"
+            "date": "Tue Jan 20 2026 07:00:00 GMT+0700 (Western Indonesia Time)"
           },
           {
-            "email": "bakdiyatulmukarromah@cesgs.or.id",
-            "role": "editor",
-            "addedAt": "2026-04-06T03:58:16.456Z"
+            "id": "5",
+            "title": "CBHE Project Proposal v1.0",
+            "cat": "proposal",
+            "url": "https://drive.google.com",
+            "desc": "Initial project proposal submitted to Erasmus+ CBHE.",
+            "author": "CESGS Team",
+            "date": "Sat Jan 10 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)"
+          },
+          {
+            "id": "6",
+            "title": "Work Package Description",
+            "cat": "proposal",
+            "url": "https://drive.google.com",
+            "desc": "Detailed work packages and milestones.",
+            "author": "Coord. Office",
+            "date": "Sun Feb 01 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)"
+          },
+          {
+            "id": "7",
+            "title": "Erasmus+ CBHE Guidelines 2025",
+            "cat": "reference",
+            "url": "https://erasmus-plus.ec.europa.eu",
+            "desc": "Official CBHE guidelines.",
+            "author": "EU Commission",
+            "date": "Mon Sep 01 2025 07:00:00 GMT+0700 (Waktu Indonesia Barat)"
+          },
+          {
+            "id": "8",
+            "title": "Partner Agreement Template",
+            "cat": "reference",
+            "url": "https://drive.google.com",
+            "desc": "Inter-institutional agreement template.",
+            "author": "Legal Team",
+            "date": "Tue Jan 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)"
           }
         ],
-        "bookingRequests": [],
+        "moms": [
+          {
+            "id": "1003",
+            "projectId": "cbhe",
+            "title": "CBHE WP Review Session",
+            "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)",
+            "location": "Zoom International",
+            "attendees": [
+              "Prof. Maria Santos",
+              "Tim CESGS",
+              "Partner CBHE"
+            ],
+            "summary": "Review progress work packages 1–3. WP2 masih di bawah target timeline.",
+            "nextSteps": "Setiap partner mengirimkan laporan progres WP minggu depan.",
+            "actions": [
+              {
+                "id": "6",
+                "text": "Laporan progres WP2 dari masing-masing partner",
+                "owner": "All Partners",
+                "deadline": "Mon Apr 27 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "done": false
+              },
+              {
+                "id": "7",
+                "text": "Update Gantt Chart CBHE 2026",
+                "owner": "CESGS Team",
+                "deadline": "Thu Apr 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "done": false
+              }
+            ],
+            "decisions": [
+              {
+                "id": "5",
+                "text": "Setiap partner menyerahkan laporan WP setiap 2 minggu sekali."
+              },
+              {
+                "id": "6",
+                "text": "Meeting berikutnya dijadwalkan tanggal 4 Mei 2026 via Zoom."
+              }
+            ]
+          }
+        ],
+        "collaborators": [
+          {
+            "email": "hans@erasmus.eu",
+            "role": "viewer",
+            "addedAt": "2026-03-01"
+          }
+        ],
+        "bookingRequests": [
+          {
+            "id": "103",
+            "name": "Prof. Maria Santos",
+            "email": "msantos@uporto.pt",
+            "org": "Universidade do Porto",
+            "project": "cbhe",
+            "duration": 90,
+            "agenda": "Review progress work packages dan rencana kunjungan delegasi Portugal ke Surabaya.",
+            "preferences": [
+              {
+                "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+                "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+              }
+            ],
+            "status": "confirmed",
+            "submittedAt": "Sat Mar 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "confirmedDate": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "confirmedTime": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+          }
+        ],
         "projectMeta": {
           "status": "Active",
           "lastUpdate": "2026-04-13",
           "estimatedDeadline": "",
           "summary": ""
         },
-        "timeline": [],
-        "tasks": [],
+        "timeline": [
+          {
+            "id": "7",
+            "projectId": "cbhe",
+            "title": "WP1 – Needs Assessment",
+            "type": "deliverable",
+            "status": "completed",
+            "date": "Sat Feb 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "updatedAt": "Sun Mar 01 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "deadline": "Sat Feb 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "note": "Assessment kebutuhan semua partner",
+            "picEmails": [
+              "adityabagas86@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ]
+          },
+          {
+            "id": "8",
+            "projectId": "cbhe",
+            "title": "WP2 – Curriculum Development",
+            "type": "deliverable",
+            "status": "in progress",
+            "date": "Tue Jun 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "updatedAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "deadline": "Tue Jun 30 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "note": "Pengembangan kurikulum hijau bersama partner",
+            "picEmails": [
+              "adityabagas86@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ]
+          },
+          {
+            "id": "9",
+            "projectId": "cbhe",
+            "title": "WP3 – Pilot Implementation",
+            "type": "activity",
+            "status": "planned",
+            "date": "Sat Oct 31 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "updatedAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "deadline": "Sat Oct 31 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "note": "Implementasi pilot di tiga institusi partner",
+            "picEmails": [
+              "adityabagas86@gmail.com"
+            ],
+            "picNames": [
+              "Aditya Bagas"
+            ]
+          }
+        ],
+        "tasks": [
+          {
+            "id": "2005",
+            "projectId": "cbhe",
+            "title": "Submit progress report WP2",
+            "type": "upload_document",
+            "assignedTo": "hans@erasmus.eu",
+            "deadline": "Mon Apr 27 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "detail": "Kirim laporan progres WP2 dalam format template yang telah disepakati.",
+            "status": "open",
+            "createdAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "createdBy": "Aditya Bagas",
+            "createdByEmail": "adityabagas86@gmail.com",
+            "createdByRole": "admin",
+            "updatedAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "completedAt": ""
+          },
+          {
+            "id": "2006",
+            "projectId": "cbhe",
+            "title": "Review kurikulum hijau draft 1",
+            "type": "general",
+            "assignedTo": "all clients / partners",
+            "deadline": "Tue May 05 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "detail": "Review dan beri masukan untuk draft kurikulum hijau WP2 dari semua partner.",
+            "status": "open",
+            "createdAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "createdBy": "Aditya Bagas",
+            "createdByEmail": "adityabagas86@gmail.com",
+            "createdByRole": "admin",
+            "updatedAt": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+            "completedAt": ""
+          }
+        ],
         "notifications": [],
-        "messages": [],
-        "calendarEvents": [],
+        "messages": [
+          {
+            "id": "3003",
+            "projectId": "cbhe",
+            "subject": "Reminder: Laporan WP2 Deadline 27 April",
+            "body": "Dear all partners,
+
+Ini adalah pengingat bahwa laporan progres WP2 harus dikumpulkan paling lambat 27 April 2026. Template sudah tersedia di Google Drive.",
+            "fromName": "Aditya Bagas",
+            "fromEmail": "adityabagas86@gmail.com",
+            "createdAt": "Tue Apr 21 2026 16:00:00 GMT+0700 (Waktu Indonesia Barat)"
+          }
+        ],
+        "calendarEvents": [
+          {
+            "id": "1003",
+            "projectId": "cbhe",
+            "owner": "Aditya Bagas",
+            "ownerEmail": "adityabagas86@gmail.com",
+            "title": "CBHE WP Review",
+            "mode": "overlap",
+            "date": "2026-04-20",
+            "startTime": "15:00",
+            "endTime": "16:30",
+            "source": "manual"
+          }
+        ],
         "importedCalendarSources": []
       },
       "tfk": {
@@ -10328,16 +10775,158 @@ const HARDCODED_JSON_BACKUP = {
         ],
         "projectMeta": {
           "status": "Active",
-          "lastUpdate": "2026-04-15",
+          "lastUpdate": "2026-04-17",
           "estimatedDeadline": "",
           "summary": ""
         },
         "timeline": [
           {
-            "id": 1776225826461,
-            "title": "Revisi draft laporan",
+            "id": 1776392707211,
+            "title": "Penulisan laporan akhir revisi tahap 1",
             "type": "activity",
             "status": "in progress",
+            "date": "2026-04-13",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-30",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Fajar Kristanto",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
+            "id": 1776392581099,
+            "title": "Presentasi kajian fase 2",
+            "type": "activity",
+            "status": "planned",
+            "date": "2026-04-21",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-21",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "bakdiyatulmukarromah@cesgs.or.id",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Bakdiyatul Mukarromah",
+              "Fajar Kristanto",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, bakdiyatulmukarromah@cesgs.or.id, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Bakdiyatul Mukarromah, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
+            "id": 1776392549151,
+            "title": "Presentasi kajian fase 1",
+            "type": "activity",
+            "status": "planned",
+            "date": "2026-04-20",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-20",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "bakdiyatulmukarromah@cesgs.or.id",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Bakdiyatul Mukarromah",
+              "Fajar Kristanto",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, bakdiyatulmukarromah@cesgs.or.id, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Bakdiyatul Mukarromah, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
+            "id": 1776391759138,
+            "title": "Final check data fase 1",
+            "type": "milestone",
+            "status": "done",
+            "date": "2026-04-17",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-17",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "putra.fajar@feb.unair.ac.id",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Fajar Kristanto",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, putra.fajar@feb.unair.ac.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
+            "id": 1776391665386,
+            "title": "Penyusunan presentasi fase 2",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-04-13",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-17",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "putra.fajar@feb.unair.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Fajar Kristanto"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, putra.fajar@feb.unair.ac.id",
+            "picName": "Bagas Aditya, Fajar Kristanto"
+          },
+          {
+            "id": 1776391632475,
+            "title": "Penyusunan presentasi Fase 1",
+            "type": "activity",
+            "status": "done",
+            "date": "2026-04-13",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-17",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com",
+              "ghalyfarras0@gmail.com",
+              "harisdwi2020@mail.ugm.ac.id"
+            ],
+            "picNames": [
+              "Bagas Aditya",
+              "Farras Ghaly",
+              "Haris Dwi Cahyo"
+            ],
+            "picEmail": "adityabagas.official@gmail.com, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
+            "picName": "Bagas Aditya, Farras Ghaly, Haris Dwi Cahyo"
+          },
+          {
+            "id": 1776225826461,
+            "title": "Revisi draft laporan fase 1",
+            "type": "activity",
+            "status": "done",
             "date": "2026-04-14",
             "updatedAt": "2026-04-15",
             "deadline": "2026-04-30",
@@ -10361,7 +10950,7 @@ const HARDCODED_JSON_BACKUP = {
             "id": 1776208901126,
             "title": "Perbaikan lembar kerja ekonomi makro",
             "type": "activity",
-            "status": "in progress",
+            "status": "done",
             "date": "2026-04-14",
             "updatedAt": "2026-04-15",
             "deadline": "2026-04-30",
@@ -10485,9 +11074,9 @@ const HARDCODED_JSON_BACKUP = {
           },
           {
             "id": 1776050334703,
-            "title": "Pemaparan Draft kajian dengan CESGS",
+            "title": "Review draft kajian dengan CESGS oleh PLN",
             "type": "milestone",
-            "status": "review",
+            "status": "done",
             "date": "2026-04-08",
             "updatedAt": "2026-04-13",
             "deadline": "2026-04-30",
@@ -10496,10 +11085,10 @@ const HARDCODED_JSON_BACKUP = {
               "adityabagas.official@gmail.com"
             ],
             "picNames": [
-              "Aditya Bagas"
+              "Bagas Aditya"
             ],
             "picEmail": "adityabagas.official@gmail.com",
-            "picName": "Aditya Bagas"
+            "picName": "Bagas Aditya"
           },
           {
             "id": 1776050296483,
@@ -10590,6 +11179,175 @@ const HARDCODED_JSON_BACKUP = {
         ],
         "tasks": [],
         "notifications": [
+          {
+            "id": 1776392731477.8298,
+            "title": "",
+            "message": "Timeline updated: Penulisan laporan akhir revisi tahap 1 · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:25:31.477Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392707211.4275,
+            "title": "",
+            "message": "Timeline item added: Penulisan laporan akhir revisi tahap 1 · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:25:07.211Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392673997.6511,
+            "title": "",
+            "message": "Timeline updated: Perbaikan lembar kerja ekonomi makro · PIC: Fajar Kristanto",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:24:33.997Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392656053.3137,
+            "title": "",
+            "message": "Timeline updated: Final check data fase 1 · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:24:16.053Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392606653.7385,
+            "title": "",
+            "message": "Timeline updated: Review draft kajian dengan CESGS oleh PLN · PIC: Bagas Aditya",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:23:26.653Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392581099.489,
+            "title": "",
+            "message": "Timeline item added: Presentasi kajian fase 2 · PIC: Bagas Aditya, Bakdiyatul Mukarromah, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:23:01.099Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392549151.468,
+            "title": "",
+            "message": "Timeline item added: Presentasi kajian fase 1 · PIC: Bagas Aditya, Bakdiyatul Mukarromah, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:22:29.151Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776392478243.1584,
+            "title": "New task assigned",
+            "message": "New task assigned: ADA",
+            "audience": "harisdwi2020@mail.ugm.ac.id",
+            "type": "task",
+            "icon": "",
+            "createdAt": "2026-04-17T02:21:18.243Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": 1776392478243,
+            "actionPage": "tasks"
+          },
+          {
+            "id": 1776391795667.0671,
+            "title": "",
+            "message": "Timeline updated: Final check data · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:09:55.667Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776391759138.2776,
+            "title": "",
+            "message": "Timeline item added: Final check data · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:09:19.138Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776391699896.8052,
+            "title": "",
+            "message": "Timeline updated: Revisi draft laporan fase 1 · PIC: Bagas Aditya, Fajar Kristanto, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:08:19.896Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776391665386.6099,
+            "title": "",
+            "message": "Timeline item added: Penyusunan presentasi fase 2 · PIC: Bagas Aditya, Fajar Kristanto",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:07:45.386Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776391632475.0605,
+            "title": "",
+            "message": "Timeline item added: Penyusunan presentasi Fase 1 · PIC: Bagas Aditya, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T02:07:12.475Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
           {
             "id": 1776225826461.736,
             "title": "",
@@ -11034,7 +11792,13 @@ const HARDCODED_JSON_BACKUP = {
         "importedCalendarSources": []
       }
     },
-    "authenticatedProjects": {},
+    "authenticatedProjects": {
+      "bi": true,
+      "cbhe": true,
+      "tfk": true,
+      "plts-terapung": true,
+      "kajian-risiko-dan-": true
+    },
     "adminState": {
       "admins": [
         {
@@ -11054,6 +11818,22 @@ const HARDCODED_JSON_BACKUP = {
           "canManage": true
         },
         {
+          "id": "a1",
+          "email": "adityabagas86@gmail.com",
+          "password": "CESGS2026",
+          "name": "Aditya Bagas",
+          "isPrimary": false,
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "canManage": true
+        },
+        {
           "id": "a-1",
           "email": "adityabagas.official@gmail.com",
           "password": "Bagas_2026",
@@ -11063,6 +11843,7 @@ const HARDCODED_JSON_BACKUP = {
           "projects": [
             "bi",
             "cbhe",
+            "tfk",
             "plts-terapung",
             "kajian-risiko-dan-"
           ],
@@ -11328,62 +12109,128 @@ const HARDCODED_JSON_BACKUP = {
         "durations": [
           30,
           60,
-          90,
-          120
+          90
         ]
       },
       "bookingRequests": [
         {
-          "id": 1775808144045,
-          "requestedAt": "2026-04-10T08:02:24.045Z",
+          "id": "101",
+          "name": "Rizky Fadilah",
+          "email": "rizky@unair.ac.id",
+          "org": "Universitas Airlangga",
+          "project": "plts",
+          "duration": 60,
+          "agenda": "Diskusi metodologi pengukuran efisiensi panel surya floating untuk kondisi tropis.",
+          "preferences": [
+            {
+              "date": "Fri Apr 10 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Sat Apr 11 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 20:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "requested",
+          "submittedAt": "Sun Apr 05 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "",
+          "confirmedTime": ""
+        },
+        {
+          "id": "102",
+          "name": "Siti Rahma",
+          "email": "siti@bank.co.id",
+          "org": "BNI Persero",
+          "project": "bi",
+          "duration": 30,
+          "agenda": "Konsultasi standar green building untuk gedung kantor baru.",
+          "preferences": [
+            {
+              "date": "Tue Apr 14 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 17:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 21:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Thu Apr 16 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "requested",
+          "submittedAt": "Sat Apr 04 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "",
+          "confirmedTime": ""
+        },
+        {
+          "id": "103",
+          "name": "Prof. Maria Santos",
+          "email": "msantos@uporto.pt",
+          "org": "Universidade do Porto",
+          "project": "cbhe",
+          "duration": 90,
+          "agenda": "Review progress work packages dan rencana kunjungan delegasi Portugal ke Surabaya.",
+          "preferences": [
+            {
+              "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "confirmed",
+          "submittedAt": "Sat Mar 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedTime": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+        },
+        {
+          "id": "1775808144045",
           "name": "Vidy PLN",
           "email": "adityabagas86@gmail.com",
           "org": "",
-          "agenda": "knadakd",
+          "project": "plts-terapung",
           "duration": 30,
+          "agenda": "knadakd",
           "preferences": [
             {
-              "date": "2026-04-15",
-              "time": "08:30"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-15",
-              "time": "09:00"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-15",
-              "time": "10:30"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 17:37:12 GMT+0707 (Western Indonesia Time)"
             }
           ],
-          "project": "plts-terapung",
-          "projectName": "PLTS Terapung",
-          "external": true,
-          "status": "requested"
+          "status": "requested",
+          "submittedAt": "Fri Apr 17 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedDate": "",
+          "confirmedTime": ""
         },
         {
-          "id": 1775552020525,
-          "requestedAt": "2026-04-07T08:53:40.525Z",
+          "id": "1775552020525",
           "name": "Bagas",
           "email": "adityabagas68@gmail.com",
           "org": "",
-          "agenda": "diskusi awal",
+          "project": "umum",
           "duration": 30,
+          "agenda": "diskusi awal",
           "preferences": [
             {
-              "date": "2026-04-09",
-              "time": "08:30"
+              "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-09",
-              "time": "15:00"
+              "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Western Indonesia Time)"
             }
           ],
-          "project": "umum",
-          "projectName": "General Consultation",
-          "external": true,
           "status": "confirmed",
-          "confirmedDate": "2026-04-09",
-          "confirmedTime": "08:30"
+          "submittedAt": "Fri Apr 17 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedDate": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedTime": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
         }
       ]
     },
@@ -11671,7 +12518,23 @@ const HARDCODED_JSON_BACKUP = {
             "kajian-risiko-dan-"
           ],
           "isPrimary": true,
-          "createdAt": "2026-04-15"
+          "createdAt": "2026-04-17"
+        },
+        {
+          "id": "a1",
+          "name": "Aditya Bagas",
+          "email": "adityabagas86@gmail.com",
+          "password": "CESGS2026",
+          "role": "Admin",
+          "projects": [
+            "bi",
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
+          ],
+          "isPrimary": false,
+          "createdAt": "2026-04-17"
         },
         {
           "id": "a-1",
@@ -11682,11 +12545,12 @@ const HARDCODED_JSON_BACKUP = {
           "projects": [
             "bi",
             "cbhe",
+            "tfk",
             "plts-terapung",
             "kajian-risiko-dan-"
           ],
           "isPrimary": false,
-          "createdAt": "2026-04-15"
+          "createdAt": "2026-04-17"
         },
         {
           "id": "adm-1775622649342",
@@ -11702,7 +12566,7 @@ const HARDCODED_JSON_BACKUP = {
             "kajian-risiko-dan-"
           ],
           "isPrimary": false,
-          "createdAt": "2026-04-15"
+          "createdAt": "2026-04-17"
         }
       ],
       "availability": {
@@ -11718,63 +12582,129 @@ const HARDCODED_JSON_BACKUP = {
         "durations": [
           30,
           60,
-          90,
-          120
+          90
         ],
         "blockedDates": []
       },
       "bookingRequests": [
         {
-          "id": 1775808144045,
-          "requestedAt": "2026-04-10T08:02:24.045Z",
+          "id": "101",
+          "name": "Rizky Fadilah",
+          "email": "rizky@unair.ac.id",
+          "org": "Universitas Airlangga",
+          "project": "plts",
+          "duration": 60,
+          "agenda": "Diskusi metodologi pengukuran efisiensi panel surya floating untuk kondisi tropis.",
+          "preferences": [
+            {
+              "date": "Fri Apr 10 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Sat Apr 11 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 20:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "requested",
+          "submittedAt": "Sun Apr 05 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "",
+          "confirmedTime": ""
+        },
+        {
+          "id": "102",
+          "name": "Siti Rahma",
+          "email": "siti@bank.co.id",
+          "org": "BNI Persero",
+          "project": "bi",
+          "duration": 30,
+          "agenda": "Konsultasi standar green building untuk gedung kantor baru.",
+          "preferences": [
+            {
+              "date": "Tue Apr 14 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 17:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 21:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            },
+            {
+              "date": "Thu Apr 16 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "requested",
+          "submittedAt": "Sat Apr 04 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "",
+          "confirmedTime": ""
+        },
+        {
+          "id": "103",
+          "name": "Prof. Maria Santos",
+          "email": "msantos@uporto.pt",
+          "org": "Universidade do Porto",
+          "project": "cbhe",
+          "duration": 90,
+          "agenda": "Review progress work packages dan rencana kunjungan delegasi Portugal ke Surabaya.",
+          "preferences": [
+            {
+              "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+              "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+            }
+          ],
+          "status": "confirmed",
+          "submittedAt": "Sat Mar 28 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedDate": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "confirmedTime": "Sat Dec 30 1899 22:07:12 GMT+0707 (Waktu Indonesia Barat)"
+        },
+        {
+          "id": "1775808144045",
           "name": "Vidy PLN",
           "email": "adityabagas86@gmail.com",
           "org": "",
-          "agenda": "knadakd",
+          "project": "plts-terapung",
           "duration": 30,
+          "agenda": "knadakd",
           "preferences": [
             {
-              "date": "2026-04-15",
-              "time": "08:30"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-15",
-              "time": "09:00"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 16:07:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-15",
-              "time": "10:30"
+              "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 17:37:12 GMT+0707 (Western Indonesia Time)"
             }
           ],
-          "project": "plts-terapung",
-          "projectName": "PLTS Terapung",
-          "external": true,
-          "status": "requested"
+          "status": "requested",
+          "submittedAt": "Fri Apr 17 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedDate": "",
+          "confirmedTime": ""
         },
         {
-          "id": 1775552020525,
-          "requestedAt": "2026-04-07T08:53:40.525Z",
+          "id": "1775552020525",
           "name": "Bagas",
           "email": "adityabagas68@gmail.com",
           "org": "",
-          "agenda": "diskusi awal",
+          "project": "umum",
           "duration": 30,
+          "agenda": "diskusi awal",
           "preferences": [
             {
-              "date": "2026-04-09",
-              "time": "08:30"
+              "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
             },
             {
-              "date": "2026-04-09",
-              "time": "15:00"
+              "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+              "time": "Sat Dec 30 1899 22:07:12 GMT+0707 (Western Indonesia Time)"
             }
           ],
-          "project": "umum",
-          "projectName": "General Consultation",
-          "external": true,
           "status": "confirmed",
-          "confirmedDate": "2026-04-09",
-          "confirmedTime": "08:30"
+          "submittedAt": "Fri Apr 17 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedDate": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "confirmedTime": "Sat Dec 30 1899 15:37:12 GMT+0707 (Western Indonesia Time)"
         }
       ],
       "meetings": [
@@ -11845,21 +12775,6 @@ const HARDCODED_JSON_BACKUP = {
           "status": "upcoming"
         },
         {
-          "id": 1775654823109,
-          "title": "Meeting with Bagas",
-          "projectId": "bi",
-          "date": "2026-04-09",
-          "time": "08:30 – 09:00 WIB",
-          "duration": 30,
-          "location": "Google Meet / CESGS",
-          "agenda": "diskusi awal",
-          "attendees": [
-            "Bagas",
-            "adityabagas68@gmail.com"
-          ],
-          "status": "confirmed"
-        },
-        {
           "id": 1776158930986,
           "title": "FGD PLTS Terapung Tembesi",
           "projectId": "plts-terapung",
@@ -11910,6 +12825,51 @@ const HARDCODED_JSON_BACKUP = {
             "Iman Harymawan"
           ],
           "status": "upcoming"
+        },
+        {
+          "id": "m3",
+          "title": "CBHE Work Package Review",
+          "projectId": "cbhe",
+          "date": "Mon Apr 20 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "time": "15:00 – 16:30 WIB",
+          "duration": 90,
+          "location": "Zoom International",
+          "agenda": "Review WP progress dan koordinasi dengan partner Eropa.",
+          "attendees": [
+            "Prof. Maria Santos",
+            "Tim CESGS"
+          ],
+          "status": "confirmed"
+        },
+        {
+          "id": "1775654823109",
+          "title": "Meeting with Bagas",
+          "projectId": "bi",
+          "date": "Thu Apr 09 2026 07:00:00 GMT+0700 (Western Indonesia Time)",
+          "time": "08:30 – 09:00 WIB",
+          "duration": 30,
+          "location": "Google Meet / CESGS",
+          "agenda": "diskusi awal",
+          "attendees": [
+            "Bagas",
+            "adityabagas68@gmail.com"
+          ],
+          "status": "confirmed"
+        },
+        {
+          "id": "m2",
+          "title": "Review Blue Building Concept",
+          "projectId": "bi",
+          "date": "Wed Apr 15 2026 07:00:00 GMT+0700 (Waktu Indonesia Barat)",
+          "time": "13:00 – 14:30 WIB",
+          "duration": 90,
+          "location": "Google Meet",
+          "agenda": "Review konsep desain dan feedback dari BI.",
+          "attendees": [
+            "Tim CESGS",
+            "Tim BI"
+          ],
+          "status": "confirmed"
         }
       ],
       "superAdmin": {
@@ -12033,7 +12993,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.679Z",
           "source": "admin_state"
         },
         "iman.harymawan@feb.unair.ac.id": {
@@ -12056,7 +13016,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "pm@cesgs.id": {
@@ -12076,7 +13036,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "expert@cesgs.id": {
@@ -12096,7 +13056,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "staff@cesgs.id": {
@@ -12116,7 +13076,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@gmail.com": {
@@ -12139,7 +13099,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "ghalyfarras0@gmail.com": {
@@ -12159,7 +13119,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.679Z",
           "source": "superadmin_userAccounts"
         },
         "putra.fajar@feb.unair.ac.id": {
@@ -12182,7 +13142,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "harisdwi2020@mail.ugm.ac.id": {
@@ -12203,7 +13163,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "adityabagas.official@gmail.com": {
@@ -12215,6 +13175,7 @@ const HARDCODED_JSON_BACKUP = {
           "projects": [
             "bi",
             "cbhe",
+            "tfk",
             "plts-terapung",
             "kajian-risiko-dan-"
           ],
@@ -12225,18 +13186,21 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.679Z",
           "source": "admin_state"
         },
         "adityabagas86@gmail.com": {
           "id": "c1775475962165",
           "email": "adityabagas86@gmail.com",
-          "password": "PLTST2026",
-          "name": "BAGAS",
+          "password": "CESGS2026",
+          "name": "Aditya Bagas",
           "role": "Admin",
           "projects": [
             "bi",
-            "cbhe"
+            "cbhe",
+            "tfk",
+            "plts-terapung",
+            "kajian-risiko-dan-"
           ],
           "canManage": true,
           "cv": "",
@@ -12245,8 +13209,8 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "inactive",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-13T13:34:02.175Z",
-          "source": "deleted_by_superadmin"
+          "updatedAt": "2026-04-17T02:25:48.679Z",
+          "source": "admin_state"
         },
         "harymawan.iman@feb.unair.ac.id": {
           "id": "u-1775623540818",
@@ -12323,7 +13287,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "inactive",
           "createdAt": "2026-03-01",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_clients"
         },
         "vidy.pln@gmail.com": {
@@ -12361,7 +13325,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.680Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@cesgs.or.id": {
@@ -12384,7 +13348,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-15T04:05:05.669Z",
+          "updatedAt": "2026-04-17T02:25:48.679Z",
           "source": "superadmin_userAccounts"
         }
       }
@@ -12411,7 +13375,7 @@ applyHardcodedJsonBackupOnStartup();
 ensureSeedManagedAccounts();
 loadAll();
 /* Load data dari Google Spreadsheet (async, tidak memblokir render) */
-gasLoadAndInit();
+// gasLoadAndInit(); // disabled to prevent remote database from overwriting hardcoded JSON
 /* Remove legacy PLN (plts) project data from localStorage if still present */
 try{
   delete PROJECTS['plts'];
@@ -12422,6 +13386,8 @@ try{
   localStorage.setItem(SUPERADMIN_STORAGE_KEY,JSON.stringify(superState));
 }catch(e){}
 pushProjectHubToSuperState();
+ensureAllProjectEnhancements();
+sanitizeUnknownProjectReferences();
 showLandingScreen({});
 populateScheduleOwnerOptions();
 const bookingAccountSelect=document.getElementById('bk-name-account');
@@ -12430,6 +13396,7 @@ renderBookingAccountChecklist();
 window.addEventListener('storage', (e) => {
   if (![SUPERADMIN_STORAGE_KEY, 'cesgs_admin_state', 'cesgs_hub_data', ACCOUNT_PROFILE_DB_KEY, 'cesgs_hub_session', 'cesgs_assignment_sync'].includes(e.key)) return;
   loadAll();
+  sanitizeUnknownProjectReferences();
   refreshCurrentSessionFromStores();
   refreshAllViewsAfterDataChange();
 });
