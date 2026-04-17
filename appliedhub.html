@@ -2380,7 +2380,9 @@ function loadAll(){
   pullSuperAdminState();
   syncAccountProfileDatabaseFromStores();
   refreshCurrentSessionFromStores();
+  migrateProjectIdsEverywhere();
 }
+
 
 let authenticatedProjects={};
 
@@ -4529,7 +4531,7 @@ function renderAdminStatGrid(){const requests=(adminState.bookingRequests||[]).l
 function renderAdminBookingRequests(){const el=document.getElementById('admin-booking-requests');const requests=adminState.bookingRequests||[];if(!requests.length){el.innerHTML='<div class="admin-inline-note">No booking requests yet.</div>';return}el.innerHTML='<div class="admin-list">'+requests.map(req=>{const prefHtml=(req.preferences||[]).map(pref=>`<button class="btn btn-outline btn-sm" onclick="confirmBookingRequest(${req.id},'${pref.date}','${pref.time}')">Confirm ${formatWibPreferenceLabel(pref.date,pref.time,req.duration||30)}</button>`).join('');return `<div class="admin-row"><div><div class="admin-row-title">${req.name} · ${req.projectName||req.project||'General Consultation'}</div><div class="admin-row-sub">${req.email}${req.org?` · ${req.org}`:''} · ${req.duration||30} minutes<br/>${req.agenda||'-'}</div><div class="admin-request-pref">${prefHtml}</div></div><div class="admin-actions"><span class="badge badge-blue">${req.status||'requested'}</span></div></div>`}).join('')+'</div>'}
 function confirmBookingRequest(requestId,dateKey,time){const req=(adminState.bookingRequests||[]).find(r=>r.id===requestId);if(!req){toast('Booking request not found');return}const pid=req.project&&PROJECTS[req.project]?req.project:Object.keys(PROJECTS)[0];const state=projectData[pid]||(projectData[pid]={partners:[],currentPartner:'',availability:{},calNotes:{},meetings:[],calendarEvents:[],documents:[...PROJECTS[pid].seedDocs],moms:[],collaborators:[],bookingRequests:[]});const endTime=minutesToTime(timeToMinutes(time)+(req.duration||30));state.meetings.push({id:Date.now(),title:`Meeting with ${req.name}`,date:dateKey,time:`${time} – ${endTime} WIB`,duration:req.duration||30,location:'Google Meet / CESGS',agenda:req.agenda||'Meeting request from booking form',attendees:[req.name, req.email],status:'confirmed'});req.status='confirmed';req.confirmedDate=dateKey;req.confirmedTime=time;saveAll();renderAdminConsole();renderLanding();toast('Meeting confirmed and added to the schedule');openMeetingById(pid,state.meetings[state.meetings.length-1].id)}
 function renderAdminProjectList(){const el=document.getElementById('admin-project-list');el.innerHTML='<div class="admin-list">'+Object.values(PROJECTS).map(p=>`<div class="admin-row"><div><div class="admin-row-title">${p.name}</div><div class="admin-row-sub">${p.org} · password: ${p.password}</div></div><div class="admin-actions"><span class="badge badge-teal">${p.id}</span></div></div>`).join('')+'</div>'}
-function adminAddProject(){const name=document.getElementById('admin-project-name').value.trim();const org=document.getElementById('admin-project-org').value.trim();const password=document.getElementById('admin-project-password').value.trim();if(!name||!org||!password){toast('Fill in project name, organization, and project password');return}const accent=document.getElementById('admin-project-accent').value||'#0B8C7A';const icon=document.getElementById('admin-project-icon').value.trim()||'🔬';const desc=document.getElementById('admin-project-desc').value.trim()||'Project workspace for Applied Research CESGS.';const id=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,18)||`project-${Date.now()}`;PROJECTS[id]={id,name,org,password,accent,icon,iconBg:'#EAF9F6',orgColor:'var(--teal)',statusBg:'var(--teal-light)',statusColor:'var(--teal)',tag:`${name} · ${org}`,title:`${name} Hub`,sub:desc,teamName:'Applied Research CESGS Team',teamOrg:'Universitas Airlangga',links:[{label:'Shared Google Drive',url:'https://drive.google.com',icon:'📁',bg:'#FDF3E0'},{label:'Google Meet',url:'https://meet.google.com',icon:'🎥',bg:'#E5EEFF'}],seedDocs:[]};adminState.customProjects[id]=PROJECTS[id];saveAll();renderLanding();renderAdminConsole();['admin-project-name','admin-project-org','admin-project-password','admin-project-icon','admin-project-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('admin-project-accent').value='#0B8C7A';toast('Project added')}
+function adminAddProject(){const name=document.getElementById('admin-project-name').value.trim();const org=document.getElementById('admin-project-org').value.trim();const password=document.getElementById('admin-project-password').value.trim();if(!name||!org||!password){toast('Fill in project name, organization, and project password');return}const accent=document.getElementById('admin-project-accent').value||'#0B8C7A';const icon=document.getElementById('admin-project-icon').value.trim()||'🔬';const desc=document.getElementById('admin-project-desc').value.trim()||'Project workspace for Applied Research CESGS.';const id=normalizeProjectId(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))||`project-${Date.now()}`;PROJECTS[id]={id,name,org,password,accent,icon,iconBg:'#EAF9F6',orgColor:'var(--teal)',statusBg:'var(--teal-light)',statusColor:'var(--teal)',tag:`${name} · ${org}`,title:`${name} Hub`,sub:desc,teamName:'Applied Research CESGS Team',teamOrg:'Universitas Airlangga',links:[{label:'Shared Google Drive',url:'https://drive.google.com',icon:'📁',bg:'#FDF3E0'},{label:'Google Meet',url:'https://meet.google.com',icon:'🎥',bg:'#E5EEFF'}],seedDocs:[]};adminState.customProjects[id]=PROJECTS[id];saveAll();renderLanding();renderAdminConsole();['admin-project-name','admin-project-org','admin-project-password','admin-project-icon','admin-project-desc'].forEach(id=>document.getElementById(id).value='');document.getElementById('admin-project-accent').value='#0B8C7A';toast('Project added')}
 function renderWeekdayChips(){const el=document.getElementById('admin-weekday-list');const labels=[[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];const active=adminState.bookingConfig?.weekdays||[];el.innerHTML=labels.map(([num,label])=>`<button type="button" class="admin-chip ${active.includes(num)?'active':''}" onclick="toggleAdminWeekday(${num})">${label}</button>`).join('')}
 function toggleAdminWeekday(day){const list=adminState.bookingConfig.weekdays||[];if(list.includes(day)) adminState.bookingConfig.weekdays=list.filter(d=>d!==day);else list.push(day),adminState.bookingConfig.weekdays=list.sort((a,b)=>a-b);renderWeekdayChips()}
 function renderDurationChips(){const el=document.getElementById('admin-duration-list');const options=[30,60,90,120];const active=adminState.bookingConfig?.durations||[];el.innerHTML=options.map(min=>`<button type="button" class="admin-chip ${active.includes(min)?'active':''}" onclick="toggleAdminDuration(${min})">${min} min</button>`).join('')}
@@ -4841,6 +4843,101 @@ function acmDeleteAccount(email){
 ═══════════════════════════════════ */
 let currentUserSession = null;
 
+const PROJECT_ID_ALIASES = Object.freeze({
+  'plts':'plts-terapung',
+  'kajian-risiko-dan-':'kajian-risiko-dan-peluang-perubahan-iklim'
+});
+
+function normalizeProjectId(pid){
+  const raw=String(pid ?? '').trim();
+  if(!raw) return '';
+  const lowered=raw.toLowerCase();
+  return PROJECT_ID_ALIASES[lowered] || lowered;
+}
+function normalizeProjectIdList(list){
+  if(!Array.isArray(list)) return [];
+  return [...new Set(list.map(normalizeProjectId).filter(Boolean))];
+}
+function remapObjectKeysByProjectId(obj){
+  if(!obj || typeof obj!=='object' || Array.isArray(obj)) return obj;
+  const next={};
+  Object.entries(obj).forEach(([key,val])=>{
+    next[normalizeProjectId(key)] = val;
+  });
+  return next;
+}
+function normalizeProjectAwareRecord(record){
+  if(!record || typeof record!=='object') return record;
+  const next={...record};
+  if(Array.isArray(next.projects)) next.projects = normalizeProjectIdList(next.projects);
+  if(typeof next.project==='string') next.project = normalizeProjectId(next.project);
+  if(typeof next.projectId==='string') next.projectId = normalizeProjectId(next.projectId);
+  if(typeof next.id==='string' && (next.project || next.name || next.org)) next.id = normalizeProjectId(next.id);
+  return next;
+}
+function migrateProjectIdsEverywhere(){
+  try{
+    const normalizedProjects={};
+    Object.values(PROJECTS || {}).forEach(project=>{
+      if(!project || typeof project!=='object') return;
+      const canonicalId = normalizeProjectId(project.id || project.name || '');
+      if(!canonicalId) return;
+      normalizedProjects[canonicalId] = {...project, id: canonicalId};
+    });
+    Object.keys(PROJECTS || {}).forEach(key=>delete PROJECTS[key]);
+    Object.entries(normalizedProjects).forEach(([key,val])=>{ PROJECTS[key]=val; });
+
+    if(typeof projectData==='object' && projectData){
+      const nextProjectData={};
+      Object.entries(projectData).forEach(([key,val])=>{
+        const canonicalId = normalizeProjectId(key);
+        const base = nextProjectData[canonicalId] && typeof nextProjectData[canonicalId]==='object' ? nextProjectData[canonicalId] : {};
+        nextProjectData[canonicalId] = {
+          ...base,
+          ...(val && typeof val==='object' ? val : {}),
+          documents: Array.isArray((val||{}).documents) ? (val||{}).documents : (base.documents || []),
+          meetings: Array.isArray((val||{}).meetings) ? (val||{}).meetings.map(normalizeProjectAwareRecord) : (base.meetings || []),
+          bookingRequests: Array.isArray((val||{}).bookingRequests) ? (val||{}).bookingRequests.map(normalizeProjectAwareRecord) : (base.bookingRequests || []),
+          tasks: Array.isArray((val||{}).tasks) ? (val||{}).tasks.map(normalizeProjectAwareRecord) : (base.tasks || []),
+          timeline: Array.isArray((val||{}).timeline) ? (val||{}).timeline.map(normalizeProjectAwareRecord) : (base.timeline || []),
+          notifications: Array.isArray((val||{}).notifications) ? (val||{}).notifications.map(normalizeProjectAwareRecord) : (base.notifications || []),
+          messages: Array.isArray((val||{}).messages) ? (val||{}).messages.map(normalizeProjectAwareRecord) : (base.messages || []),
+          calendarEvents: Array.isArray((val||{}).calendarEvents) ? (val||{}).calendarEvents.map(normalizeProjectAwareRecord) : (base.calendarEvents || []),
+          importedCalendarSources: Array.isArray((val||{}).importedCalendarSources) ? (val||{}).importedCalendarSources.map(normalizeProjectAwareRecord) : (base.importedCalendarSources || [])
+        };
+      });
+      Object.keys(projectData).forEach(key=>delete projectData[key]);
+      Object.entries(nextProjectData).forEach(([key,val])=>{ projectData[key]=val; });
+    }
+
+    if(typeof authenticatedProjects==='object' && authenticatedProjects){
+      const nextAuth={};
+      Object.entries(authenticatedProjects).forEach(([key,val])=>{ nextAuth[normalizeProjectId(key)] = !!val; });
+      Object.keys(authenticatedProjects).forEach(key=>delete authenticatedProjects[key]);
+      Object.entries(nextAuth).forEach(([key,val])=>{ authenticatedProjects[key]=val; });
+    }
+
+    if(typeof adminState==='object' && adminState){
+      if(Array.isArray(adminState.admins)) adminState.admins = adminState.admins.map(item=>normalizeProjectAwareRecord(item));
+      if(adminState.customProjects && typeof adminState.customProjects==='object') adminState.customProjects = remapObjectKeysByProjectId(adminState.customProjects);
+      if(Array.isArray(adminState.bookingRequests)) adminState.bookingRequests = adminState.bookingRequests.map(item=>normalizeProjectAwareRecord(item));
+    }
+
+    if(typeof userAccountStore==='object' && userAccountStore){
+      Object.values(userAccountStore).forEach(acc=>{
+        if(acc && typeof acc==='object' && Array.isArray(acc.projects)) acc.projects = normalizeProjectIdList(acc.projects);
+      });
+    }
+
+    currentProjectId = normalizeProjectId(currentProjectId);
+    if(currentUserSession && typeof currentUserSession==='object'){
+      currentUserSession.projects = normalizeProjectIdList(currentUserSession.projects);
+    }
+  }catch(err){
+    console.warn('Project ID migration skipped:', err);
+  }
+}
+
 function buildBaseProjectState(pid){
   return {
     partners:[],currentPartner:'',availability:{},calNotes:{},meetings:[],
@@ -4861,7 +4958,7 @@ function normalizeUserSession(user){
   const mergedUser = {
     ...source,
     ...overlay,
-    projects:[...new Set([...(Array.isArray(source.projects) ? source.projects : []), ...(Array.isArray(overlay.projects) ? overlay.projects : [])])]
+    projects:normalizeProjectIdList([...(Array.isArray(source.projects) ? source.projects : []), ...(Array.isArray(overlay.projects) ? overlay.projects : [])])
   };
   const normalizedEmail = String(mergedUser && mergedUser.email || '').toLowerCase();
   if(isPrimarySuperadminEmail(normalizedEmail)){
@@ -4881,7 +4978,7 @@ function normalizeUserSession(user){
   }
   const role = mergedUser && mergedUser.role ? mergedUser.role : 'Client / Partner';
   const canManage = typeof mergedUser.canManage === 'boolean' ? mergedUser.canManage : isManagementRole(role);
-  let projects = Array.isArray(mergedUser && mergedUser.projects) ? mergedUser.projects.filter(pid => !!PROJECTS[pid]) : [];
+  let projects = normalizeProjectIdList(mergedUser && mergedUser.projects).filter(pid => !!PROJECTS[pid]);
   if (canManage && !projects.length) projects = hasGlobalProjectAccess({role}) ? Object.keys(PROJECTS) : [];
   return {
     email: normalizedEmail,
@@ -4916,7 +5013,7 @@ function currentUserCanAccessProject(pid){
   if(!(pid && PROJECTS[pid])) return false;
   if(!currentUserSession) return true;
   if(hasGlobalProjectAccess(currentUserSession)) return true;
-  return Array.isArray(currentUserSession.projects) && currentUserSession.projects.includes(pid);
+  return Array.isArray(currentUserSession.projects) && currentUserSession.projects.includes(normalizeProjectId(pid));
 }
 function getDefaultWorkspacePage(user){
   const session = normalizeUserSession(user || currentUserSession || {});
@@ -4924,12 +5021,78 @@ function getDefaultWorkspacePage(user){
 }
 function getSessionProjects(){
   if (!currentUserSession) return currentProjectId && PROJECTS[currentProjectId] ? [currentProjectId] : [];
-  const assigned = Array.isArray(currentUserSession.projects) ? currentUserSession.projects.filter(pid => !!PROJECTS[pid]) : [];
+  const assigned = normalizeProjectIdList(currentUserSession.projects).filter(pid => !!PROJECTS[pid]);
   if (hasGlobalProjectAccess(currentUserSession)) return Object.keys(PROJECTS);
   return assigned.length ? assigned : (currentProjectId && PROJECTS[currentProjectId] ? [currentProjectId] : []);
 }
+
+function padDatePart(value){return String(value).padStart(2,'0')}
+function normalizeDateValue(value){
+  const raw = String(value ?? '').trim();
+  if(!raw) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if(!Number.isNaN(parsed.getTime())) return `${parsed.getFullYear()}-${padDatePart(parsed.getMonth()+1)}-${padDatePart(parsed.getDate())}`;
+  return raw;
+}
+function normalizeDateTimeValue(value){
+  const raw = String(value ?? '').trim();
+  if(!raw) return '';
+  if(/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if(!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return raw;
+}
+function normalizeDateKeyRecord(record){
+  const source = record && typeof record === 'object' ? record : {};
+  const next = {};
+  Object.keys(source).forEach(key => {
+    const normalizedKey = normalizeDateValue(key) || key;
+    next[normalizedKey] = source[key];
+  });
+  return next;
+}
+function normalizeProjectImportedData(state,pid){
+  if(!state || typeof state!=='object') return state;
+  state.availability = normalizeDateKeyRecord(state.availability);
+  state.calNotes = normalizeDateKeyRecord(state.calNotes);
+  state.meetings = (Array.isArray(state.meetings) ? state.meetings : []).map(item => ({...item, date: normalizeDateValue(item && item.date)}));
+  state.documents = (Array.isArray(state.documents) ? state.documents : []).map(item => ({...item, date: normalizeDateValue(item && item.date)}));
+  state.moms = (Array.isArray(state.moms) ? state.moms : []).map(item => ({
+    ...item,
+    date: normalizeDateValue(item && item.date),
+    actions: (Array.isArray(item && item.actions) ? item.actions : []).map(action => ({...action, deadline: normalizeDateValue(action && action.deadline)}))
+  }));
+  state.bookingRequests = (Array.isArray(state.bookingRequests) ? state.bookingRequests : []).map(item => ({
+    ...item,
+    submittedAt: normalizeDateValue(item && item.submittedAt),
+    confirmedDate: normalizeDateValue(item && item.confirmedDate),
+    preferences: (Array.isArray(item && item.preferences) ? item.preferences : []).map(pref => ({...pref, date: normalizeDateValue(pref && pref.date)}))
+  }));
+  state.projectMeta = {...(state.projectMeta || {}), lastUpdate: normalizeDateValue(state.projectMeta && state.projectMeta.lastUpdate), estimatedDeadline: normalizeDateValue(state.projectMeta && state.projectMeta.estimatedDeadline)};
+  state.timeline = (Array.isArray(state.timeline) ? state.timeline : []).map(item => ({
+    ...item,
+    date: normalizeDateValue(item && item.date),
+    updatedAt: normalizeDateValue(item && item.updatedAt),
+    deadline: normalizeDateValue(item && item.deadline)
+  }));
+  state.tasks = (Array.isArray(state.tasks) ? state.tasks : []).map(item => ({
+    ...item,
+    deadline: normalizeDateValue(item && item.deadline),
+    createdAt: normalizeDateValue(item && item.createdAt),
+    updatedAt: normalizeDateValue(item && item.updatedAt),
+    completedAt: normalizeDateValue(item && item.completedAt)
+  }));
+  state.notifications = (Array.isArray(state.notifications) ? state.notifications : []).map(item => ({...item, createdAt: normalizeDateTimeValue(item && item.createdAt)}));
+  state.messages = (Array.isArray(state.messages) ? state.messages : []).map(item => ({...item, createdAt: normalizeDateTimeValue(item && item.createdAt)}));
+  state.calendarEvents = (Array.isArray(state.calendarEvents) ? state.calendarEvents : []).map(item => ({...item, date: normalizeDateValue(item && item.date)}));
+  state.importedCalendarSources = Array.isArray(state.importedCalendarSources) ? state.importedCalendarSources : [];
+  return state;
+}
+
 function ensureEnhancedProjectState(state,pid){
   if(!state) return state;
+  normalizeProjectImportedData(state,pid);
   if(!Array.isArray(state.partners)) state.partners=[];
   if(!state.currentPartner) state.currentPartner='';
   if(!state.availability || typeof state.availability!=='object') state.availability={};
@@ -8883,11 +9046,23 @@ function renderTaskCenter(){
   }).join('')}</div>`;
   scrollToHighlightedTask();
 }
+let timelineStatusFilter = 'all';
+function setTimelineStatusFilter(value){
+  timelineStatusFilter = String(value || 'all').trim().toLowerCase() || 'all';
+  renderTimelinePage();
+}
 function renderTimelinePage(){
   const state = getState(); if(!state) return;
   const container = document.getElementById('timeline-page-container'); if(!container) return;
   const items = [...(state.timeline||[])].sort((a,b)=>String(b.updatedAt||b.date||'').localeCompare(String(a.updatedAt||a.date||'')));
+  const selectedFilter = String(timelineStatusFilter || 'all').trim().toLowerCase() || 'all';
+  const filteredItems = selectedFilter === 'all'
+    ? items
+    : items.filter(item => String(item.status || 'planned').trim().toLowerCase() === selectedFilter);
   const canManageTimeline = userCanManageTimeline();
+  const timelineFilterOptions = [{value:'all', label:'All Status'}, ...TIMELINE_STATUS_OPTIONS]
+    .map(opt => `<option value="${opt.value}" ${opt.value===selectedFilter?'selected':''}>${opt.label}</option>`)
+    .join('');
   const managerTools = canManageTimeline ? `
     <div class="card card-pad" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
@@ -8902,11 +9077,27 @@ function renderTimelinePage(){
         <button class="btn btn-teal" type="button" onclick="showPage('project-control');document.getElementById('tl-title')?.focus()">Add / Edit Timeline</button>
       </div>
     </div>` : '';
+  const filterToolbar = `<div class="card card-pad" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap">
+      <div>
+        <div class="section-label">Filter Timeline</div>
+        <div class="helper-text" style="margin-top:6px">Tampilkan item timeline berdasarkan status.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <label class="inp-label" for="timeline-status-filter" style="margin-bottom:0">Status</label>
+        <select class="inp" id="timeline-status-filter" style="min-width:190px" onchange="setTimelineStatusFilter(this.value)">${timelineFilterOptions}</select>
+      </div>
+    </div>
+  </div>`;
   if(!items.length){
-    container.innerHTML = managerTools + '<div class="empty-state">Timeline belum tersedia. Timeline dan milestone akan muncul di sini setelah dibuat oleh akun internal CESGS pada proyek ini.</div>';
+    container.innerHTML = managerTools + filterToolbar + '<div class="empty-state">Timeline belum tersedia. Timeline dan milestone akan muncul di sini setelah dibuat oleh akun internal CESGS pada proyek ini.</div>';
     return;
   }
-  container.innerHTML = managerTools + `<div class="timeline-list">${items.map(item => `
+  if(!filteredItems.length){
+    container.innerHTML = managerTools + filterToolbar + '<div class="empty-state">Belum ada timeline dengan status yang dipilih.</div>';
+    return;
+  }
+  container.innerHTML = managerTools + filterToolbar + `<div class="timeline-list">${filteredItems.map(item => `
     <div class="timeline-item">
       <div class="timeline-head">
         <div>
@@ -9721,8 +9912,8 @@ function renderUserHubPage(){
 const HARDCODED_JSON_BACKUP = {
   "backupType": "cesgs_project_hub_backup",
   "version": 1,
-  "exportedAt": "2026-04-17T08:16:26.607Z",
-  "currentProjectId": "plts-terapung",
+  "exportedAt": "2026-04-17T14:43:47.137Z",
+  "currentProjectId": "",
   "sessionHint": {
     "email": "info@cesgs.or.id",
     "password": "CESGS2026",
@@ -10697,6 +10888,42 @@ const HARDCODED_JSON_BACKUP = {
         },
         "timeline": [
           {
+            "id": 1776436813641,
+            "title": "Revisi 1 laporan",
+            "type": "activity",
+            "status": "in progress",
+            "date": "2026-04-13",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-04-30",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com"
+            ],
+            "picNames": [
+              "Bagas Aditya"
+            ],
+            "picEmail": "adityabagas.official@gmail.com",
+            "picName": "Bagas Aditya"
+          },
+          {
+            "id": 1776436777963,
+            "title": "Penyerahan laporan akhir",
+            "type": "milestone",
+            "status": "planned",
+            "date": "2026-06-01",
+            "updatedAt": "2026-04-17",
+            "deadline": "2026-06-12",
+            "note": "",
+            "picEmails": [
+              "adityabagas.official@gmail.com"
+            ],
+            "picNames": [
+              "Bagas Aditya"
+            ],
+            "picEmail": "adityabagas.official@gmail.com",
+            "picName": "Bagas Aditya"
+          },
+          {
             "id": 1776391759138,
             "title": "Final check data",
             "type": "milestone",
@@ -10790,7 +11017,7 @@ const HARDCODED_JSON_BACKUP = {
             "id": 1776208901126,
             "title": "Perbaikan lembar kerja ekonomi makro",
             "type": "activity",
-            "status": "in progress",
+            "status": "done",
             "date": "2026-04-14",
             "updatedAt": "2026-04-15",
             "deadline": "2026-04-30",
@@ -10808,7 +11035,7 @@ const HARDCODED_JSON_BACKUP = {
             "id": 1776158196817,
             "title": "Sharing session PLTS Tembesi",
             "type": "activity",
-            "status": "planned",
+            "status": "done",
             "date": "2026-04-14",
             "updatedAt": "2026-04-14",
             "deadline": "2026-04-14",
@@ -10823,10 +11050,10 @@ const HARDCODED_JSON_BACKUP = {
               "Bagas Aditya",
               "Bakdiyatul Mukarromah",
               "Farras Ghaly",
-              "Haris Dwi CAhyo"
+              "Haris Dwi Cahyo"
             ],
             "picEmail": "adityabagas.official@gmail.com, bakdiyatulmukarromah@cesgs.or.id, ghalyfarras0@gmail.com, harisdwi2020@mail.ugm.ac.id",
-            "picName": "Bagas Aditya, Bakdiyatul Mukarromah, Farras Ghaly, Haris Dwi CAhyo"
+            "picName": "Bagas Aditya, Bakdiyatul Mukarromah, Farras Ghaly, Haris Dwi Cahyo"
           },
           {
             "id": 1776158150570,
@@ -11019,6 +11246,58 @@ const HARDCODED_JSON_BACKUP = {
         ],
         "tasks": [],
         "notifications": [
+          {
+            "id": 1776436813641.7463,
+            "title": "",
+            "message": "Timeline item added: Revisi 1 laporan · PIC: Bagas Aditya",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T14:40:13.641Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776436777963.835,
+            "title": "",
+            "message": "Timeline item added: Penyerahan laporan akhir · PIC: Bagas Aditya",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T14:39:37.963Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776436736724.8748,
+            "title": "",
+            "message": "Timeline updated: Sharing session PLTS Tembesi · PIC: Bagas Aditya, Bakdiyatul Mukarromah, Farras Ghaly, Haris Dwi Cahyo",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T14:38:56.724Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
+          {
+            "id": 1776436717271.512,
+            "title": "",
+            "message": "Timeline updated: Perbaikan lembar kerja ekonomi makro · PIC: Fajar Kristanto",
+            "audience": "all",
+            "type": "timeline",
+            "icon": "",
+            "createdAt": "2026-04-17T14:38:37.271Z",
+            "createdBy": "CESGS Superadmin",
+            "read": false,
+            "relatedTaskId": null,
+            "actionPage": ""
+          },
           {
             "id": 1776413774774.1567,
             "title": "",
@@ -11673,7 +11952,7 @@ const HARDCODED_JSON_BACKUP = {
         "messages": [],
         "importedCalendarSources": []
       },
-      "kajian-risiko-dan-": {
+      "kajian-risiko-dan-peluang-perubahan-iklim": {
         "partners": [],
         "currentPartner": "",
         "availability": {},
@@ -11702,7 +11981,7 @@ const HARDCODED_JSON_BACKUP = {
       "cbhe": true,
       "tfk": true,
       "plts-terapung": true,
-      "kajian-risiko-dan-": true
+      "kajian-risiko-dan-peluang-perubahan-iklim": true
     },
     "adminState": {
       "admins": [
@@ -11718,7 +11997,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true
         },
@@ -11734,7 +12013,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true
         },
@@ -11750,7 +12029,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true
         },
@@ -11766,7 +12045,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true
         }
@@ -11968,8 +12247,8 @@ const HARDCODED_JSON_BACKUP = {
           ],
           "seedDocs": []
         },
-        "kajian-risiko-dan-": {
-          "id": "kajian-risiko-dan-",
+        "kajian-risiko-dan-peluang-perubahan-iklim": {
+          "id": "kajian-risiko-dan-peluang-perubahan-iklim",
           "name": "Kajian Risiko dan Peluang Perubahan Iklim",
           "org": "PT PLN PERSERO",
           "password": "CLIMATE2025",
@@ -12023,7 +12302,7 @@ const HARDCODED_JSON_BACKUP = {
           "name": "Rizky Fadilah",
           "email": "rizky@unair.ac.id",
           "org": "Universitas Airlangga",
-          "project": "plts",
+          "project": "plts-terapung",
           "duration": 60,
           "agenda": "Diskusi metodologi pengukuran efisiensi panel surya floating untuk kondisi tropis.",
           "preferences": [
@@ -12142,6 +12421,22 @@ const HARDCODED_JSON_BACKUP = {
     "superadminState": {
       "userAccounts": [
         {
+          "id": "u-1776437019442",
+          "name": "Rosyadatul",
+          "email": "rosyadatul.u@gmail.com",
+          "password": "Rosya_2026",
+          "role": "Project Manager",
+          "projects": [
+            "bi"
+          ],
+          "cv": "",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-17"
+        },
+        {
           "id": "u-1776087335305",
           "name": "Farras Ghaly",
           "email": "ghalyfarras0@gmail.com",
@@ -12169,7 +12464,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "cv": "",
           "institution": "CESGS UNAIR",
@@ -12189,7 +12484,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "CEO account with executive visibility across all CESGS projects, portfolio performance, and internal workload monitoring.",
@@ -12209,7 +12504,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "Expert account for CESGS projects. Assigned projects can be adjusted anytime from the superadmin account management panel.",
@@ -12265,7 +12560,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "Project manager yang berpengalaman mengkoordinasikan penjadwalan, komunikasi klien, monitoring proyek, dan milestone follow-up.",
@@ -12394,8 +12689,8 @@ const HARDCODED_JSON_BACKUP = {
           "meet": "https://us06web.zoom.us/j/85236465345?pwd=cdG4SpOD3buqRNyrCZsxJJrGaMhH0U.1",
           "createdAt": "2026-04-13"
         },
-        "kajian-risiko-dan-": {
-          "id": "kajian-risiko-dan-",
+        "kajian-risiko-dan-peluang-perubahan-iklim": {
+          "id": "kajian-risiko-dan-peluang-perubahan-iklim",
           "name": "Kajian Risiko dan Peluang Perubahan Iklim",
           "org": "PT PLN PERSERO",
           "password": "CLIMATE2025",
@@ -12420,7 +12715,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "isPrimary": true,
           "createdAt": "2026-04-17"
@@ -12436,7 +12731,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "isPrimary": false,
           "createdAt": "2026-04-17"
@@ -12452,7 +12747,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "isPrimary": false,
           "createdAt": "2026-04-17"
@@ -12468,7 +12763,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "isPrimary": false,
           "createdAt": "2026-04-17"
@@ -12497,7 +12792,7 @@ const HARDCODED_JSON_BACKUP = {
           "name": "Rizky Fadilah",
           "email": "rizky@unair.ac.id",
           "org": "Universitas Airlangga",
-          "project": "plts",
+          "project": "plts-terapung",
           "duration": 60,
           "agenda": "Diskusi metodologi pengukuran efisiensi panel surya floating untuk kondisi tropis.",
           "preferences": [
@@ -12889,7 +13184,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "",
@@ -12898,7 +13193,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "admin_state"
         },
         "iman.harymawan@feb.unair.ac.id": {
@@ -12912,7 +13207,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "CEO account with executive visibility across all CESGS projects, portfolio performance, and internal workload monitoring.",
@@ -12921,7 +13216,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "pm@cesgs.id": {
@@ -12941,7 +13236,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "expert@cesgs.id": {
@@ -12961,7 +13256,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "staff@cesgs.id": {
@@ -12981,7 +13276,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@gmail.com": {
@@ -12995,7 +13290,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "Project manager yang berpengalaman mengkoordinasikan penjadwalan, komunikasi klien, monitoring proyek, dan milestone follow-up.",
@@ -13004,7 +13299,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "ghalyfarras0@gmail.com": {
@@ -13024,7 +13319,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "putra.fajar@feb.unair.ac.id": {
@@ -13038,7 +13333,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "Expert account for CESGS projects. Assigned projects can be adjusted anytime from the superadmin account management panel.",
@@ -13047,7 +13342,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "harisdwi2020@mail.ugm.ac.id": {
@@ -13068,7 +13363,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "adityabagas.official@gmail.com": {
@@ -13082,7 +13377,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "",
@@ -13091,7 +13386,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "admin_state"
         },
         "adityabagas86@gmail.com": {
@@ -13105,7 +13400,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "",
@@ -13114,7 +13409,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "inactive",
           "createdAt": "2026-04-12",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "admin_state"
         },
         "harymawan.iman@feb.unair.ac.id": {
@@ -13192,7 +13487,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "inactive",
           "createdAt": "2026-03-01",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_clients"
         },
         "vidy.pln@gmail.com": {
@@ -13230,7 +13525,7 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         },
         "bakdiyatulmukarromah@cesgs.or.id": {
@@ -13244,7 +13539,7 @@ const HARDCODED_JSON_BACKUP = {
             "cbhe",
             "tfk",
             "plts-terapung",
-            "kajian-risiko-dan-"
+            "kajian-risiko-dan-peluang-perubahan-iklim"
           ],
           "canManage": true,
           "cv": "",
@@ -13253,7 +13548,26 @@ const HARDCODED_JSON_BACKUP = {
           "photoUrl": "",
           "status": "active",
           "createdAt": "2026-04-13",
-          "updatedAt": "2026-04-17T08:16:26.607Z",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
+          "source": "superadmin_userAccounts"
+        },
+        "rosyadatul.u@gmail.com": {
+          "id": "u-1776437019442",
+          "email": "rosyadatul.u@gmail.com",
+          "password": "Rosya_2026",
+          "name": "Rosyadatul",
+          "role": "Project Manager",
+          "projects": [
+            "bi"
+          ],
+          "canManage": true,
+          "cv": "",
+          "institution": "CESGS",
+          "profileLink": "",
+          "photoUrl": "",
+          "status": "active",
+          "createdAt": "2026-04-17",
+          "updatedAt": "2026-04-17T14:43:47.137Z",
           "source": "superadmin_userAccounts"
         }
       }
@@ -13279,13 +13593,19 @@ applyHardcodedJsonBackupOnStartup();
 
 ensureSeedManagedAccounts();
 loadAll();
-/* Remove legacy PLN (plts) project data from localStorage if still present */
+migrateProjectIdsEverywhere();
+saveAll();
+/* Remove legacy project aliases from localStorage if still present */
 try{
-  delete PROJECTS['plts'];
-  if(adminState.customProjects&&adminState.customProjects['plts']) delete adminState.customProjects['plts'];
-  if(projectData['plts']) delete projectData['plts'];
+  Object.keys(PROJECT_ID_ALIASES).forEach(legacyId=>{
+    delete PROJECTS[legacyId];
+    if(adminState.customProjects&&adminState.customProjects[legacyId]) delete adminState.customProjects[legacyId];
+    if(projectData[legacyId]) delete projectData[legacyId];
+  });
   const superState=parseJSONSafe(SUPERADMIN_STORAGE_KEY,{})||{};
-  if(superState.projects&&superState.projects['plts']) delete superState.projects['plts'];
+  if(superState.projects&&typeof superState.projects==='object'){
+    Object.keys(PROJECT_ID_ALIASES).forEach(legacyId=>{ delete superState.projects[legacyId]; });
+  }
   localStorage.setItem(SUPERADMIN_STORAGE_KEY,JSON.stringify(superState));
 }catch(e){}
 pushProjectHubToSuperState();
