@@ -3127,6 +3127,7 @@ body,
           <select class="form-select" id="account-role">
             <option value="researcher">Researcher</option>
             <option value="pm">Project Manager</option>
+            <option value="ceo">CEO</option>
             <option value="supervisor">Dosen Supervisor</option>
             <option value="proofreader">Proof Reader</option>
             <option value="superadmin">Super Admin</option>
@@ -3569,6 +3570,19 @@ const USERS = {
     orcid: '',
     bio: ''
   },
+  'iman.harymawan@feb.unair.ac.id': {
+    pass: 'CEOIMAN2026',
+    role: 'ceo',
+    name: 'Iman Harymawan',
+    initials: 'IH',
+    position: 'CEO',
+    institution: 'CESGS',
+    expertise: 'Executive oversight, publication strategy, dan monitoring performa researcher',
+    scholar: '',
+    linkedin: '',
+    orcid: '',
+    bio: 'Akun CEO untuk memantau statistik project, paper, publikasi, dan capaian researcher secara menyeluruh.'
+  },
   'bakdiyatulmukarromah@cesgs.or.id': {
     pass: 'Bakdiyatul_2026',
     role: 'proofreader',
@@ -3645,6 +3659,7 @@ const ACCOUNTS = [
   { email:'4rf14narijanto@gmail.com', name:'Arfian Arjianto', role:'Researcher', status:'Aktif', joined:'Apr 2026' },
   { email:'wandajufri@gmail.com', name:'Wanda Jufri', role:'Researcher', status:'Aktif', joined:'Apr 2026' },
   { email:'renisya.kusnadi-2025@feb.unair.ac.id', name:'Renisya Kusnadi', role:'Researcher', status:'Aktif', joined:'Apr 2026' },
+  { email:'iman.harymawan@feb.unair.ac.id', name:'Iman Harymawan', role:'CEO', status:'Aktif', joined:'Apr 2026' },
   { email:'bakdiyatulmukarromah@cesgs.or.id', name:'Bakdiyatul Mukarromah', role:'Proof Reader', status:'Aktif', joined:'Apr 2026' },
 ];
 
@@ -4081,7 +4096,7 @@ function normalizeProjects() {
 
 function getVisibleProjects(user = currentUser) {
   normalizeProjects();
-  return user?.role === 'superadmin' ? PROJECTS : PROJECTS.filter(project => project.isActive !== false);
+  return ['superadmin', 'ceo'].includes(user?.role) ? PROJECTS : PROJECTS.filter(project => project.isActive !== false);
 }
 
 function getDashboardMetrics(user = currentUser) {
@@ -4152,7 +4167,7 @@ function getTrackingProjects(user = currentUser) {
 function getLinkedProjectsForUser(user = currentUser) {
   if (!user) return [];
   const visibleProjects = getVisibleProjects(user);
-  if (user.role === 'superadmin') return visibleProjects;
+  if (['superadmin', 'ceo'].includes(user.role)) return visibleProjects;
   return visibleProjects.filter(project => Array.isArray(project.authors) && project.authors.includes(user.name));
 }
 
@@ -4220,6 +4235,154 @@ function getResearcherProgressRows() {
   });
 }
 
+function getExecutiveAchievementSummary() {
+  const rows = getResearcherProgressRows();
+  const publicationMetrics = getPublicationMetrics(getVisibleProjects({ role: 'ceo' }));
+  const totalAverageProgress = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.averageProjectProgress, 0) / rows.length) : 0;
+  const topPerformer = rows[0] || null;
+  const mostLoaded = rows.slice().sort((a, b) => b.activeTasks - a.activeTasks || a.name.localeCompare(b.name))[0] || null;
+  const onTrackCount = rows.filter(row => row.averageProjectProgress >= 50).length;
+  return { rows, publicationMetrics, totalAverageProgress, topPerformer, mostLoaded, onTrackCount };
+}
+
+function renderCeoDashboard() {
+  const u = currentUser;
+  const visibleProjects = getVisibleProjects(u);
+  const exec = getExecutiveAchievementSummary();
+  const publicationMetrics = exec.publicationMetrics;
+  const taskPreview = TASKS.slice(0,4);
+
+  return `
+    <div class="welcome-header">
+      <div class="welcome-title">Selamat datang, <span>${u.name}</span> 👋</div>
+      <div class="welcome-sub">CEO Dashboard — ringkasan progress statistik project, paper, publikasi, dan capaian researcher yang ditarik dari progress dashboard masing-masing researcher.</div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:24px;">
+      <div class="stat-card sc-blue" onclick="showSection('projects')">
+        <div class="sc-icon"><i class="fas fa-folder-tree"></i></div>
+        <div class="sc-value">${visibleProjects.length}</div>
+        <div class="sc-label">Total Project & Paper</div>
+        <div class="sc-trend up"><i class="fas fa-layer-group"></i> seluruh portofolio riset</div>
+      </div>
+      <div class="stat-card sc-purple" onclick="showSection('tracking')">
+        <div class="sc-icon"><i class="fas fa-newspaper"></i></div>
+        <div class="sc-value">${publicationMetrics.total}</div>
+        <div class="sc-label">Total Publikasi Dipantau</div>
+        <div class="sc-trend up"><i class="fas fa-upload"></i> ${publicationMetrics.submitted} submitted • ${publicationMetrics.published} accepted</div>
+      </div>
+      <div class="stat-card sc-green" onclick="showSection('tasks')">
+        <div class="sc-icon"><i class="fas fa-users"></i></div>
+        <div class="sc-value">${exec.rows.length}</div>
+        <div class="sc-label">Researcher Dipantau</div>
+        <div class="sc-trend up"><i class="fas fa-bullseye"></i> ${exec.onTrackCount} researcher on track</div>
+      </div>
+      <div class="stat-card sc-yellow" onclick="showSection('tasks')">
+        <div class="sc-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="sc-value">${exec.totalAverageProgress}%</div>
+        <div class="sc-label">Rata-rata Progress Researcher</div>
+        <div class="sc-trend up"><i class="fas fa-award"></i> ${exec.topPerformer ? exec.topPerformer.name : 'Belum ada data'}</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:24px;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-users-viewfinder" style="color:var(--accent);margin-right:8px;"></i>Pencapaian Akun Researcher</div>
+          <button class="card-action" onclick="showSection('tasks')">Lihat Progress Researcher →</button>
+        </div>
+        ${exec.rows.length ? exec.rows.map(row => `
+          <div class="project-item" style="align-items:flex-start;cursor:default;">
+            <div class="project-icon pi-blue">${row.initials}</div>
+            <div class="project-info">
+              <div class="project-name">${row.name}</div>
+              <div class="project-meta">${row.totalProjects} project • ${row.activeTasks} task aktif • ${row.completedTasks} task selesai</div>
+              <div class="progress-bar" style="margin-top:8px;"><div class="progress-fill ${row.averageProjectProgress >= 80 ? 'green' : row.averageProjectProgress >= 50 ? '' : 'yellow'}" style="width:${row.averageProjectProgress}%"></div></div>
+              <div style="font-size:11px;color:var(--text3);margin-top:6px;">${row.linkedProjects.length ? row.linkedProjects.map(project => project.title).join(', ') : 'Belum terhubung ke project aktif'}</div>
+            </div>
+            <div class="project-status">
+              <span class="badge ${row.upcomingDeadlines > 0 ? 'badge-yellow' : 'badge-green'}">${row.upcomingDeadlines > 0 ? row.upcomingDeadlines + ' deadline dekat' : 'On track'}</span>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">${row.averageProjectProgress}% progress</div>
+            </div>
+          </div>
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-user-slash"></i><p>Belum ada akun researcher yang bisa dimonitor.</p></div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-chart-pie" style="color:var(--accent2);margin-right:8px;"></i>Statistik Paper & Publikasi</div>
+          <button class="card-action" onclick="showSection('tracking')">Buka Tracking →</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div style="padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card2);">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Sedang Ditulis</div>
+            <div style="font-size:28px;font-weight:800;font-family:Helvetica, 'Helvetica Neue', Arial, sans-serif;">${publicationMetrics.inWriting}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Draft + in progress</div>
+          </div>
+          <div style="padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--card2);">
+            <div style="font-size:12px;color:var(--text3);margin-bottom:6px;">Under Review / Submitted</div>
+            <div style="font-size:28px;font-weight:800;font-family:Helvetica, 'Helvetica Neue', Arial, sans-serif;">${publicationMetrics.submitted + publicationMetrics.underReview}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px;">Mendekati output publikasi</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          ${Object.values(publicationMetrics.byJournal).slice(0,4).map(group => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:600;">${group.journal}</div>
+                <div style="font-size:11px;color:var(--text3);">${group.count} project • status tertinggi ${group.primaryStatus}</div>
+              </div>
+              <span class="badge ${getStatusBadge(group.primaryStatus)}">${group.primaryStatus}</span>
+            </div>
+          `).join('') || `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-newspaper"></i><p>Belum ada data publikasi untuk ditampilkan.</p></div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-calendar-alt" style="color:var(--accent3);margin-right:8px;"></i>Meeting Mendatang</div>
+          <button class="card-action" onclick="openModal('modal-meeting')">+ Book Meeting</button>
+        </div>
+        ${MEETINGS.map(m => `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div style="background:rgba(79,142,247,0.1);color:var(--accent);border-radius:8px;padding:8px 12px;text-align:center;flex-shrink:0;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;">${new Date(m.date).toLocaleDateString('id-ID',{month:'short'})}</div>
+              <div style='font-size:20px;font-weight:800;font-family:Helvetica, "Helvetica Neue", Arial, sans-serif;'>${new Date(m.date).getDate()}</div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:600;">${m.title}</div>
+              <div style="font-size:12px;color:var(--text3);">${m.time} • ${m.type}</div>
+            </div>
+            <span class="badge badge-blue">${m.participants.length} peserta</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-list-check" style="color:var(--warning);margin-right:8px;"></i>Task Terbaru</div>
+          <button class="card-action" onclick="showSection('tasks')">Lihat Semua →</button>
+        </div>
+        ${taskPreview.length ? taskPreview.map(t => `
+          <div class="task-item" onclick="openTaskReply(${t.id})">
+            <div class="task-check ${t.done ? 'done' : ''}" onclick="event.stopPropagation();toggleTask(${t.id})">${t.done ? '<i class=\"fas fa-check\"></i>' : ''}</div>
+            <div class="task-content">
+              <div class="task-title ${t.done ? 'done' : ''}">${t.title}</div>
+              <div class="task-meta">
+                <span><i class="fas fa-user"></i> ${t.assignee.split(' ')[1] || t.assignee}</span>
+                <span><i class="fas fa-calendar"></i> ${t.deadline}</span>
+                <span class="badge badge-${getPriorityBadge(t.priority)} badge" style="font-size:10px;padding:2px 7px;">${t.priority}</span>
+              </div>
+            </div>
+          </div>
+        `).join('') : `<div class="empty-state" style="padding:24px 10px;"><i class="fas fa-clipboard-check"></i><p>Belum ada task yang sesuai untuk akun ini.</p></div>`}
+      </div>
+    </div>
+  `;
+}
+
 function updateLandingStats() {
   const metrics = getDashboardMetrics({ role: 'superadmin' });
   const bindings = {
@@ -4262,7 +4425,7 @@ function fillLogin(email, pass) {
 }
 
 function getQuickLoginBadgeClass(role) {
-  return { superadmin: 'rb-sa', researcher: 'rb-r', pm: 'rb-pm', supervisor: 'rb-ds', proofreader: 'rb-pr' }[role] || 'rb-r';
+  return { superadmin: 'rb-sa', researcher: 'rb-r', pm: 'rb-pm', ceo: 'rb-pm', supervisor: 'rb-ds', proofreader: 'rb-pr' }[role] || 'rb-r';
 }
 
 function renderQuickLoginOptions() {
@@ -4373,6 +4536,21 @@ const NAV_CONFIG = {
       { id: 'profile', icon: 'fa-user-circle', label: 'Profil Saya' },
     ]},
   ],
+  ceo: [
+    { section: 'general', label: 'Menu Utama', items: [
+      { id: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
+      { id: 'calendar', icon: 'fa-calendar-alt', label: 'Kalender & Meeting' },
+      { id: 'communication', icon: 'fa-comments', label: 'Komunikasi' },
+    ]},
+    { section: 'executive', label: 'Executive Overview', items: [
+      { id: 'projects', icon: 'fa-project-diagram', label: 'Project & Paper' },
+      { id: 'tracking', icon: 'fa-chart-line', label: 'Tracking Publikasi' },
+      { id: 'tasks', icon: 'fa-tasks', label: 'Progress Researcher' },
+    ]},
+    { section: 'other', label: 'Lainnya', items: [
+      { id: 'profile', icon: 'fa-user-circle', label: 'Profil Saya' },
+    ]},
+  ],
   supervisor: [
     { section: 'general', label: 'Menu Utama', items: [
       { id: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
@@ -4415,7 +4593,7 @@ function initApp() {
 }
 
 function getRoleLabel(role) {
-  return { superadmin: 'Super Admin', researcher: 'Researcher', pm: 'Project Manager', supervisor: 'Dosen Supervisor', proofreader: 'Proof Reader' }[role] || role;
+  return { superadmin: 'Super Admin', researcher: 'Researcher', pm: 'Project Manager', ceo: 'CEO', supervisor: 'Dosen Supervisor', proofreader: 'Proof Reader' }[role] || role;
 }
 
 function buildSidebar() {
@@ -4717,6 +4895,7 @@ function renderProofreaderDashboard() {
 function renderDashboard() {
   const u = currentUser;
   if (u.role === 'proofreader') return renderProofreaderDashboard();
+  if (u.role === 'ceo') return renderCeoDashboard();
   const visibleProjects = getVisibleProjects(u);
   const metrics = getDashboardMetrics(u);
   const personalStats = getPersonalProgressStats(u);
@@ -6225,7 +6404,7 @@ function getPriorityBadge(p) {
 }
 
 function getRoleBadgeColor(role) {
-  return { superadmin:'red', researcher:'blue', pm:'yellow', supervisor:'green', proofreader:'orange' }[role] || 'gray';
+  return { superadmin:'red', researcher:'blue', pm:'yellow', ceo:'purple', supervisor:'green', proofreader:'orange' }[role] || 'gray';
 }
 
 function getRoleKeyFromLabel(label) {
@@ -6233,6 +6412,7 @@ function getRoleKeyFromLabel(label) {
     'Super Admin': 'superadmin',
     'Researcher': 'researcher',
     'Project Manager': 'pm',
+    'CEO': 'ceo',
     'Dosen Supervisor': 'supervisor',
     'Proof Reader': 'proofreader'
   }[label] || 'researcher';
