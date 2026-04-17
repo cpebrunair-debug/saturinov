@@ -973,6 +973,9 @@
       display:flex;
       flex-direction:column;
       gap:18px;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
     }
     .admin-brand small{
       display:block;
@@ -1025,6 +1028,44 @@
     }
     .admin-sidebar-actions button{
       width:100%;
+    }
+    .admin-backup-wrap{
+      margin-top:6px;
+      display:grid;
+      gap:8px;
+    }
+    .admin-backup-toggle{
+      width:100%;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.04);
+      color:rgba(255,255,255,.78);
+      border-radius:14px;
+      padding:10px 14px;
+      cursor:pointer;
+      font:inherit;
+      font-weight:700;
+      text-align:left;
+    }
+    .admin-backup-toggle:hover,
+    .admin-backup-toggle.active{
+      background:rgba(255,255,255,.1);
+      color:#ffffff;
+    }
+    .admin-backup-tools{
+      display:none;
+      gap:8px;
+    }
+    .admin-backup-tools.show{
+      display:grid;
+    }
+    .admin-backup-tools button{
+      width:100%;
+    }
+    .admin-file-note{
+      font-size:11px;
+      color:rgba(255,255,255,.62);
+      line-height:1.5;
+      padding:0 2px;
     }
 
     .admin-main{
@@ -1215,6 +1256,16 @@
         </div>
         <div class="admin-sidebar-actions">
           <button class="admin-secondary-btn" id="resetDataButton" type="button">Reset ke Default</button>
+          <div class="admin-backup-wrap" id="backupToolsWrap" hidden>
+            <button class="admin-backup-toggle" id="toggleBackupTools" type="button" aria-expanded="false">Backup JSON</button>
+            <div class="admin-backup-tools" id="backupTools">
+              <button class="admin-secondary-btn" id="exportJsonButton" type="button">Export JSON</button>
+              <button class="admin-secondary-btn" id="importJsonButton" type="button">Import JSON</button>
+              <button class="admin-danger-btn" id="deleteJsonButton" type="button">Delete JSON</button>
+              <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
+              <div class="admin-file-note">Tersembunyi secara default. Gunakan untuk backup dan restore data admin.</div>
+            </div>
+          </div>
           <button class="admin-danger-btn" id="logoutButton" type="button">Logout</button>
         </div>
       </aside>
@@ -1420,7 +1471,10 @@
   <!-- ===================== FOOTER ===================== -->
   <div class="footer-wrap">
     <div class="footer-note">
-      <strong>Catatan:</strong> setiap kartu sekarang langsung mengarah ke dashboard tujuan dalam tab yang sama.
+      Airlangga Sharia Entrepreneurship &amp; Educational Center (ASEEC) Tower, 11th Floor<br>
+      Jl. Airlangga 4-6, Kec. Gubeng<br>
+      Surabaya City, East Java 60286<br><br>
+      Copyright &copy; 2026 CESGS. All rights reserved.
     </div>
   </div>
 
@@ -1571,11 +1625,22 @@
       return JSON.parse(JSON.stringify(obj));
     }
 
+    function normalizeData(raw){
+      const safe = raw && typeof raw === 'object' ? raw : {};
+      return {
+        hero: safe.hero ? deepClone(safe.hero) : deepClone(defaultData.hero),
+        publications: Array.isArray(safe.publications) ? deepClone(safe.publications) : deepClone(defaultData.publications),
+        activities: Array.isArray(safe.activities) ? deepClone(safe.activities) : deepClone(defaultData.activities),
+        projects: Array.isArray(safe.projects) ? deepClone(safe.projects) : deepClone(defaultData.projects),
+        collaborators: Array.isArray(safe.collaborators) ? deepClone(safe.collaborators) : deepClone(defaultData.collaborators)
+      };
+    }
+
     function loadData(){
       try{
         const saved = localStorage.getItem(STORAGE_KEY);
         if(saved){
-          return { ...deepClone(defaultData), ...JSON.parse(saved) };
+          return normalizeData(JSON.parse(saved));
         }
       }catch(err){
         console.warn('Gagal memuat data admin:', err);
@@ -1594,6 +1659,62 @@
       renderActivities();
       renderProjects();
       renderCollaborators();
+    }
+
+    function triggerJsonDownload(filename, content){
+      const blob = new Blob([content], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 200);
+    }
+
+    function exportBackupJson(){
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        source: 'Satu Rinov Admin',
+        data: appData
+      };
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      triggerJsonDownload(`saturinov-backup-${stamp}.json`, JSON.stringify(payload, null, 2));
+      updateSaveStatus('Backup JSON berhasil diexport.');
+    }
+
+    function importBackupJson(file){
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try{
+          const parsed = JSON.parse(reader.result);
+          const imported = normalizeData(parsed.data ?? parsed);
+          appData = imported;
+          draftData = deepClone(appData);
+          persistAppData();
+          dirtySections.clear();
+          hydrateAdminForms();
+          updateSaveStatus('Backup JSON berhasil diimport dan landing page sudah diperbarui.');
+        }catch(err){
+          alert('File JSON tidak valid atau format backup tidak sesuai.');
+          console.error(err);
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function deleteBackupJson(){
+      const confirmed = confirm('Hapus data JSON tersimpan dari browser dan kembalikan landing page ke default?');
+      if(!confirmed) return;
+      localStorage.removeItem(STORAGE_KEY);
+      appData = deepClone(defaultData);
+      draftData = deepClone(defaultData);
+      persistAppData();
+      dirtySections.clear();
+      hydrateAdminForms();
+      updateSaveStatus('Data JSON di browser berhasil dihapus. Landing page kembali ke default.');
     }
 
     function markDirty(section){
@@ -2008,6 +2129,54 @@
 
     document.getElementById('saveSectionButton').addEventListener('click', () => saveSection(activeAdminTab));
 
+    const toggleBackupToolsButton = document.getElementById('toggleBackupTools');
+    const backupTools = document.getElementById('backupTools');
+    const backupToolsWrap = document.getElementById('backupToolsWrap');
+    const importJsonInput = document.getElementById('importJsonInput');
+
+    function isAdminLoggedIn(){
+      return localStorage.getItem(AUTH_KEY) === 'true';
+    }
+
+    function hideBackupTools(){
+      backupTools.classList.remove('show');
+      toggleBackupToolsButton.classList.remove('active');
+      toggleBackupToolsButton.setAttribute('aria-expanded', 'false');
+    }
+
+    function updateBackupToolsAccess(){
+      const loggedIn = isAdminLoggedIn();
+      backupToolsWrap.hidden = !loggedIn;
+      if(!loggedIn) hideBackupTools();
+    }
+
+    toggleBackupToolsButton.addEventListener('click', () => {
+      if(!isAdminLoggedIn()) return;
+      const show = !backupTools.classList.contains('show');
+      backupTools.classList.toggle('show', show);
+      toggleBackupToolsButton.classList.toggle('active', show);
+      toggleBackupToolsButton.setAttribute('aria-expanded', show ? 'true' : 'false');
+    });
+
+    document.getElementById('exportJsonButton').addEventListener('click', () => {
+      if(!isAdminLoggedIn()) return;
+      exportBackupJson();
+    });
+    document.getElementById('importJsonButton').addEventListener('click', () => {
+      if(!isAdminLoggedIn()) return;
+      importJsonInput.click();
+    });
+    document.getElementById('deleteJsonButton').addEventListener('click', () => {
+      if(!isAdminLoggedIn()) return;
+      deleteBackupJson();
+    });
+    importJsonInput.addEventListener('change', (e) => {
+      if(isAdminLoggedIn()) {
+        importBackupJson(e.target.files && e.target.files[0]);
+      }
+      e.target.value = '';
+    });
+
     const adminButton = document.getElementById('adminButton');
     const loginModal = document.getElementById('adminLoginModal');
     const adminPanel = document.getElementById('adminPanel');
@@ -2015,8 +2184,8 @@
 
     function openLogin(){ loginModal.classList.add('show'); loginModal.setAttribute('aria-hidden', 'false'); }
     function closeLogin(){ loginModal.classList.remove('show'); loginModal.setAttribute('aria-hidden', 'true'); loginError.textContent = ''; }
-    function openAdminPanel(){ draftData = deepClone(appData); adminPanel.classList.add('show'); adminPanel.setAttribute('aria-hidden', 'false'); hydrateAdminForms(); updateSaveStatus(); }
-    function closeAdminPanel(){ adminPanel.classList.remove('show'); adminPanel.setAttribute('aria-hidden', 'true'); }
+    function openAdminPanel(){ updateBackupToolsAccess(); draftData = deepClone(appData); adminPanel.classList.add('show'); adminPanel.setAttribute('aria-hidden', 'false'); hydrateAdminForms(); updateSaveStatus(); }
+    function closeAdminPanel(){ adminPanel.classList.remove('show'); adminPanel.setAttribute('aria-hidden', 'true'); hideBackupTools(); }
 
     adminButton.addEventListener('click', () => {
       const loggedIn = localStorage.getItem(AUTH_KEY) === 'true';
@@ -2036,6 +2205,7 @@
       const password = document.getElementById('adminPassword').value;
       if(email === ADMIN_EMAIL && password === ADMIN_PASSWORD){
         localStorage.setItem(AUTH_KEY, 'true');
+        updateBackupToolsAccess();
         closeLogin();
         openAdminPanel();
       }else{
@@ -2045,6 +2215,7 @@
 
     document.getElementById('logoutButton').addEventListener('click', () => {
       localStorage.removeItem(AUTH_KEY);
+      updateBackupToolsAccess();
       closeAdminPanel();
     });
 
@@ -2079,6 +2250,7 @@
     loginModal.addEventListener('click', (e) => { if(e.target === loginModal) closeLogin(); });
     adminPanel.addEventListener('click', (e) => { if(e.target === adminPanel) closeAdminPanel(); });
 
+    updateBackupToolsAccess();
     renderAll();
 
     // Scroll reveal
