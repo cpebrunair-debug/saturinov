@@ -9,150 +9,572 @@
     :root{
       --font-title: Helvetica, "Helvetica Neue", Arial, sans-serif;
       --font-body: "Aptos Display", Aptos, "Segoe UI", Arial, sans-serif;
-      --bg-1:#f7fbff;
-      --bg-2:#edf7f4;
+      --bg-1:#ffffff;
+      --bg-2:#f6f9fc;
       --surface:#ffffff;
-      --surface-soft:rgba(255,255,255,.78);
-      --text:#10263d;
-      --muted:#5c7189;
-      --line:rgba(16,38,61,.09);
-      --line-strong:rgba(16,38,61,.14);
-      --green:#148f84;
-      --green-soft:#e8f7f4;
-      --blue:#2b6fe5;
-      --blue-soft:#eaf1ff;
-      --gold:#b07a10;
-      --gold-soft:#fef7e0;
-      --gradient-main:linear-gradient(135deg,#148f84 0%,#2b6fe5 100%);
-      --shadow-lg:0 24px 60px rgba(19,47,84,.10);
-      --shadow-md:0 14px 36px rgba(19,47,84,.08);
+      --surface-soft:rgba(255,255,255,.96);
+      --text:#1f3145;
+      --muted:#6e8296;
+      --line:rgba(31,59,89,.10);
+      --line-strong:rgba(31,59,89,.16);
+      --green:#1f6faa;
+      --green-soft:#eef5fb;
+      --blue:#2f7fbe;
+      --blue-soft:#eef5fb;
+      --gold:#4f94c9;
+      --gold-soft:#eef5fb;
+      --gradient-main:linear-gradient(135deg,#1f6faa 0%,#66addc 100%);
+      --shadow-lg:0 22px 54px rgba(15,55,86,.10);
+      --shadow-md:0 12px 30px rgba(15,55,86,.08);
       --radius-xl:32px;
       --radius-lg:26px;
       --radius-md:20px;
       --radius-sm:16px;
+      --font-title: Helvetica, "Helvetica Neue", Arial, sans-serif;
+      --font-body: "Aptos Display", Aptos, "Segoe UI", Arial, sans-serif;
     }
 
-    *{box-sizing:border-box}
+    *{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
     body{
-      margin:0;
       font-family:var(--font-body);
       color:var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(20,143,132,.12), transparent 34%),
-        radial-gradient(circle at top right, rgba(43,111,229,.10), transparent 32%),
-        linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 46%, #f9fbff 100%);
-      min-height:100vh;
-      overflow-y:auto;
+      background:#ffffff;
+      overflow-x:hidden;
     }
+    a{color:inherit;text-decoration:none}
+    h1,h2,h3,h4{font-family:var(--font-title);letter-spacing:-.04em}
 
-    a{color:inherit}
-
-    .page{
-      width:min(1160px, calc(100% - 32px));
-      margin:0 auto;
-      padding:28px 0 48px;
-    }
-
-    .hero{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:18px;
-      align-items:stretch;
-      margin-bottom:22px;
-    }
-
-    .panel{
+    /* ===================== FULLSCREEN HERO ===================== */
+    .fullhero{
       position:relative;
-      overflow:hidden;
-      border-radius:var(--radius-xl);
-      background:var(--surface-soft);
-      backdrop-filter:blur(14px);
-      border:1px solid rgba(255,255,255,.7);
-      box-shadow:var(--shadow-lg);
-    }
-
-    .hero-copy{
-      padding:32px;
-      min-height:100%;
+      width:100%;
+      min-height:100vh;
       display:flex;
       flex-direction:column;
       justify-content:center;
-      background:
-        radial-gradient(circle at top left, rgba(20,143,132,.12), transparent 42%),
-        radial-gradient(circle at bottom right, rgba(43,111,229,.10), transparent 40%),
-        linear-gradient(180deg, rgba(255,255,255,.92) 0%, rgba(247,251,255,.92) 100%);
+      align-items:flex-start;
+      overflow:hidden;
+      background:linear-gradient(160deg,#154d78 0%,#0d3d61 48%,#082c46 100%);
+      padding:0 min(9vw, 120px);
     }
 
-    .hero-copy::after{
+    /* Decorative blobs */
+    .fullhero::before{
       content:"";
       position:absolute;
-      inset:auto -48px -62px auto;
-      width:220px;
-      height:220px;
-      border-radius:50%;
-      background:radial-gradient(circle, rgba(43,111,229,.12), transparent 70%);
+      inset:0;
+      background:
+        radial-gradient(ellipse at 70% 20%, rgba(102,173,220,.22) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 80%, rgba(31,111,170,.30) 0%, transparent 40%),
+        radial-gradient(ellipse at 5% 80%, rgba(102,173,220,.12) 0%, transparent 38%);
       pointer-events:none;
+    }
+
+    /* Grid lines overlay */
+    .fullhero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:60px 60px;
+      pointer-events:none;
+    }
+
+    .hero-inner{
+      position:relative;
+      z-index:2;
+      max-width:860px;
     }
 
     .eyebrow{
       display:inline-flex;
       align-items:center;
       gap:10px;
-      width:max-content;
-      padding:10px 14px;
+      padding:10px 18px;
       border-radius:999px;
-      background:rgba(20,143,132,.10);
-      color:var(--green);
-      font-size:12px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.15);
+      color:#ffffff;
+      font-size:11px;
       font-weight:800;
-      letter-spacing:.16em;
+      letter-spacing:.2em;
       text-transform:uppercase;
-      margin-bottom:18px;
+      margin-bottom:28px;
+      animation: fadeUp .7s ease both;
     }
 
     .eyebrow::before{
       content:"";
-      width:10px;
-      height:10px;
+      width:8px;height:8px;
       border-radius:50%;
-      background:var(--gradient-main);
-      box-shadow:0 0 0 5px rgba(20,143,132,.08);
-    }
-
-    h1,h2,h3,h4{
-      font-family:var(--font-title);
-      letter-spacing:-.04em;
-      margin:0;
+      background:linear-gradient(135deg,#9fd0f3,#ffffff);
+      box-shadow:0 0 0 4px rgba(255,255,255,.12);
+      flex-shrink:0;
     }
 
     .hero-title{
-      font-size:clamp(2.4rem, 4.6vw, 4.8rem);
-      line-height:.98;
-      color:#0f2438;
-      max-width:9.5ch;
+      font-size:clamp(3rem, 6.5vw, 6.5rem);
+      line-height:.95;
+      color:#ffffff;
+      font-weight:900;
+      letter-spacing:-.05em;
+      animation: fadeUp .8s .1s ease both;
     }
 
     .gradient-text{
-      background:var(--gradient-main);
+      background:linear-gradient(135deg,#ffffff 0%,#b7dbf5 100%);
       -webkit-background-clip:text;
       background-clip:text;
       color:transparent;
     }
 
     .hero-sub{
-      margin:18px 0 0;
-      max-width:680px;
-      font-size:16px;
-      line-height:1.9;
+      margin-top:24px;
+      max-width:640px;
+      font-size:17px;
+      line-height:1.85;
+      color:rgba(255,255,255,.72);
+      animation: fadeUp .9s .2s ease both;
+    }
+
+    .hero-sub strong{color:#ffffff;}
+
+    .hero-cta{
+      display:flex;
+      gap:14px;
+      margin-top:38px;
+      flex-wrap:wrap;
+      animation: fadeUp 1s .3s ease both;
+    }
+
+    .btn-primary{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:14px 28px;
+      border-radius:999px;
+      background:#ffffff;
+      color:#0d3d61;
+      font-size:14px;
+      font-weight:800;
+      letter-spacing:.02em;
+      box-shadow:0 8px 28px rgba(0,0,0,.18);
+      transition:transform .18s, box-shadow .18s;
+    }
+    .btn-primary:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(0,0,0,.22);}
+
+    .btn-ghost{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:14px 28px;
+      border-radius:999px;
+      background:transparent;
+      border:1.5px solid rgba(255,255,255,.30);
+      color:rgba(255,255,255,.88);
+      font-size:14px;
+      font-weight:700;
+      letter-spacing:.02em;
+      transition:border-color .18s, background .18s;
+    }
+    .btn-ghost:hover{border-color:rgba(255,255,255,.7);background:rgba(255,255,255,.07);}
+
+    .hero-stats{
+      position:absolute;
+      right:min(7vw,100px);
+      bottom:52px;
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+      animation: fadeLeft .9s .4s ease both;
+    }
+
+    .stat-chip{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(12px);
+      border-radius:18px;
+      padding:14px 20px;
+      min-width:200px;
+    }
+
+    .stat-num{
+      font-family:var(--font-title);
+      font-size:1.9rem;
+      font-weight:900;
+      color:#ffffff;
+      letter-spacing:-.04em;
+      line-height:1;
+    }
+
+    .stat-label{
+      font-size:11px;
+      color:rgba(255,255,255,.6);
+      font-weight:600;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      line-height:1.4;
+    }
+
+    .scroll-hint{
+      position:absolute;
+      bottom:34px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:2;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:8px;
+      color:rgba(255,255,255,.4);
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      animation:bounceScroll 2s 1.2s ease infinite;
+    }
+    .scroll-hint svg{opacity:.5}
+
+    @keyframes bounceScroll{
+      0%,100%{transform:translateX(-50%) translateY(0)}
+      50%{transform:translateX(-50%) translateY(7px)}
+    }
+
+    /* ===================== SECTIONS ===================== */
+    .section{
+      padding:90px min(9vw,120px);
+      background:#ffffff;
+    }
+
+    .section-alt{
+      background:var(--bg-2);
+    }
+
+    .section-label{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      color:var(--green);
+      margin-bottom:14px;
+    }
+
+    .section-label::before{
+      content:"";
+      width:28px;height:2px;
+      background:var(--gradient-main);
+      border-radius:2px;
+    }
+
+    .section-title{
+      font-size:clamp(2rem,3.8vw,3.4rem);
+      color:#0f2438;
+      font-weight:900;
+      line-height:1.02;
+      max-width:14ch;
+      margin-bottom:10px;
+    }
+
+    .section-desc{
+      font-size:15px;
+      line-height:1.85;
+      color:var(--muted);
+      max-width:560px;
+      margin-bottom:50px;
+    }
+
+    /* ===================== PUBLIKASI ===================== */
+    .pub-list{
+      display:grid;
+      gap:20px;
+    }
+
+    .pub-item{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:0 26px;
+      padding:30px 32px;
+      border-radius:var(--radius-lg);
+      background:#ffffff;
+      border:1px solid #dbe5ef;
+      box-shadow:0 8px 24px rgba(15,55,86,.06);
+      transition:transform .18s, box-shadow .18s, border-color .18s;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .pub-item::before{
+      content:"";
+      position:absolute;
+      left:0;top:0;bottom:0;
+      width:3px;
+      background:var(--gradient-main);
+    }
+
+    .pub-item:hover{
+      transform:translateY(-3px);
+      box-shadow:0 16px 36px rgba(15,55,86,.10);
+      border-color:rgba(31,111,170,.22);
+    }
+
+    .pub-year{
+      font-family:var(--font-title);
+      font-size:.78rem;
+      font-weight:900;
+      color:var(--green);
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      padding-top:3px;
+      white-space:nowrap;
+    }
+
+    .pub-body{}
+
+    .pub-title{
+      font-family:var(--font-title);
+      font-size:1.08rem;
+      font-weight:800;
+      color:#10263d;
+      line-height:1.3;
+      margin-bottom:10px;
+    }
+
+    .pub-abstract{
+      font-size:13.5px;
+      line-height:1.85;
+      color:var(--muted);
+      display:-webkit-box;
+      -webkit-line-clamp:3;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+
+    .pub-meta{
+      margin-top:14px;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .pub-tag{
+      padding:4px 12px;
+      border-radius:999px;
+      background:#eef5fb;
+      color:var(--blue);
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.04em;
+    }
+
+    .pub-link{
+      font-size:12px;
+      font-weight:700;
+      color:var(--green);
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      margin-left:auto;
+      transition:gap .15s;
+    }
+    .pub-link:hover{gap:8px;}
+
+    /* ===================== ACTIVITIES ===================== */
+    .activity-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:20px;
+    }
+
+    .activity-card{
+      border-radius:var(--radius-lg);
+      padding:28px;
+      background:#ffffff;
+      border:1px solid #dbe5ef;
+      box-shadow:0 8px 24px rgba(15,55,86,.06);
+      transition:transform .18s, box-shadow .18s;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .activity-card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 18px 40px rgba(15,55,86,.10);
+    }
+
+    .activity-icon{
+      width:52px;height:52px;
+      border-radius:16px;
+      background:var(--gradient-main);
+      display:grid;
+      place-items:center;
+      margin-bottom:20px;
+      font-size:22px;
+      box-shadow:0 8px 20px rgba(15,55,86,.16);
+    }
+
+    .activity-date{
+      font-size:11px;
+      font-weight:700;
+      color:var(--green);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      margin-bottom:8px;
+    }
+
+    .activity-title{
+      font-family:var(--font-title);
+      font-size:1rem;
+      font-weight:800;
+      color:#10263d;
+      line-height:1.3;
+      margin-bottom:10px;
+    }
+
+    .activity-desc{
+      font-size:13px;
+      line-height:1.8;
       color:var(--muted);
     }
 
-    .hero-sub strong{color:#1a2f46}
+    .activity-badge{
+      display:inline-flex;
+      margin-top:16px;
+      padding:4px 12px;
+      border-radius:999px;
+      background:#eef5fb;
+      color:var(--blue);
+      font-size:11px;
+      font-weight:700;
+    }
+
+    /* ===================== PROJECTS ===================== */
+    .project-list{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:20px;
+    }
+
+    .project-card{
+      border-radius:var(--radius-lg);
+      padding:30px;
+      background:#ffffff;
+      border:1px solid #dbe5ef;
+      box-shadow:0 8px 24px rgba(15,55,86,.06);
+      transition:transform .18s, box-shadow .18s;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .project-card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 18px 40px rgba(15,55,86,.10);
+    }
+
+    .project-number{
+      position:absolute;
+      top:20px;right:24px;
+      font-family:var(--font-title);
+      font-size:4rem;
+      font-weight:900;
+      color:rgba(31,111,170,.05);
+      letter-spacing:-.05em;
+      line-height:1;
+      pointer-events:none;
+    }
+
+    .project-status{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      font-weight:700;
+      color:var(--green);
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      margin-bottom:14px;
+    }
+
+    .project-status::before{
+      content:"";
+      width:7px;height:7px;
+      border-radius:50%;
+      background:#1f6faa;
+      box-shadow:0 0 0 3px rgba(31,111,170,.18);
+    }
+
+    .project-status.completed::before{background:#52a87c;box-shadow:0 0 0 3px rgba(82,168,124,.18);}
+    .project-status.completed{color:#52a87c;}
+
+    .project-title{
+      font-family:var(--font-title);
+      font-size:1.2rem;
+      font-weight:800;
+      color:#10263d;
+      margin-bottom:12px;
+      line-height:1.25;
+    }
+
+    .project-summary{
+      font-size:13.5px;
+      line-height:1.8;
+      color:var(--muted);
+      margin-bottom:18px;
+    }
+
+    .project-tags{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .ptag{
+      padding:4px 12px;
+      border-radius:999px;
+      background:#eef5fb;
+      color:#1f6faa;
+      font-size:11px;
+      font-weight:700;
+    }
+
+    /* ===================== ORIGINAL CARDS (NAV) ===================== */
+    .navcard-section{
+      padding:80px min(9vw,120px);
+      background:linear-gradient(160deg,#154d78 0%,#0d3d61 100%);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .navcard-section::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(ellipse at 80% 30%, rgba(102,173,220,.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 10% 80%, rgba(255,255,255,.04) 0%, transparent 40%);
+      pointer-events:none;
+    }
+
+    .navcard-section .section-label{color:rgba(255,255,255,.6);}
+    .navcard-section .section-label::before{background:linear-gradient(135deg,rgba(255,255,255,.5),rgba(255,255,255,.2));}
+    .navcard-section .section-title{color:#ffffff;}
+    .navcard-section .section-desc{color:rgba(255,255,255,.6);}
 
     .cards{
       display:grid;
+      grid-template-columns:repeat(2,1fr);
       gap:18px;
+      position:relative;
+      z-index:1;
     }
 
     .nav-card{
@@ -161,9 +583,9 @@
       text-decoration:none;
       border-radius:var(--radius-lg);
       padding:28px;
-      background:rgba(255,255,255,.96);
-      border:1px solid var(--line);
-      box-shadow:var(--shadow-md);
+      background:#ffffff;
+      border:1px solid #dbe5ef;
+      box-shadow:0 12px 30px rgba(15,55,86,.07);
       transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
       overflow:hidden;
     }
@@ -180,22 +602,9 @@
     .nav-card.applied::before{background:linear-gradient(135deg,#148f84,#57d1c4)}
     .nav-card.fundamental::before{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
     .nav-card.monitoring::before{background:linear-gradient(135deg,#7a52cc,#b08cff)}
-    .nav-card.portfolio::before{background:linear-gradient(135deg,#b07a10,#f0c040)}
+    .nav-card.portfolio::before{background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%)}
 
-    .nav-card:hover{
-      transform:translateY(-4px);
-      box-shadow:0 22px 46px rgba(19,47,84,.12);
-    }
-
-    .nav-card.applied:hover{border-color:rgba(20,143,132,.22)}
-    .nav-card.fundamental:hover{border-color:rgba(43,111,229,.24)}
-    .nav-card.monitoring:hover{border-color:rgba(122,82,204,.24)}
-    .nav-card.portfolio:hover{border-color:rgba(176,122,16,.24)}
-
-    .nav-card:focus-visible{
-      outline:3px solid rgba(43,111,229,.18);
-      outline-offset:3px;
-    }
+    .nav-card:hover{transform:translateY(-4px); box-shadow:0 16px 36px rgba(15,55,86,.11);}
 
     .card-top{
       display:flex;
@@ -208,374 +617,1484 @@
     .badge{
       display:inline-flex;
       align-items:center;
-      min-height:38px;
+      min-height:36px;
       padding:0 16px;
       border-radius:999px;
-      font-size:12px;
+      font-size:11px;
       font-weight:800;
       letter-spacing:.05em;
       text-transform:uppercase;
+      background:#eef5fb;
+      color:#2f7fbe;
     }
 
-    .badge.applied{background:var(--green-soft);color:var(--green)}
-    .badge.fundamental{background:var(--blue-soft);color:var(--blue)}
-    .badge.monitoring{background:#f3edff;color:#6d45c0}
-    .badge.portfolio{background:var(--gold-soft);color:var(--gold)}
-
     .icon{
-      width:76px;
-      height:76px;
-      border-radius:24px;
+      width:72px;height:72px;
+      border-radius:22px;
       display:grid;
       place-items:center;
       color:#fff;
       font-family:var(--font-title);
-      font-size:26px;
+      font-size:24px;
       font-weight:800;
       flex-shrink:0;
-      box-shadow:0 18px 34px rgba(19,47,84,.14);
+      box-shadow:0 16px 30px rgba(17,76,119,.18);
+      background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%);
     }
-
-    .icon.applied{background:linear-gradient(135deg,#148f84,#57d1c4)}
-    .icon.fundamental{background:linear-gradient(135deg,#2b6fe5,#7ea6ff)}
-    .icon.monitoring{background:linear-gradient(135deg,#7a52cc,#b08cff)}
-    .icon.portfolio{background:linear-gradient(135deg,#b07a10,#f0c040)}
 
     .nav-card h3{
-      font-size:clamp(2rem,3.6vw,3rem);
-      line-height:1.02;
+      font-family:var(--font-title);
+      font-size:clamp(1.5rem,2.8vw,2.2rem);
+      line-height:1.05;
       color:#10263d;
-      margin-bottom:12px;
+      margin-bottom:10px;
     }
 
-    .nav-card p{
-      margin:0;
-      max-width:760px;
-      font-size:16px;
-      line-height:1.9;
-      color:var(--muted);
-    }
+    .nav-card p{font-size:14px;line-height:1.8;color:var(--muted);}
+    .hint{font-size:12px;margin-top:14px;color:var(--muted);font-weight:600;}
 
-    .hint{
-      margin-top:12px;
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      font-size:13px;
-      font-weight:700;
-      color:#58708c;
-    }
-
-    .hint::after{
-      content:"↗";
-      font-size:15px;
-      color:#7b8ea3;
-    }
-
+    /* ===================== COLLABS ===================== */
     .collab-wrap{
-      margin-top:22px;
       display:grid;
+      grid-template-columns:1fr 1fr;
       gap:18px;
-      grid-template-columns:repeat(2,minmax(0,1fr));
+      margin-top:80px;
+      position:relative;
+      z-index:1;
     }
 
     .collab-card{
       border-radius:var(--radius-lg);
-      padding:26px;
-      background:rgba(255,255,255,.94);
-      border:1px solid var(--line);
-      box-shadow:var(--shadow-md);
+      padding:28px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(10px);
     }
 
     .collab-head{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:12px;
-      margin-bottom:16px;
+      margin-bottom:18px;
     }
 
-    .collab-card h4{
-      font-size:1.8rem;
-      line-height:1.06;
-      color:#10263d;
+    .collab-head h4{
+      font-family:var(--font-title);
+      font-size:1rem;
+      font-weight:800;
+      color:#ffffff;
     }
 
     .pill{
       display:inline-flex;
       align-items:center;
-      min-height:34px;
-      padding:0 12px;
+      min-height:32px;
+      padding:0 14px;
       border-radius:999px;
       font-size:11px;
       font-weight:800;
-      letter-spacing:.06em;
+      letter-spacing:.05em;
       text-transform:uppercase;
+      background:rgba(255,255,255,.12);
+      color:rgba(255,255,255,.8);
     }
-
-    .pill.applied{background:var(--green-soft);color:var(--green)}
-    .pill.fundamental{background:var(--blue-soft);color:var(--blue)}
 
     .logo-grid{
       display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
-      gap:12px;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
     }
 
     .logo-item{
-      min-height:84px;
-      border-radius:20px;
-      border:1px solid var(--line);
-      background:linear-gradient(180deg,#fff 0%, #f8fbff 100%);
-      display:grid;
-      place-items:center;
-      text-align:center;
-      padding:12px;
+      min-height:72px;
+      border-radius:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 14px;
       font-family:var(--font-title);
-      font-size:1.15rem;
+      font-size:1.05rem;
       font-weight:800;
-      letter-spacing:-.03em;
-      color:#18314a;
+      background:rgba(255,255,255,.09);
+      border:1px solid rgba(255,255,255,.10);
+      color:rgba(255,255,255,.82);
+      transition:background .18s;
+      overflow:hidden;
+    }
+
+    .logo-item img{
+      max-width:100%;
+      max-height:46px;
+      object-fit:contain;
+      display:block;
+      filter:drop-shadow(0 4px 10px rgba(0,0,0,.12));
+    }
+
+    .logo-item span{
+      text-align:center;
+      line-height:1.3;
+    }
+
+    .logo-item:hover{background:rgba(255,255,255,.14);}
+
+    /* ===================== FOOTER NOTE ===================== */
+    .footer-wrap{
+      padding:40px min(9vw,120px) 60px;
+      background:var(--bg-2);
     }
 
     .footer-note{
-      margin-top:18px;
       border-radius:22px;
-      padding:18px 20px;
-      background:linear-gradient(135deg, rgba(20,143,132,.08), rgba(43,111,229,.06));
-      border:1px solid rgba(16,38,61,.06);
+      padding:20px 24px;
+      background:linear-gradient(135deg, rgba(31,111,170,.06), rgba(102,173,220,.06));
+      border:1px solid rgba(31,59,89,.08);
       font-size:13px;
       line-height:1.8;
       color:var(--muted);
     }
 
-    .footer-note strong{color:#10263d}
+    .footer-note strong{color:#10263d;}
 
-    @media (max-width: 980px){
-      .page{width:min(100% - 24px, 980px); padding:18px 0 36px}
-      .hero{grid-template-columns:1fr}
-      .hero-copy,.nav-card,.collab-card{padding:24px}
-      .collab-wrap{grid-template-columns:1fr}
+    /* ===================== ANIMATIONS ===================== */
+    @keyframes fadeUp{
+      from{opacity:0;transform:translateY(28px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes fadeLeft{
+      from{opacity:0;transform:translateX(28px)}
+      to{opacity:1;transform:translateX(0)}
     }
 
-    @media (max-width: 640px){
-      .page{width:min(100% - 18px, 640px); padding:14px 0 26px}
-      .hero{gap:14px; margin-bottom:16px}
-      .panel,.nav-card,.collab-card,.footer-note{border-radius:22px}
-      .hero-copy,.nav-card,.collab-card{padding:20px}
-      .hero-title{max-width:12ch}
-      .hero-sub,.nav-card p{font-size:14px; line-height:1.8}
-      .card-top,.collab-head{align-items:flex-start}
-      .icon{width:64px;height:64px;border-radius:20px;font-size:24px}
-      .badge{font-size:11px;padding:0 14px}
-      .logo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .logo-item{min-height:76px;font-size:1.05rem}
+    .reveal{
+      opacity:0;
+      transform:translateY(24px);
+      transition:opacity .65s ease, transform .65s ease;
     }
-  
+    .reveal.visible{opacity:1;transform:translateY(0);}
 
-/* ===================== NAVY BLUE SCREENSHOT OVERRIDE ===================== */
-:root{
-  --bg-1:#ffffff !important;
-  --bg-2:#f6f9fc !important;
-  --surface:#ffffff !important;
-  --surface-soft:rgba(255,255,255,.96) !important;
-  --text:#1f3145 !important;
-  --muted:#6e8296 !important;
-  --line:rgba(31,59,89,.10) !important;
-  --line-strong:rgba(31,59,89,.16) !important;
-  --green:#1f6faa !important;
-  --green-soft:#eef5fb !important;
-  --blue:#2f7fbe !important;
-  --blue-soft:#eef5fb !important;
-  --gold:#4f94c9 !important;
-  --gold-soft:#eef5fb !important;
-  --gradient-main:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
-  --shadow-lg:0 22px 54px rgba(15,55,86,.10) !important;
-  --shadow-md:0 12px 30px rgba(15,55,86,.08) !important;
-}
-body{
-  background:#ffffff !important;
-  color:var(--text) !important;
-}
-.page{width:min(1180px, calc(100% - 36px)) !important; padding:24px 0 42px !important;}
-.hero-copy{
-  background:
-    radial-gradient(circle at 16% 20%, rgba(110,170,219,.15) 0%, transparent 26%),
-    radial-gradient(circle at 82% 76%, rgba(110,170,219,.10) 0%, transparent 28%),
-    linear-gradient(160deg,#154d78 0%,#0d3d61 48%,#082c46 100%) !important;
-  border:0 !important;
-}
-.hero-copy::after{background:radial-gradient(circle, rgba(255,255,255,.13), transparent 70%) !important;}
-.eyebrow{
-  background:rgba(255,255,255,.10) !important;
-  color:#ffffff !important;
-  border:1px solid rgba(255,255,255,.15) !important;
-}
-.eyebrow::before{background:linear-gradient(135deg,#9fd0f3 0%,#ffffff 100%) !important; box-shadow:0 0 0 5px rgba(255,255,255,.10) !important;}
-.hero-title,
-.hero-sub,
-.hero-sub strong{color:#ffffff !important;}
-.gradient-text{
-  background:linear-gradient(135deg,#ffffff 0%,#b7dbf5 100%) !important;
-  -webkit-background-clip:text !important;
-  background-clip:text !important;
-  color:transparent !important;
-}
-.hero-sub{color:rgba(255,255,255,.76) !important; max-width:760px !important;}
-.nav-card,
-.collab-card,
-.footer-note,
-.logo-item{
-  background:#ffffff !important;
-  border:1px solid #dbe5ef !important;
-  box-shadow:0 12px 30px rgba(15,55,86,.07) !important;
-}
-.nav-card:hover,.collab-card:hover{box-shadow:0 16px 36px rgba(15,55,86,.11) !important;}
-.nav-card::before,
-.nav-card.applied::before,
-.nav-card.fundamental::before,
-.nav-card.monitoring::before,
-.nav-card.portfolio::before{
-  background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
-}
-.badge.applied,.badge.fundamental,.badge.monitoring,.badge.portfolio,
-.pill.applied,.pill.fundamental{
-  background:#eef5fb !important;
-  color:#2f7fbe !important;
-}
-.icon.applied,.icon.fundamental,.icon.monitoring,.icon.portfolio{
-  background:linear-gradient(135deg,#1f6faa 0%,#66addc 100%) !important;
-  box-shadow:0 16px 30px rgba(17,76,119,.18) !important;
-}
-.hint,.nav-card p,.footer-note{color:#6e8296 !important;}
-.logo-item{background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important; color:#21405e !important;}
-.footer-note{
-  background:linear-gradient(135deg, rgba(31,111,170,.05), rgba(102,173,220,.06)) !important;
-}
-@media (max-width: 700px){
-  .cards{grid-template-columns:1fr !important;}
-}
+    /* ===================== RESPONSIVE ===================== */
+    @media(max-width:980px){
+      .fullhero{padding:60px 32px 140px;}
+      .hero-stats{right:32px;bottom:32px;flex-direction:row;flex-wrap:wrap;gap:10px;}
+      .stat-chip{min-width:unset;}
+      .activity-grid{grid-template-columns:repeat(2,1fr);}
+      .project-list{grid-template-columns:1fr;}
+      .cards{grid-template-columns:1fr;}
+      .collab-wrap{grid-template-columns:1fr;}
+      .section,.navcard-section{padding:60px 32px;}
+      .footer-wrap{padding:32px 32px 48px;}
+    }
 
+    @media(max-width:640px){
+      .fullhero{padding:52px 20px 120px;}
+      .hero-stats{right:20px;bottom:24px;}
+      .activity-grid{grid-template-columns:1fr;}
+      .section,.navcard-section{padding:48px 20px;}
+      .footer-wrap{padding:24px 20px 40px;}
+      .logo-grid{grid-template-columns:repeat(2,1fr);}
+      .collab-wrap{margin-top:48px;}
+    }
 
-/* ===================== TYPOGRAPHY UNIFORM OVERRIDE ===================== */
-:root{
-  --font-title:Helvetica, "Helvetica Neue", Arial, sans-serif;
-  --font-body:"Aptos Display", Aptos, "Segoe UI", Arial, sans-serif;
-}
-body, button, input, select, textarea {
-  font-family: var(--font-body) !important;
-}
-h1, h2, h3, h4, .hero-title, .page-title, .section-title, .section-title-wrap h2, .nav-card h3, .collab-card h4 {
-  font-family: var(--font-title) !important;
-}
-.hero-copy,
-.hero-copy * {
-  color:#ffffff;
-}
-.nav-card,
-.nav-card h3,
-.collab-card,
-.collab-card h4,
-.logo-item,
-.footer-note,
-.footer-note strong,
-.page,
-body {
-  color: var(--text);
-}
-.nav-card p,
-.footer-note,
-.hint {
-  color: var(--muted) !important;
-}
+    /* ===================== ADMIN ===================== */
+    .admin-fab{
+      position:fixed;
+      top:16px;
+      right:16px;
+      z-index:1200;
+      border:none;
+      border-radius:999px;
+      background:rgba(255,255,255,.14);
+      color:#ffffff;
+      padding:8px 14px;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.04em;
+      cursor:pointer;
+      backdrop-filter:blur(10px);
+      border:1px solid rgba(255,255,255,.22);
+      box-shadow:0 10px 24px rgba(0,0,0,.16);
+      transition:transform .18s ease, background .18s ease;
+    }
+    .admin-fab:hover{transform:translateY(-2px);background:rgba(255,255,255,.22);}
 
-</style>
+    .admin-modal,
+    .admin-panel{
+      position:fixed;
+      inset:0;
+      z-index:1400;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background:rgba(7,22,35,.55);
+      backdrop-filter:blur(8px);
+      padding:20px;
+    }
+    .admin-modal.show,
+    .admin-panel.show{display:flex;}
+
+    .admin-box,
+    .admin-shell{
+      width:min(100%, 1080px);
+      background:#ffffff;
+      border-radius:28px;
+      box-shadow:0 26px 70px rgba(10,35,57,.22);
+      overflow:hidden;
+      border:1px solid rgba(31,59,89,.08);
+    }
+
+    .admin-box{
+      max-width:420px;
+    }
+
+    .admin-head{
+      padding:22px 24px;
+      border-bottom:1px solid rgba(31,59,89,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+    .admin-head h3{
+      font-size:1.15rem;
+      color:#10263d;
+      font-weight:900;
+    }
+    .admin-head p{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+    .admin-close{
+      border:none;
+      background:#eef5fb;
+      color:#1f6faa;
+      width:38px;
+      height:38px;
+      border-radius:12px;
+      font-size:20px;
+      cursor:pointer;
+      font-weight:700;
+      flex-shrink:0;
+    }
+
+    .admin-body{
+      padding:24px;
+    }
+    .admin-form{
+      display:grid;
+      gap:14px;
+    }
+    .admin-form label,
+    .field label{
+      display:grid;
+      gap:7px;
+      font-size:12px;
+      font-weight:700;
+      color:#35506b;
+      letter-spacing:.03em;
+    }
+    .admin-form input,
+    .admin-form textarea,
+    .admin-form select,
+    .field input,
+    .field textarea,
+    .field select{
+      width:100%;
+      border:1px solid #d8e3ee;
+      border-radius:14px;
+      padding:12px 14px;
+      font:inherit;
+      color:#10263d;
+      background:#ffffff;
+      outline:none;
+    }
+    .admin-form textarea,
+    .field textarea{
+      min-height:92px;
+      resize:vertical;
+    }
+    .admin-login-btn,
+    .admin-primary-btn,
+    .admin-secondary-btn,
+    .admin-danger-btn,
+    .item-action-btn{
+      border:none;
+      border-radius:14px;
+      padding:12px 16px;
+      font:inherit;
+      font-weight:800;
+      cursor:pointer;
+      transition:transform .16s ease, opacity .16s ease;
+    }
+    .admin-login-btn,
+    .admin-primary-btn{
+      background:var(--gradient-main);
+      color:#ffffff;
+      box-shadow:0 12px 28px rgba(15,55,86,.16);
+    }
+    .admin-secondary-btn{
+      background:#eef5fb;
+      color:#1f6faa;
+    }
+    .admin-danger-btn{
+      background:#fff1f0;
+      color:#cb4b43;
+    }
+    .item-action-btn{
+      background:#eef5fb;
+      color:#1f6faa;
+      padding:9px 12px;
+      border-radius:12px;
+      font-size:12px;
+    }
+    .admin-login-btn:hover,
+    .admin-primary-btn:hover,
+    .admin-secondary-btn:hover,
+    .admin-danger-btn:hover,
+    .item-action-btn:hover{transform:translateY(-1px);}
+
+    .admin-error{
+      color:#cb4b43;
+      font-size:12px;
+      min-height:18px;
+    }
+
+    .admin-shell{
+      height:min(92vh, 860px);
+      display:grid;
+      grid-template-columns:260px 1fr;
+      overflow:hidden;
+    }
+    .admin-sidebar{
+      background:linear-gradient(180deg,#0f3a5c 0%, #0a2f4a 100%);
+      padding:22px 18px;
+      color:#ffffff;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+    .admin-brand small{
+      display:block;
+      color:rgba(255,255,255,.58);
+      text-transform:uppercase;
+      letter-spacing:.14em;
+      font-size:10px;
+      margin-bottom:8px;
+      font-weight:800;
+    }
+    .admin-brand strong{
+      display:block;
+      font-size:1.2rem;
+      line-height:1.3;
+    }
+    .admin-user{
+      font-size:12px;
+      color:rgba(255,255,255,.68);
+      line-height:1.7;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .admin-nav{
+      display:grid;
+      gap:8px;
+    }
+    .admin-tab{
+      width:100%;
+      text-align:left;
+      border:none;
+      cursor:pointer;
+      border-radius:14px;
+      padding:12px 14px;
+      background:transparent;
+      color:rgba(255,255,255,.8);
+      font:inherit;
+      font-weight:700;
+    }
+    .admin-tab.active,
+    .admin-tab:hover{
+      background:rgba(255,255,255,.12);
+      color:#ffffff;
+    }
+    .admin-sidebar-actions{
+      margin-top:auto;
+      display:grid;
+      gap:10px;
+    }
+    .admin-sidebar-actions button{
+      width:100%;
+    }
+
+    .admin-main{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+      min-height:0;
+      background:#f8fbfe;
+    }
+    .admin-topbar{
+      padding:20px 24px;
+      border-bottom:1px solid rgba(31,59,89,.08);
+      background:#ffffff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .admin-topbar h3{
+      font-size:1.2rem;
+      color:#10263d;
+      font-weight:900;
+    }
+    .admin-topbar p{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:4px;
+    }
+    .admin-content{
+      padding:24px;
+      overflow-y:auto;
+      overflow-x:hidden;
+      min-height:0;
+      display:grid;
+      gap:16px;
+      align-content:start;
+    }
+
+    .admin-section{
+      display:none;
+      gap:16px;
+      align-content:start;
+    }
+    .admin-section.active{
+      display:grid;
+    }
+
+    .field-grid{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0,1fr));
+      gap:14px;
+    }
+    .field-grid.single{
+      grid-template-columns:1fr;
+    }
+
+    .admin-list{
+      display:grid;
+      gap:14px;
+    }
+    .admin-item{
+      background:#ffffff;
+      border:1px solid rgba(31,59,89,.08);
+      border-radius:20px;
+      padding:18px;
+      box-shadow:0 10px 24px rgba(15,55,86,.05);
+      overflow:visible;
+    }
+    .admin-item-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .admin-item-title{
+      font-weight:800;
+      color:#10263d;
+      line-height:1.4;
+    }
+    .admin-item-sub{
+      margin-top:6px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+    .admin-item-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .array-editor{
+      display:grid;
+      gap:10px;
+      margin-top:10px;
+    }
+    .array-chip{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:14px;
+      background:#eef5fb;
+      color:#12304a;
+      font-size:13px;
+      font-weight:600;
+    }
+    .inline-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .section-card{
+      background:#ffffff;
+      border:1px solid rgba(31,59,89,.08);
+      border-radius:22px;
+      padding:18px;
+      box-shadow:0 10px 24px rgba(15,55,86,.05);
+    }
+    .muted-note{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.7;
+    }
+
+    @media(max-width:980px){
+      .admin-shell{
+        grid-template-columns:1fr;
+        height:min(94vh, 1000px);
+      }
+      .admin-sidebar{
+        padding-bottom:12px;
+      }
+      .field-grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+  </style>
 </head>
-<body>
-  <main class="page">
-    <section class="hero">
-      <div class="panel hero-copy">
-        <div class="eyebrow">Selamat Datang di Satu Rinov</div>
-        <h1 class="hero-title">Pusat Navigasi <span class="gradient-text">Divisi Riset dan Inovasi</span></h1>
-        <p class="hero-sub">
-          Divisi Riset dan Inovasi CESGS menaungi dua jalur utama. <strong>Fundamental Research</strong> berfokus pada jurnal, artikel ilmiah, dan aktivitas riset kolaboratif berbasis publikasi ilmiah. <strong>Applied Research</strong> berfokus pada consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
-        </p>
-      </div>
-    </section>
 
-    <section class="cards" aria-label="Menu dashboard riset">
-      <a class="nav-card applied" href="https://cpebrunair-debug.github.io/saturinov/appliedhub.html" aria-label="Masuk ke dashboard Applied Research">
+<body>
+  <button class="admin-fab" id="adminButton" aria-label="Login admin">Admin</button>
+
+  <div class="admin-modal" id="adminLoginModal" aria-hidden="true">
+    <div class="admin-box">
+      <div class="admin-head">
+        <div>
+          <h3>Login Admin</h3>
+          <p>Masuk untuk mengelola konten landing page dan menyinkronkannya langsung ke tampilan halaman ini.</p>
+        </div>
+        <button class="admin-close" id="closeLoginModal" aria-label="Tutup login">&times;</button>
+      </div>
+      <div class="admin-body">
+        <form class="admin-form" id="adminLoginForm">
+          <label>Email Admin
+            <input type="email" id="adminEmail" placeholder="Masukkan email admin" autocomplete="username" required />
+          </label>
+          <label>Password
+            <input type="password" id="adminPassword" placeholder="Masukkan password" autocomplete="current-password" required />
+          </label>
+          <div class="admin-error" id="adminLoginError"></div>
+          <button type="submit" class="admin-login-btn">Login ke Admin Panel</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-panel" id="adminPanel" aria-hidden="true">
+    <div class="admin-shell">
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <small>CESGS Admin</small>
+          <strong>Landing Page Manager</strong>
+        </div>
+        <div class="admin-user">
+          <div>Kelola konten hero, publikasi, activities, projects, dan leading collaborators.</div>
+          <div style="margin-top:8px;">Edit data di panel admin, lalu klik Simpan Perubahan agar landing page diperbarui.</div>
+        </div>
+        <div class="admin-nav" id="adminTabs">
+          <button class="admin-tab active" data-tab="hero">Hero</button>
+          <button class="admin-tab" data-tab="publications">Publikasi</button>
+          <button class="admin-tab" data-tab="activities">Activities</button>
+          <button class="admin-tab" data-tab="projects">Projects</button>
+          <button class="admin-tab" data-tab="collaborators">Collaborators</button>
+        </div>
+        <div class="admin-sidebar-actions">
+          <button class="admin-secondary-btn" id="resetDataButton" type="button">Reset ke Default</button>
+          <button class="admin-danger-btn" id="logoutButton" type="button">Logout</button>
+        </div>
+      </aside>
+
+      <main class="admin-main">
+        <div class="admin-topbar">
+          <div>
+            <h3 id="adminSectionTitle">Hero</h3>
+            <p id="adminSectionDesc">Atur teks utama dan statistik pada hero section.</p>
+          </div>
+          <div class="inline-actions">
+            <div class="muted-note" id="saveStatusText">Belum ada perubahan tersimpan.</div>
+            <button class="admin-primary-btn" type="button" id="saveSectionButton">Simpan Perubahan</button>
+            <button class="admin-close" id="closeAdminPanel" aria-label="Tutup panel admin">&times;</button>
+          </div>
+        </div>
+
+        <div class="admin-content">
+          <section class="admin-section active" data-section="hero">
+            <div class="section-card">
+              <div class="field-grid">
+                <div class="field">
+                  <label>Eyebrow Text
+                    <input type="text" id="heroEyebrowInput" />
+                  </label>
+                </div>
+                <div class="field">
+                  <label>Title Baris 1
+                    <input type="text" id="heroTitleLine1Input" />
+                  </label>
+                </div>
+                <div class="field">
+                  <label>Title Baris 2
+                    <input type="text" id="heroTitleLine2Input" />
+                  </label>
+                </div>
+                <div class="field">
+                  <label>Title Highlight
+                    <input type="text" id="heroTitleHighlightInput" />
+                  </label>
+                </div>
+              </div>
+              <div class="field" style="margin-top:14px;">
+                <label>Subtitle
+                  <textarea id="heroSubtitleInput"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="inline-actions" style="justify-content:space-between;">
+                <strong style="color:#10263d;">Statistik Hero</strong>
+                <button class="admin-primary-btn" type="button" id="addHeroStatButton">Tambah Statistik</button>
+              </div>
+              <div class="admin-list" id="heroStatsAdminList"></div>
+            </div>
+          </section>
+
+          <section class="admin-section" data-section="publications">
+            <div class="inline-actions" style="justify-content:space-between;">
+              <div class="muted-note">Tambah, edit, atau hapus item publikasi yang tampil pada landing page.</div>
+              <button class="admin-primary-btn" type="button" id="addPublicationButton">Tambah Publikasi</button>
+            </div>
+            <div class="admin-list" id="publicationsAdminList"></div>
+          </section>
+
+          <section class="admin-section" data-section="activities">
+            <div class="inline-actions" style="justify-content:space-between;">
+              <div class="muted-note">Kelola daftar activities beserta badge dan deskripsinya.</div>
+              <button class="admin-primary-btn" type="button" id="addActivityButton">Tambah Activity</button>
+            </div>
+            <div class="admin-list" id="activitiesAdminList"></div>
+          </section>
+
+          <section class="admin-section" data-section="projects">
+            <div class="inline-actions" style="justify-content:space-between;">
+              <div class="muted-note">Kelola project terbaru, status, ringkasan, dan tags.</div>
+              <button class="admin-primary-btn" type="button" id="addProjectButton">Tambah Project</button>
+            </div>
+            <div class="admin-list" id="projectsAdminList"></div>
+          </section>
+
+          <section class="admin-section" data-section="collaborators">
+            <div class="section-card">
+              <div class="muted-note">Masukkan nama dan link foto/logo. Setelah klik Simpan Perubahan, landing page akan ikut diperbarui dan gambar logo akan dimunculkan.</div>
+            </div>
+            <div class="admin-list" id="collaboratorsAdminList"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <!-- ===================== FULLSCREEN HERO ===================== -->
+  <section class="fullhero">
+    <div class="hero-inner">
+      <div class="eyebrow" id="heroEyebrow">Selamat Datang di Satu Rinov</div>
+      <h1 class="hero-title" id="heroTitle">Pusat Navigasi<br><span class="gradient-text">Divisi Riset<br>dan Inovasi</span></h1>
+      <p class="hero-sub" id="heroSubtitle">
+        Divisi Riset dan Inovasi CESGS menaungi dua jalur utama.
+        <strong>Fundamental Research</strong> berfokus pada jurnal, artikel ilmiah, dan aktivitas riset kolaboratif berbasis publikasi ilmiah.
+        <strong>Applied Research</strong> berfokus pada consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.
+      </p>
+      <div class="hero-cta">
+        <a href="#publikasi" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          Jelajahi
+        </a>
+        <a href="#navigasi" class="btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-stats" id="heroStatsContainer"></div>
+
+    <div class="scroll-hint">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      scroll
+    </div>
+  </section>
+
+  <!-- ===================== PUBLIKASI TERBARU ===================== -->
+  <section class="section" id="publikasi">
+    <div class="section-label reveal">Portofolio &amp; Publikasi</div>
+    <h2 class="section-title reveal">Publikasi Terbaru</h2>
+    <p class="section-desc reveal">Karya ilmiah dan penelitian terkini dari Divisi Riset dan Inovasi CESGS yang telah dipublikasikan.</p>
+
+    <div class="pub-list" id="pubList"></div>
+  </section>
+
+  <!-- ===================== ACTIVITIES ===================== -->
+  <section class="section section-alt" id="activities">
+    <div class="section-label reveal">Kegiatan</div>
+    <h2 class="section-title reveal">Activities</h2>
+    <p class="section-desc reveal">Berbagai kegiatan riset, seminar, dan kolaborasi yang sedang dan telah dijalankan oleh divisi.</p>
+
+    <div class="activity-grid" id="activityGrid"></div>
+  </section>
+
+  <!-- ===================== PROJECTS TERBARU ===================== -->
+  <section class="section" id="projects">
+    <div class="section-label reveal">Research &amp; Applied</div>
+    <h2 class="section-title reveal">Project Terbaru</h2>
+    <p class="section-desc reveal">Ringkasan project riset dan inovasi yang sedang berjalan maupun baru diselesaikan.</p>
+
+    <div class="project-list" id="projectList"></div>
+  </section>
+
+  <!-- ===================== NAVIGASI DASHBOARD (ORIGINAL CARDS) ===================== -->
+  <section class="navcard-section" id="navigasi">
+    <div class="section-label reveal">Menu Utama</div>
+    <h2 class="section-title reveal" style="color:#ffffff;">Navigasi<br>Dashboard</h2>
+    <p class="section-desc reveal" style="color:rgba(255,255,255,.6);margin-bottom:40px;">Akses langsung ke empat jalur utama Divisi Riset dan Inovasi CESGS.</p>
+
+    <div class="cards" aria-label="Menu dashboard riset">
+      <a class="nav-card applied reveal" href="https://cpebrunair-debug.github.io/saturinov/appliedhub.html" aria-label="Masuk ke dashboard Applied Research">
         <div class="card-top">
           <div class="badge applied">Applied Research</div>
           <div class="icon applied">A</div>
         </div>
         <h3>Applied Research</h3>
         <p>Jalur applied untuk consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.</p>
-        <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+        <div class="hint">Klik kartu untuk masuk ke dashboard →</div>
       </a>
 
-      <a class="nav-card fundamental" href="https://cpebrunair-debug.github.io/saturinov/fundreshub.html" aria-label="Masuk ke dashboard Fundamental Research">
+      <a class="nav-card fundamental reveal" href="https://cpebrunair-debug.github.io/saturinov/fundreshub.html" aria-label="Masuk ke dashboard Fundamental Research">
         <div class="card-top">
           <div class="badge fundamental">Fundamental Research</div>
           <div class="icon fundamental">F</div>
         </div>
         <h3>Fundamental Research</h3>
         <p>Jalur fundamental untuk jurnal, artikel ilmiah, dan berbagai aktivitas riset kolaboratif berbasis publikasi ilmiah.</p>
-        <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+        <div class="hint">Klik kartu untuk masuk ke dashboard →</div>
       </a>
 
-      <a class="nav-card monitoring" href="https://cpebrunair-debug.github.io/saturinov/projectmonitor" aria-label="Masuk ke dashboard Project Monitoring">
+      <a class="nav-card monitoring reveal" href="https://cpebrunair-debug.github.io/saturinov/projectmonitor" aria-label="Masuk ke dashboard Project Monitoring">
         <div class="card-top">
           <div class="badge monitoring">Project Monitoring</div>
           <div class="icon monitoring">P</div>
         </div>
         <h3>Project Monitoring</h3>
         <p>Jalur monitoring untuk memantau perkembangan project dan mengakses dashboard project monitoring secara langsung.</p>
-        <div class="hint">Klik kartu untuk masuk ke dashboard</div>
+        <div class="hint">Klik kartu untuk masuk ke dashboard →</div>
       </a>
 
-      <a class="nav-card portfolio" href="https://cpebrunair-debug.github.io/portofolio/home" aria-label="Masuk ke halaman Portofolio dan Publikasi">
+      <a class="nav-card portfolio reveal" href="https://cpebrunair-debug.github.io/portofolio/home" aria-label="Masuk ke halaman Portofolio dan Publikasi">
         <div class="card-top">
           <div class="badge portfolio">Portofolio &amp; Publikasi</div>
           <div class="icon portfolio">P</div>
         </div>
         <h3>Portofolio &amp; Publikasi</h3>
         <p>Akses daftar portofolio Applied Research dan publikasi ilmiah Fundamental Research CESGS.</p>
-        <div class="hint">Klik kartu untuk masuk ke halaman</div>
+        <div class="hint">Klik kartu untuk masuk ke halaman →</div>
       </a>
-    </section>
+    </div>
 
-    <section class="collab-wrap" aria-label="Leading collaborator">
-      <article class="collab-card">
-        <div class="collab-head">
-          <h4>Leading Collaborator</h4>
-          <div class="pill applied">Applied</div>
-        </div>
-        <div class="logo-grid">
-          <div class="logo-item">PLN</div>
-          <div class="logo-item">Bank Indonesia</div>
-          <div class="logo-item">Indosat</div>
-        </div>
-      </article>
+    <div class="collab-wrap" id="collabWrap"></div>
+  </section>
 
-      <article class="collab-card">
-        <div class="collab-head">
-          <h4>Leading Collaborator</h4>
-          <div class="pill fundamental">Fundamental</div>
-        </div>
-        <div class="logo-grid">
-          <div class="logo-item">UGM</div>
-          <div class="logo-item">UI</div>
-          <div class="logo-item">ITB</div>
-          <div class="logo-item">ITS</div>
-          <div class="logo-item">UM</div>
-        </div>
-      </article>
-    </section>
-
+  <!-- ===================== FOOTER ===================== -->
+  <div class="footer-wrap">
     <div class="footer-note">
       <strong>Catatan:</strong> setiap kartu sekarang langsung mengarah ke dashboard tujuan dalam tab yang sama.
     </div>
-  </main>
+  </div>
+
+  <script>
+
+    const STORAGE_KEY = 'saturinovAdminDataV1';
+    const AUTH_KEY = 'saturinovAdminLoggedIn';
+    const ADMIN_EMAIL = 'info@cesgs.or.id';
+    const ADMIN_PASSWORD = 'CESGS2026';
+
+    const defaultData = {
+      hero: {
+        eyebrow: 'Selamat Datang di Satu Rinov',
+        titleLine1: 'Pusat Navigasi',
+        titleLine2: 'Divisi Riset',
+        titleHighlight: 'dan Inovasi',
+        subtitle: 'Divisi Riset dan Inovasi CESGS menaungi dua jalur utama. Fundamental Research berfokus pada jurnal, artikel ilmiah, dan aktivitas riset kolaboratif berbasis publikasi ilmiah. Applied Research berfokus pada consulting research perusahaan, kajian inovasi teknologi terapan, dan project community service.',
+        stats: [
+          { value: '24+', label: 'Publikasi Ilmiah' },
+          { value: '12', label: 'Project Aktif' },
+          { value: '8', label: 'Mitra Kolaborator' }
+        ]
+      },
+      publications: [
+        {
+          year: '2024',
+          title: 'Optimasi Model Machine Learning untuk Prediksi Konsumsi Energi Industri Berbasis IoT Sensor Data',
+          abstract: 'Penelitian ini mengkaji penerapan algoritma machine learning—khususnya XGBoost dan LSTM—dalam memprediksi pola konsumsi energi pada fasilitas industri skala menengah menggunakan data real-time dari jaringan sensor IoT. Eksperimen dilakukan pada 18 unit instalasi industri selama 6 bulan, menghasilkan model dengan akurasi prediksi 94.3% dan potensi penghematan energi hingga 17% dibandingkan baseline konvensional.',
+          tags: ['Applied Research', 'Machine Learning', 'IoT'],
+          link: 'https://cpebrunair-debug.github.io/portofolio/home'
+        },
+        {
+          year: '2024',
+          title: 'Analisis Transformasi Digital pada UMKM: Studi Kasus Implementasi Platform E-Commerce berbasis Cloud',
+          abstract: 'Studi ini mengevaluasi dampak adopsi platform e-commerce berbasis cloud terhadap kinerja operasional dan pendapatan UMKM di sektor kuliner dan kerajinan di wilayah Jawa Timur. Menggunakan metode campuran kuantitatif-kualitatif pada 156 responden, penelitian menemukan peningkatan rata-rata omset 34% dalam 12 bulan pasca-implementasi serta identifikasi faktor-faktor kritis keberhasilan transformasi digital UMKM.',
+          tags: ['Fundamental Research', 'Digital Transformation'],
+          link: 'https://cpebrunair-debug.github.io/portofolio/home'
+        },
+        {
+          year: '2023',
+          title: 'Framework Pengukuran Inovasi Berkelanjutan pada Sektor Keuangan: Pendekatan Teori Difusi dan ESG Metrics',
+          abstract: 'Makalah ini mengusulkan framework komprehensif untuk mengukur tingkat inovasi berkelanjutan pada institusi keuangan dengan mengintegrasikan teori difusi inovasi Rogers dan indikator ESG (Environmental, Social, Governance). Validasi framework dilakukan melalui studi empiris pada 22 lembaga keuangan nasional, menghasilkan indeks inovasi berkelanjutan yang dapat direplikasi lintas sektor.',
+          tags: ['Fundamental Research', 'ESG', 'Innovation'],
+          link: 'https://cpebrunair-debug.github.io/portofolio/home'
+        }
+      ],
+      activities: [
+        {
+          icon: '🎤',
+          date: 'Maret 2025',
+          title: 'International Conference on Innovation & Technology CESGS 2025',
+          description: 'Konferensi internasional tahunan yang mempertemukan peneliti, praktisi industri, dan akademisi dalam diskusi inovasi teknologi terapan.',
+          badge: 'Fundamental Research'
+        },
+        {
+          icon: '🤝',
+          date: 'Februari 2025',
+          title: 'Workshop Kolaborasi Riset Bersama PLN & Bank Indonesia',
+          description: 'Sesi kolaborasi intensif dengan mitra strategis untuk merancang agenda riset bersama di bidang energi terbarukan dan inklusi keuangan digital.',
+          badge: 'Applied Research'
+        },
+        {
+          icon: '📊',
+          date: 'Januari 2025',
+          title: 'Launching Dashboard Project Monitoring Generasi 2.0',
+          description: 'Peluncuran versi terbaru platform monitoring project internal dengan fitur real-time tracking, alert system, dan laporan otomatis berbasis AI.',
+          badge: 'Project Monitoring'
+        },
+        {
+          icon: '🌍',
+          date: 'Desember 2024',
+          title: 'Community Service: Program Literasi Digital UMKM Sidoarjo',
+          description: 'Program pengabdian masyarakat berupa pelatihan literasi digital dan pendampingan transformasi bisnis bagi 80+ pelaku UMKM di Sidoarjo.',
+          badge: 'Applied Research'
+        },
+        {
+          icon: '📝',
+          date: 'November 2024',
+          title: 'Submission Batch Q4: 7 Naskah Jurnal Internasional',
+          description: 'Pengiriman massal naskah jurnal ke berbagai publikasi internasional terindeks Scopus dan Web of Science hasil riset tim fundamental selama 2024.',
+          badge: 'Fundamental Research'
+        },
+        {
+          icon: '🔬',
+          date: 'Oktober 2024',
+          title: 'Research Sprint: Kajian AI Governance untuk Sektor Perbankan',
+          description: 'Riset intensif 30 hari bersama tim Indosat dan Bank Indonesia membahas kerangka tata kelola AI yang aman dan bertanggung jawab di sektor perbankan nasional.',
+          badge: 'Applied Research'
+        }
+      ],
+      projects: [
+        {
+          status: 'Aktif',
+          completed: false,
+          title: 'Sistem Prediksi Keandalan Jaringan Transmisi PLN Berbasis AI',
+          summary: 'Pengembangan model AI prediktif untuk mendeteksi potensi gangguan jaringan transmisi listrik secara dini. Proyek ini memanfaatkan data histori gangguan, sensor SCADA, dan data cuaca untuk menghasilkan peringatan dini yang akurat guna meminimalkan downtime layanan kelistrikan nasional.',
+          tags: ['Applied Research', 'AI / ML', 'PLN', '2024–2025']
+        },
+        {
+          status: 'Aktif',
+          completed: false,
+          title: 'Kajian Ekosistem Fintech dan Inklusi Keuangan Digital Indonesia',
+          summary: 'Riset fundamental berskala nasional yang memetakan lanskap ekosistem fintech Indonesia, menganalisis tingkat inklusi keuangan digital di berbagai segmen demografis, serta merumuskan rekomendasi kebijakan berbasis data untuk Bank Indonesia dalam mendorong pertumbuhan ekonomi digital yang inklusif.',
+          tags: ['Fundamental Research', 'Fintech', 'Bank Indonesia']
+        },
+        {
+          status: 'Selesai',
+          completed: true,
+          title: 'Optimasi Jaringan 5G untuk Layanan IoT Industri — Indosat',
+          summary: 'Kajian teknis dan strategis tentang optimasi arsitektur jaringan 5G Indosat untuk mendukung deployment IoT skala industri di kawasan industri prioritas. Proyek menghasilkan blueprint teknis dan roadmap implementasi yang diadopsi dalam strategi B2B Indosat 2025.',
+          tags: ['Applied Research', '5G / IoT', 'Indosat']
+        },
+        {
+          status: 'Aktif',
+          completed: false,
+          title: 'Platform Manajemen Pengetahuan Riset Berbasis Semantic Web',
+          summary: 'Pengembangan platform internal berbasis teknologi semantic web dan knowledge graph untuk mengelola, menghubungkan, dan memvisualisasikan aset pengetahuan riset CESGS. Platform ini memungkinkan penemuan insight lintas project dan mendukung kolaborasi peneliti secara lebih terstruktur.',
+          tags: ['Fundamental Research', 'Knowledge Management', 'Semantic Web']
+        }
+      ],
+      collaborators: [
+        {
+          groupTitle: 'Leading Collaborator',
+          pill: 'Applied',
+          items: [
+            { name: 'PLN', image: '' },
+            { name: 'Bank Indonesia', image: '' },
+            { name: 'Indosat', image: '' }
+          ]
+        },
+        {
+          groupTitle: 'Leading Collaborator',
+          pill: 'Fundamental',
+          items: [
+            { name: 'UGM', image: '' },
+            { name: 'UI', image: '' },
+            { name: 'ITB', image: '' },
+            { name: 'ITS', image: '' },
+            { name: 'UM', image: '' }
+          ]
+        }
+      ]
+    };
+
+    let appData = loadData();
+
+    function deepClone(obj){
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function loadData(){
+      try{
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if(saved){
+          return { ...deepClone(defaultData), ...JSON.parse(saved) };
+        }
+      }catch(err){
+        console.warn('Gagal memuat data admin:', err);
+      }
+      return deepClone(defaultData);
+    }
+
+    let draftData = deepClone(appData);
+    let activeAdminTab = 'hero';
+    const dirtySections = new Set();
+
+    function persistAppData(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      renderHero();
+      renderPublications();
+      renderActivities();
+      renderProjects();
+      renderCollaborators();
+    }
+
+    function markDirty(section){
+      dirtySections.add(section);
+      updateSaveStatus();
+    }
+
+    function clearDirty(section){
+      dirtySections.delete(section);
+      updateSaveStatus();
+    }
+
+    function updateSaveStatus(message){
+      const el = document.getElementById('saveStatusText');
+      if(!el) return;
+      if(message){
+        el.textContent = message;
+        return;
+      }
+      el.textContent = dirtySections.has(activeAdminTab)
+        ? 'Ada perubahan di section ini. Klik Simpan Perubahan untuk memperbarui landing page.'
+        : 'Belum ada perubahan tersimpan.';
+    }
+
+    function saveSection(section = activeAdminTab){
+      if(section === 'hero') appData.hero = deepClone(draftData.hero);
+      if(section === 'publications') appData.publications = deepClone(draftData.publications);
+      if(section === 'activities') appData.activities = deepClone(draftData.activities);
+      if(section === 'projects') appData.projects = deepClone(draftData.projects);
+      if(section === 'collaborators') appData.collaborators = deepClone(draftData.collaborators);
+      persistAppData();
+      clearDirty(section);
+      hydrateAdminForms();
+      updateSaveStatus('Perubahan berhasil disimpan dan landing page sudah diperbarui.');
+    }
+
+    function saveData(){
+      persistAppData();
+    }
+
+    function escapeHtml(value){
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderHero(){
+      const eyebrowEl = document.getElementById('heroEyebrow');
+      const titleEl = document.getElementById('heroTitle');
+      const subtitleEl = document.getElementById('heroSubtitle');
+      const statsContainer = document.getElementById('heroStatsContainer');
+
+      eyebrowEl.textContent = appData.hero.eyebrow;
+      titleEl.innerHTML = `${escapeHtml(appData.hero.titleLine1)}<br><span class="gradient-text">${escapeHtml(appData.hero.titleLine2)}<br>${escapeHtml(appData.hero.titleHighlight)}</span>`;
+      subtitleEl.innerHTML = escapeHtml(appData.hero.subtitle)
+        .replace('Fundamental Research', '<strong>Fundamental Research</strong>')
+        .replace('Applied Research', '<strong>Applied Research</strong>');
+
+      statsContainer.innerHTML = appData.hero.stats.map(stat => `
+        <div class="stat-chip">
+          <div>
+            <div class="stat-num">${escapeHtml(stat.value)}</div>
+            <div class="stat-label">${escapeHtml(stat.label)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPublications(){
+      const el = document.getElementById('pubList');
+      el.innerHTML = appData.publications.map(item => `
+        <article class="pub-item reveal visible">
+          <div class="pub-year">${escapeHtml(item.year)}</div>
+          <div class="pub-body">
+            <div class="pub-title">${escapeHtml(item.title)}</div>
+            <p class="pub-abstract">${escapeHtml(item.abstract)}</p>
+            <div class="pub-meta">
+              ${(item.tags || []).map(tag => `<span class="pub-tag">${escapeHtml(tag)}</span>`).join('')}
+              <a href="${escapeHtml(item.link || '#')}" class="pub-link">Baca selengkapnya →</a>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderActivities(){
+      const el = document.getElementById('activityGrid');
+      el.innerHTML = appData.activities.map(item => `
+        <div class="activity-card reveal visible">
+          <div class="activity-icon">${escapeHtml(item.icon)}</div>
+          <div class="activity-date">${escapeHtml(item.date)}</div>
+          <div class="activity-title">${escapeHtml(item.title)}</div>
+          <p class="activity-desc">${escapeHtml(item.description)}</p>
+          <span class="activity-badge">${escapeHtml(item.badge)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderProjects(){
+      const el = document.getElementById('projectList');
+      el.innerHTML = appData.projects.map((item, index) => `
+        <div class="project-card reveal visible">
+          <div class="project-number">${String(index + 1).padStart(2, '0')}</div>
+          <div class="project-status ${item.completed ? 'completed' : ''}">${escapeHtml(item.status)}</div>
+          <div class="project-title">${escapeHtml(item.title)}</div>
+          <p class="project-summary">${escapeHtml(item.summary)}</p>
+          <div class="project-tags">
+            ${(item.tags || []).map(tag => `<span class="ptag">${escapeHtml(tag)}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function normalizeCollaboratorItem(item){
+      if(typeof item === 'string'){
+        return { name: item, image: '' };
+      }
+      if(item && typeof item === 'object'){
+        return {
+          name: item.name || item.label || '',
+          image: item.image || item.logo || item.photo || ''
+        };
+      }
+      return { name: '', image: '' };
+    }
+
+    function getCollaboratorSummary(item){
+      return item.image ? 'Menggunakan link foto/logo.' : 'Menampilkan nama sebagai fallback.';
+    }
+
+    function renderCollaboratorLogo(item){
+      const safeItem = normalizeCollaboratorItem(item);
+      const safeName = escapeHtml(safeItem.name || 'Logo');
+      const safeImage = escapeHtml(safeItem.image || '');
+      if(safeImage){
+        return `<img src="${safeImage}" alt="${safeName}" loading="lazy" onerror="this.closest('.logo-item').classList.add('logo-fallback');this.outerHTML='${safeName.replaceAll("'", "&#39;")}';" />`;
+      }
+      return safeName;
+    }
+
+    function renderCollaborators(){
+      const el = document.getElementById('collabWrap');
+      el.innerHTML = appData.collaborators.map((group, index) => `
+        <article class="collab-card reveal visible">
+          <div class="collab-head">
+            <h4>${escapeHtml(group.groupTitle || 'Leading Collaborator')}</h4>
+            <div class="pill ${index === 0 ? 'applied' : 'fundamental'}">${escapeHtml(group.pill || '')}</div>
+          </div>
+          <div class="logo-grid">
+            ${(group.items || []).map(item => `<div class="logo-item">${renderCollaboratorLogo(item)}</div>`).join('')}
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderAll(){
+      renderHero();
+      renderPublications();
+      renderActivities();
+      renderProjects();
+      renderCollaborators();
+      hydrateAdminForms();
+    }
+
+    function createArrayEditor(items, onUpdateJs){
+      return `
+        <div class="array-editor">
+          ${(items || []).map((value, index) => `
+            <div class="array-chip">
+              <span>${escapeHtml(value)}</span>
+              <button type="button" class="item-action-btn" onclick="${onUpdateJs}(${index})">Hapus</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function hydrateAdminForms(){
+      document.getElementById('heroEyebrowInput').value = draftData.hero.eyebrow;
+      document.getElementById('heroTitleLine1Input').value = draftData.hero.titleLine1;
+      document.getElementById('heroTitleLine2Input').value = draftData.hero.titleLine2;
+      document.getElementById('heroTitleHighlightInput').value = draftData.hero.titleHighlight;
+      document.getElementById('heroSubtitleInput').value = draftData.hero.subtitle;
+
+      document.getElementById('heroStatsAdminList').innerHTML = draftData.hero.stats.map((stat, index) => `
+        <div class="admin-item">
+          <div class="admin-item-top">
+            <div>
+              <div class="admin-item-title">Statistik ${index + 1}</div>
+              <div class="admin-item-sub">Kelola nilai dan label statistik hero.</div>
+            </div>
+            <div class="admin-item-actions">
+              <button class="item-action-btn" type="button" onclick="removeHeroStat(${index})">Hapus</button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label>Nilai
+                <input type="text" value="${escapeHtml(stat.value)}" onchange="updateHeroStat(${index}, 'value', this.value)" />
+              </label>
+            </div>
+            <div class="field">
+              <label>Label
+                <input type="text" value="${escapeHtml(stat.label)}" onchange="updateHeroStat(${index}, 'label', this.value)" />
+              </label>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('publicationsAdminList').innerHTML = draftData.publications.map((item, index) => `
+        <div class="admin-item">
+          <div class="admin-item-top">
+            <div>
+              <div class="admin-item-title">${escapeHtml(item.title || `Publikasi ${index + 1}`)}</div>
+              <div class="admin-item-sub">${escapeHtml(item.year)} · ${(item.tags || []).map(escapeHtml).join(', ')}</div>
+            </div>
+            <div class="admin-item-actions">
+              <button class="item-action-btn" type="button" onclick="removePublication(${index})">Hapus</button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Tahun<input type="text" value="${escapeHtml(item.year)}" onchange="updatePublication(${index}, 'year', this.value)" /></label></div>
+            <div class="field"><label>Link<input type="text" value="${escapeHtml(item.link)}" onchange="updatePublication(${index}, 'link', this.value)" /></label></div>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>Judul<input type="text" value="${escapeHtml(item.title)}" onchange="updatePublication(${index}, 'title', this.value)" /></label></div>
+          <div class="field" style="margin-top:12px;"><label>Abstract<textarea onchange="updatePublication(${index}, 'abstract', this.value)">${escapeHtml(item.abstract)}</textarea></label></div>
+          <div class="field" style="margin-top:12px;"><label>Tags (pisahkan dengan koma)<input type="text" value="${escapeHtml((item.tags || []).join(', '))}" onchange="updatePublicationTags(${index}, this.value)" /></label></div>
+        </div>
+      `).join('');
+
+      document.getElementById('activitiesAdminList').innerHTML = draftData.activities.map((item, index) => `
+        <div class="admin-item">
+          <div class="admin-item-top">
+            <div>
+              <div class="admin-item-title">${escapeHtml(item.title || `Activity ${index + 1}`)}</div>
+              <div class="admin-item-sub">${escapeHtml(item.date)} · ${escapeHtml(item.badge)}</div>
+            </div>
+            <div class="admin-item-actions">
+              <button class="item-action-btn" type="button" onclick="removeActivity(${index})">Hapus</button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Icon / Emoji<input type="text" value="${escapeHtml(item.icon)}" onchange="updateActivity(${index}, 'icon', this.value)" /></label></div>
+            <div class="field"><label>Tanggal<input type="text" value="${escapeHtml(item.date)}" onchange="updateActivity(${index}, 'date', this.value)" /></label></div>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>Judul<input type="text" value="${escapeHtml(item.title)}" onchange="updateActivity(${index}, 'title', this.value)" /></label></div>
+          <div class="field" style="margin-top:12px;"><label>Deskripsi<textarea onchange="updateActivity(${index}, 'description', this.value)">${escapeHtml(item.description)}</textarea></label></div>
+          <div class="field" style="margin-top:12px;"><label>Badge<input type="text" value="${escapeHtml(item.badge)}" onchange="updateActivity(${index}, 'badge', this.value)" /></label></div>
+        </div>
+      `).join('');
+
+      document.getElementById('projectsAdminList').innerHTML = draftData.projects.map((item, index) => `
+        <div class="admin-item">
+          <div class="admin-item-top">
+            <div>
+              <div class="admin-item-title">${escapeHtml(item.title || `Project ${index + 1}`)}</div>
+              <div class="admin-item-sub">${escapeHtml(item.status)} · ${(item.tags || []).map(escapeHtml).join(', ')}</div>
+            </div>
+            <div class="admin-item-actions">
+              <button class="item-action-btn" type="button" onclick="removeProject(${index})">Hapus</button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Status<input type="text" value="${escapeHtml(item.status)}" onchange="updateProject(${index}, 'status', this.value)" /></label></div>
+            <div class="field"><label>Status Selesai
+              <select onchange="updateProject(${index}, 'completed', this.value === 'true')">
+                <option value="false" ${item.completed ? '' : 'selected'}>Tidak</option>
+                <option value="true" ${item.completed ? 'selected' : ''}>Ya</option>
+              </select>
+            </label></div>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>Judul<input type="text" value="${escapeHtml(item.title)}" onchange="updateProject(${index}, 'title', this.value)" /></label></div>
+          <div class="field" style="margin-top:12px;"><label>Ringkasan<textarea onchange="updateProject(${index}, 'summary', this.value)">${escapeHtml(item.summary)}</textarea></label></div>
+          <div class="field" style="margin-top:12px;"><label>Tags (pisahkan dengan koma)<input type="text" value="${escapeHtml((item.tags || []).join(', '))}" onchange="updateProjectTags(${index}, this.value)" /></label></div>
+        </div>
+      `).join('');
+
+      document.getElementById('collaboratorsAdminList').innerHTML = draftData.collaborators.map((group, groupIndex) => `
+        <div class="admin-item">
+          <div class="admin-item-top">
+            <div>
+              <div class="admin-item-title">${escapeHtml(group.groupTitle || `Group ${groupIndex + 1}`)}</div>
+              <div class="admin-item-sub">${escapeHtml(group.pill)}</div>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label>Judul Group<input type="text" value="${escapeHtml(group.groupTitle)}" onchange="updateCollaboratorGroup(${groupIndex}, 'groupTitle', this.value)" /></label></div>
+            <div class="field"><label>Pill Label<input type="text" value="${escapeHtml(group.pill)}" onchange="updateCollaboratorGroup(${groupIndex}, 'pill', this.value)" /></label></div>
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label>Tambah collaborator
+              <div class="field-grid" style="margin-top:8px;">
+                <div class="field"><input type="text" id="newCollaboratorName${groupIndex}" placeholder="Nama collaborator" /></div>
+                <div class="field"><input type="text" id="newCollaboratorImage${groupIndex}" placeholder="Link foto/logo (https://...)" /></div>
+              </div>
+              <div class="inline-actions" style="margin-top:8px;">
+                <button type="button" class="admin-secondary-btn" onclick="addCollaboratorItem(${groupIndex})">Tambah</button>
+              </div>
+            </label>
+          </div>
+          <div class="admin-list">
+            ${(group.items || []).map((item, itemIndex) => {
+              const safeItem = normalizeCollaboratorItem(item);
+              return `
+                <div class="admin-item">
+                  <div class="admin-item-top">
+                    <div>
+                      <div class="admin-item-title">${escapeHtml(safeItem.name || `Collaborator ${itemIndex + 1}`)}</div>
+                      <div class="admin-item-sub">${escapeHtml(getCollaboratorSummary(safeItem))}</div>
+                    </div>
+                    <div class="admin-item-actions">
+                      <button class="item-action-btn" type="button" onclick="removeCollaboratorItem(${groupIndex}, ${itemIndex})">Hapus</button>
+                    </div>
+                  </div>
+                  <div class="field-grid">
+                    <div class="field"><label>Nama<input type="text" value="${escapeHtml(safeItem.name)}" onchange="updateCollaboratorItem(${groupIndex}, ${itemIndex}, 'name', this.value)" /></label></div>
+                    <div class="field"><label>Link Foto / Logo<input type="text" value="${escapeHtml(safeItem.image)}" onchange="updateCollaboratorItem(${groupIndex}, ${itemIndex}, 'image', this.value)" /></label></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateHeroField(field, value){ draftData.hero[field] = value; markDirty('hero'); }
+    function updateHeroStat(index, field, value){ draftData.hero.stats[index][field] = value; markDirty('hero'); }
+    function addHeroStat(){ draftData.hero.stats.push({ value: '0', label: 'Statistik Baru' }); markDirty('hero'); hydrateAdminForms(); }
+    function removeHeroStat(index){ draftData.hero.stats.splice(index, 1); markDirty('hero'); hydrateAdminForms(); }
+
+    function updatePublication(index, field, value){ draftData.publications[index][field] = value; markDirty('publications'); }
+    function updatePublicationTags(index, value){ draftData.publications[index].tags = value.split(',').map(v => v.trim()).filter(Boolean); markDirty('publications'); }
+    function addPublication(){
+      draftData.publications.unshift({ year: '2026', title: 'Publikasi Baru', abstract: 'Tulis ringkasan publikasi di sini.', tags: ['New'], link: '#' });
+      markDirty('publications');
+      hydrateAdminForms();
+    }
+    function removePublication(index){ draftData.publications.splice(index, 1); markDirty('publications'); hydrateAdminForms(); }
+
+    function updateActivity(index, field, value){ draftData.activities[index][field] = value; markDirty('activities'); }
+    function addActivity(){
+      draftData.activities.unshift({ icon: '✨', date: 'Bulan Tahun', title: 'Activity Baru', description: 'Deskripsikan activity baru di sini.', badge: 'New Activity' });
+      markDirty('activities');
+      hydrateAdminForms();
+    }
+    function removeActivity(index){ draftData.activities.splice(index, 1); markDirty('activities'); hydrateAdminForms(); }
+
+    function updateProject(index, field, value){ draftData.projects[index][field] = value; markDirty('projects'); }
+    function updateProjectTags(index, value){ draftData.projects[index].tags = value.split(',').map(v => v.trim()).filter(Boolean); markDirty('projects'); }
+    function addProject(){
+      draftData.projects.unshift({ status: 'Aktif', completed: false, title: 'Project Baru', summary: 'Ringkasan project baru.', tags: ['New Project'] });
+      markDirty('projects');
+      hydrateAdminForms();
+    }
+    function removeProject(index){ draftData.projects.splice(index, 1); markDirty('projects'); hydrateAdminForms(); }
+
+    function updateCollaboratorGroup(index, field, value){ draftData.collaborators[index][field] = value; markDirty('collaborators'); }
+    function updateCollaboratorItem(groupIndex, itemIndex, field, value){
+      const current = normalizeCollaboratorItem(draftData.collaborators[groupIndex].items[itemIndex]);
+      current[field] = value;
+      draftData.collaborators[groupIndex].items[itemIndex] = current;
+      markDirty('collaborators');
+    }
+    function addCollaboratorItem(groupIndex){
+      const nameInput = document.getElementById(`newCollaboratorName${groupIndex}`);
+      const imageInput = document.getElementById(`newCollaboratorImage${groupIndex}`);
+      const name = nameInput.value.trim();
+      const image = imageInput.value.trim();
+      if(!name && !image) return;
+      draftData.collaborators[groupIndex].items.push({ name, image });
+      nameInput.value = '';
+      imageInput.value = '';
+      markDirty('collaborators');
+      hydrateAdminForms();
+    }
+    function removeCollaboratorItem(groupIndex, itemIndex){
+      draftData.collaborators[groupIndex].items.splice(itemIndex, 1);
+      markDirty('collaborators');
+      hydrateAdminForms();
+    }
+
+    window.updateHeroStat = updateHeroStat;
+    window.removeHeroStat = removeHeroStat;
+    window.updatePublication = updatePublication;
+    window.updatePublicationTags = updatePublicationTags;
+    window.removePublication = removePublication;
+    window.updateActivity = updateActivity;
+    window.removeActivity = removeActivity;
+    window.updateProject = updateProject;
+    window.updateProjectTags = updateProjectTags;
+    window.removeProject = removeProject;
+    window.updateCollaboratorGroup = updateCollaboratorGroup;
+    window.updateCollaboratorItem = updateCollaboratorItem;
+    window.addCollaboratorItem = addCollaboratorItem;
+    window.removeCollaboratorItem = removeCollaboratorItem;
+
+    document.getElementById('heroEyebrowInput').addEventListener('change', e => updateHeroField('eyebrow', e.target.value));
+    document.getElementById('heroTitleLine1Input').addEventListener('change', e => updateHeroField('titleLine1', e.target.value));
+    document.getElementById('heroTitleLine2Input').addEventListener('change', e => updateHeroField('titleLine2', e.target.value));
+    document.getElementById('heroTitleHighlightInput').addEventListener('change', e => updateHeroField('titleHighlight', e.target.value));
+    document.getElementById('heroSubtitleInput').addEventListener('change', e => updateHeroField('subtitle', e.target.value));
+
+    document.getElementById('addHeroStatButton').addEventListener('click', addHeroStat);
+    document.getElementById('addPublicationButton').addEventListener('click', addPublication);
+    document.getElementById('addActivityButton').addEventListener('click', addActivity);
+    document.getElementById('addProjectButton').addEventListener('click', addProject);
+
+    document.getElementById('saveSectionButton').addEventListener('click', () => saveSection(activeAdminTab));
+
+    const adminButton = document.getElementById('adminButton');
+    const loginModal = document.getElementById('adminLoginModal');
+    const adminPanel = document.getElementById('adminPanel');
+    const loginError = document.getElementById('adminLoginError');
+
+    function openLogin(){ loginModal.classList.add('show'); loginModal.setAttribute('aria-hidden', 'false'); }
+    function closeLogin(){ loginModal.classList.remove('show'); loginModal.setAttribute('aria-hidden', 'true'); loginError.textContent = ''; }
+    function openAdminPanel(){ draftData = deepClone(appData); adminPanel.classList.add('show'); adminPanel.setAttribute('aria-hidden', 'false'); hydrateAdminForms(); updateSaveStatus(); }
+    function closeAdminPanel(){ adminPanel.classList.remove('show'); adminPanel.setAttribute('aria-hidden', 'true'); }
+
+    adminButton.addEventListener('click', () => {
+      const loggedIn = localStorage.getItem(AUTH_KEY) === 'true';
+      if(loggedIn){
+        openAdminPanel();
+      }else{
+        openLogin();
+      }
+    });
+
+    document.getElementById('closeLoginModal').addEventListener('click', closeLogin);
+    document.getElementById('closeAdminPanel').addEventListener('click', closeAdminPanel);
+
+    document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      if(email === ADMIN_EMAIL && password === ADMIN_PASSWORD){
+        localStorage.setItem(AUTH_KEY, 'true');
+        closeLogin();
+        openAdminPanel();
+      }else{
+        loginError.textContent = 'Email atau password admin tidak sesuai.';
+      }
+    });
+
+    document.getElementById('logoutButton').addEventListener('click', () => {
+      localStorage.removeItem(AUTH_KEY);
+      closeAdminPanel();
+    });
+
+    document.getElementById('resetDataButton').addEventListener('click', () => {
+      appData = deepClone(defaultData);
+      markDirty('collaborators');
+      hydrateAdminForms();
+    });
+
+    const tabMeta = {
+      hero: { title: 'Hero', desc: 'Atur teks utama dan statistik pada hero section.' },
+      publications: { title: 'Publikasi', desc: 'Kelola daftar publikasi terbaru pada landing page.' },
+      activities: { title: 'Activities', desc: 'Kelola daftar activities dan badge yang tampil.' },
+      projects: { title: 'Projects', desc: 'Kelola project terbaru dan statusnya.' },
+      collaborators: { title: 'Collaborators', desc: 'Ubah nama leading collaborator dan daftar logo berbasis link foto atau nama fallback.' }
+    };
+
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.admin-section').forEach(section => section.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        activeAdminTab = target;
+        document.querySelector(`.admin-section[data-section="${target}"]`).classList.add('active');
+        document.getElementById('adminSectionTitle').textContent = tabMeta[target].title;
+        document.getElementById('adminSectionDesc').textContent = tabMeta[target].desc;
+        updateSaveStatus();
+      });
+    });
+
+    loginModal.addEventListener('click', (e) => { if(e.target === loginModal) closeLogin(); });
+    adminPanel.addEventListener('click', (e) => { if(e.target === adminPanel) closeAdminPanel(); });
+
+    renderAll();
+
+    // Scroll reveal
+
+    const revealEls = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if(entry.isIntersecting){
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, 80);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    revealEls.forEach(el => observer.observe(el));
+  </script>
 </body>
 </html>
