@@ -5135,33 +5135,14 @@ function getProjectCardStats(pid){
 function showRenderFailsafe(scope, err){
   try{
     console.error(`[CESGS fail-safe] ${scope}`, err);
-    let box=document.getElementById('cesgs-render-failsafe');
-    if(!box){
-      box=document.createElement('div');
-      box.id='cesgs-render-failsafe';
-      box.style.position='fixed';
-      box.style.right='16px';
-      box.style.bottom='16px';
-      box.style.zIndex='3000';
-      box.style.maxWidth='420px';
-      box.style.background='rgba(13,10,30,0.94)';
-      box.style.color='#fff';
-      box.style.border='1px solid rgba(255,255,255,0.12)';
-      box.style.borderRadius='16px';
-      box.style.padding='16px 18px';
-      box.style.boxShadow='0 18px 48px rgba(13,10,30,0.28)';
-      document.body.appendChild(box);
-    }
-    const firstProject=(typeof getSessionProjects==='function' ? getSessionProjects().filter(pid=>!!PROJECTS[pid])[0] : null) || (currentProjectId&&PROJECTS[currentProjectId]?currentProjectId:null);
-    box.innerHTML=`
-      <div style="font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#9ff0df;font-weight:700;margin-bottom:8px">UI Recovery Mode</div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Some page blocks failed to render.</div>
-      <div style="font-size:12px;line-height:1.6;color:rgba(255,255,255,0.75)">The app kept the session alive and switched to a safer fallback so the screen does not stay blank.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button type="button" onclick="const b=document.getElementById('cesgs-render-failsafe'); if(b) b.remove(); showLandingScreen(resolveLoginPrefill());" style="border:none;border-radius:10px;padding:9px 12px;background:#fff;color:#0D0A1E;font-size:12px;font-weight:700;cursor:pointer">Back to Login</button>
-        ${firstProject ? `<button type="button" onclick="const b=document.getElementById('cesgs-render-failsafe'); if(b) b.remove(); enterProject('${firstProject}');" style="border:none;border-radius:10px;padding:9px 12px;background:linear-gradient(135deg,#0B8C7A,#1A55C9);color:#fff;font-size:12px;font-weight:700;cursor:pointer">Open First Project</button>` : ''}
-      </div>`;
-  }catch(_e){}
+    window.__cesgsLastRenderError = {
+      scope: String(scope || 'render'),
+      message: String(err && err.message ? err.message : (typeof err === 'string' ? err : 'Unexpected render issue')),
+      timestamp: Date.now()
+    };
+  }catch(innerErr){
+    console.error('[CESGS fail-safe] Unable to capture render diagnostics', innerErr, err);
+  }
 }
 function clearRenderFailsafe(){const box=document.getElementById('cesgs-render-failsafe');if(box) box.remove();}
 function renderMinimalUserHub(message){
@@ -5373,7 +5354,7 @@ function performUserLogin(email, password, mode) {
     if(firstProject){
       try{ enterProject(firstProject); toast('Hub entered recovery mode. Opened the first accessible project instead.'); return; }catch(innerErr){ console.error('Fallback enterProject failed', innerErr); }
     }
-    renderMinimalUserHub('The main hub hit a rendering issue, so a smaller safe view was opened.');
+    renderMinimalUserHub('Dashboard dibuka dalam mode sederhana agar akses akun tetap berjalan normal.');
   }
 }
 
@@ -6092,7 +6073,7 @@ function renderRoleAwareSidebar(){
   const nav = document.getElementById('sidebar-nav');
   if(!nav || !currentProjectId) return;
   nav.innerHTML = `
-    <button class="back-to-hub" onclick="goToLanding()" title="Kembali ke profil / halaman utama">⌂ ${currentUserSession?'Profil / Hub':'Home / Login'}</button>
+    <button class="back-to-hub" onclick="currentUserSession?showUserHubPage():goToLanding()" title="Kembali ke profil / halaman utama">⌂ ${currentUserSession?'Profil / Hub':'Home / Login'}</button>
     <div class="nav-section">Workspace</div>
     ${navButton('dashboard','Dashboard','▦')}
     ${navButton('profile','Profil','👤')}
@@ -9164,6 +9145,75 @@ function isProjectActive(pid){
   return !getProjectDisabledList().includes(String(pid));
 }
 
+function getUserHubScaffoldHtml(){
+  return `
+    <div class="hub-shell">
+      <div class="hub-topbar">
+        <div class="hub-logo-row">
+          <div class="hub-brand-lockup">
+            <div>
+              <div class="hub-logo-title">Project Hub Dashboard</div>
+              <div class="hub-logo-sub">Center for Environmental, Social, &amp; Governance Studies</div>
+            </div>
+          </div>
+        </div>
+        <div id="hub-topbar-actions"></div>
+      </div>
+      <div id="hub-profile-card-wrap"></div>
+      <div id="hub-superadmin-section" style="display:none"></div>
+      <div id="hub-calendar-section"></div>
+      <div id="hub-projects-section">
+        <div class="hub-section-head">
+          <div class="hub-section-title" id="hub-projects-title">📂 Proyek Aktif Anda</div>
+        </div>
+        <div id="hub-projects-grid" class="hub-projects-grid"></div>
+      </div>
+    </div>`;
+}
+function ensureUserHubScaffold(){
+  const hub=document.getElementById('user-hub-page');
+  if(!hub) return null;
+  const requiredIds=['hub-topbar-actions','hub-profile-card-wrap','hub-superadmin-section','hub-calendar-section','hub-projects-section','hub-projects-title','hub-projects-grid'];
+  const missing=requiredIds.some(id=>!document.getElementById(id));
+  if(missing || !hub.querySelector('.hub-shell')){
+    hub.innerHTML=getUserHubScaffoldHtml();
+  }
+  return hub;
+}
+function renderHubCalendarFallback(message){
+  const container=document.getElementById('hub-calendar-section');
+  if(!container) return;
+  container.innerHTML=`<div class="card card-pad"><div class="hub-section-title">📆 Kalender</div><div class="helper-text" style="margin-top:8px">${escapeHtml(message || 'Kalender sementara tidak dapat dimuat.')}</div></div>`;
+}
+function safeRenderHubCalendarSection(){
+  try{
+    renderHubCalendarSection();
+  }catch(err){
+    showRenderFailsafe('renderHubCalendarSection', err);
+    renderHubCalendarFallback('Ringkasan kalender sementara disederhanakan agar dashboard tetap bisa dibuka.');
+  }
+}
+function renderHubProjectsFallback(message){
+  const projectsSection=document.getElementById('hub-projects-section');
+  const projectsGrid=document.getElementById('hub-projects-grid');
+  const projectsTitle=document.getElementById('hub-projects-title');
+  if(projectsSection) projectsSection.style.display='block';
+  if(projectsTitle) projectsTitle.textContent='📂 Proyek Aktif Anda';
+  if(projectsGrid){
+    projectsGrid.innerHTML=`<div class="hub-empty-msg">${escapeHtml(message || 'Daftar proyek sementara tidak dapat dimuat.')}</div>`;
+  }
+}
+function withUserHubSectionGuard(scope, renderFn, fallbackFn){
+  try{
+    renderFn();
+  }catch(err){
+    showRenderFailsafe(scope, err);
+    if(typeof fallbackFn === 'function'){
+      try{ fallbackFn(err); }catch(innerErr){ console.error(`[CESGS fail-safe] ${scope}.fallback`, innerErr); }
+    }
+  }
+}
+
 function showUserHubPage(){
   const landing=document.getElementById('landing-page');
   const sidebar=document.getElementById('sidebar');
@@ -9175,12 +9225,13 @@ function showUserHubPage(){
   if(main) main.style.display='none';
   if(hamburger) hamburger.style.display='none';
   if(hub) hub.classList.add('show');
+  ensureUserHubScaffold();
   clearRenderFailsafe();
   try{
     renderUserHubPage();
   }catch(err){
     showRenderFailsafe('showUserHubPage.renderUserHubPage', err);
-    renderMinimalUserHub('The hub switched to a safe fallback view because one of the advanced sections failed to render.');
+    renderMinimalUserHub('Dashboard dibuka dalam mode sederhana agar tetap stabil.');
   }
 }
 
@@ -9252,8 +9303,8 @@ function enterFirstProjectSuperadmin(){
 
 function hubCalendarChangeMonth(delta){
   hubCalendarViewDate = new Date(hubCalendarViewDate.getFullYear(), hubCalendarViewDate.getMonth()+delta, 1);
-  renderHubCalendarSection();
-  renderMeetingDashboardCalendarSection();
+  safeRenderHubCalendarSection();
+  try{ renderMeetingDashboardCalendarSection(); }catch(err){ showRenderFailsafe('hubCalendarChangeMonth.renderMeetingDashboardCalendarSection', err); }
 }
 
 function getHubCalendarItemStartTime(item){
@@ -9696,25 +9747,26 @@ function saveUserProfileEditPage(){
 
 function renderUserHubPage(){
   refreshCurrentSessionFromStores();
+  ensureUserHubScaffold();
   const user=currentUserSession;
   if(!user){hubLogout();return;}
   const isSA=isSuperadminSession();
   const isCEO=isCeoSession();
 
-  /* ── Top actions ── */
-  const topActions=document.getElementById('hub-topbar-actions');
-  if(topActions){
+  withUserHubSectionGuard('renderUserHubPage.topActions', ()=>{
+    const topActions=document.getElementById('hub-topbar-actions');
+    if(!topActions) return;
     topActions.innerHTML=`
       ${isSA?`<button class="hub-btn hub-btn-console" onclick="openAdminConsole()" style="margin-right:8px">⚙️ Admin Console</button>`:''}
       <button class="hub-btn hub-btn-logout" onclick="hubLogout()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Logout
       </button>`;
-  }
+  });
 
-  /* ── Profile card ── */
-  const profileWrap=document.getElementById('hub-profile-card-wrap');
-  if(profileWrap){
+  withUserHubSectionGuard('renderUserHubPage.profile', ()=>{
+    const profileWrap=document.getElementById('hub-profile-card-wrap');
+    if(!profileWrap) return;
     const now=new Date();
     const h=now.getHours();
     const greeting=h<11?'Selamat Pagi':h<15?'Selamat Siang':h<18?'Selamat Sore':'Selamat Malam';
@@ -9728,10 +9780,10 @@ function renderUserHubPage(){
         ${getHubAvatarHtml(user)}
         <div class="hub-profile-info">
           <div class="hub-greeting-tag">${greeting} 👋</div>
-          <div class="hub-name">${escapeHtml(user.name)}</div>
+          <div class="hub-name">${escapeHtml(user.name || 'User')}</div>
           <div class="${roleClass}">${roleLabel}</div>
           <div class="hub-info-pills">
-            <div class="hub-info-pill">✉️ ${escapeHtml(user.email)}</div>
+            <div class="hub-info-pill">✉️ ${escapeHtml(user.email || '-')}</div>
             ${institution?`<div class="hub-info-pill">🏛️ ${escapeHtml(institution)}</div>`:''}
             ${profileLinkHtml}
             <div class="hub-info-pill">📅 ${now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
@@ -9748,18 +9800,23 @@ function renderUserHubPage(){
           </div>
         </div>
       </div>`;
-  }
+  }, ()=>{
+    const profileWrap=document.getElementById('hub-profile-card-wrap');
+    if(profileWrap){
+      profileWrap.innerHTML=`<div class="card card-pad"><div class="empty-state">Profil pengguna berhasil dipulihkan dalam mode aman.</div></div>`;
+    }
+  });
 
-  renderHubCalendarSection();
+  safeRenderHubCalendarSection();
 
-  /* ── Superadmin / CEO panel ── */
-  const saSection=document.getElementById('hub-superadmin-section');
-  if(saSection){
+  withUserHubSectionGuard('renderUserHubPage.superadminSection', ()=>{
+    const saSection=document.getElementById('hub-superadmin-section');
+    if(!saSection) return;
     if(isSA){
       saSection.style.display='block';
-      const allProj=Object.values(PROJECTS);
-      const activeCount=allProj.filter(p=>isProjectActive(p.id)).length;
-      const totalAccounts=getUserAccounts().length;
+      const allProj=Object.values(PROJECTS || {});
+      const activeCount=allProj.filter(p=>p && isProjectActive(p.id)).length;
+      const totalAccounts=(typeof getUserAccounts === 'function' ? getUserAccounts() : []).length;
       const totalRequests=(typeof adminState!=='undefined'&&Array.isArray(adminState.bookingRequests))?adminState.bookingRequests.length:0;
       const projectRows=allProj.length?allProj.map(p=>{
         const active=isProjectActive(p.id);
@@ -9780,12 +9837,9 @@ function renderUserHubPage(){
           </button>
         </div>`;
       }).join(''):`<div class="hub-empty-msg">Belum ada proyek. Tambahkan melalui Admin Console.</div>`;
-
       saSection.innerHTML=`
         <div class="sadmin-hub">
-          <div class="hub-section-head" style="margin-bottom:6px">
-            <div class="hub-section-title">🛡️ Panel Kontrol Superadmin</div>
-          </div>
+          <div class="hub-section-head" style="margin-bottom:6px"><div class="hub-section-title">🛡️ Panel Kontrol Superadmin</div></div>
           <div class="sadmin-sub">Kontrol penuh atas semua proyek dan akun dalam CESGS Project Hub. Aktif/nonaktifkan proyek, hapus proyek, atau buka Admin Console untuk pengaturan lengkap.</div>
           <div class="sadmin-stats">
             <div class="stat-tile st-teal"><div class="st-num">${allProj.length}</div><div class="st-label">Total Proyek</div></div>
@@ -9793,10 +9847,7 @@ function renderUserHubPage(){
             <div class="stat-tile st-gold"><div class="st-num">${totalAccounts}</div><div class="st-label">Total Akun</div></div>
             <div class="stat-tile st-ink"><div class="st-num">${totalRequests}</div><div class="st-label">Booking Request</div></div>
           </div>
-          <div class="hub-section-head" style="margin-bottom:12px">
-            <div style="font-size:14px;font-weight:700;color:var(--ink)">Manajemen Proyek</div>
-            <button class="btn btn-teal btn-sm" onclick="openAdminConsole()">+ Tambah Proyek Baru</button>
-          </div>
+          <div class="hub-section-head" style="margin-bottom:12px"><div style="font-size:14px;font-weight:700;color:var(--ink)">Manajemen Proyek</div><button class="btn btn-teal btn-sm" onclick="openAdminConsole()">+ Tambah Proyek Baru</button></div>
           <div id="sadmin-project-list-hub">${projectRows}</div>
           <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;padding-top:14px;border-top:1px solid rgba(11,140,122,0.1)">
             <button class="btn btn-outline" onclick="openAdminConsole()">⚙️ Admin Console Lengkap</button>
@@ -9809,9 +9860,7 @@ function renderUserHubPage(){
       const workload = calculateInternalAccountPortfolioStats();
       saSection.innerHTML = `
         <div class="sadmin-hub">
-          <div class="hub-section-head" style="margin-bottom:6px">
-            <div class="hub-section-title">👑 CEO Executive Overview</div>
-          </div>
+          <div class="hub-section-head" style="margin-bottom:6px"><div class="hub-section-title">👑 CEO Executive Overview</div></div>
           <div class="sadmin-sub">Ringkasan ini menampilkan statistik seluruh project CESGS dan statistik pekerjaan semua akun internal. CEO dapat membuka detail setiap project dari daftar proyek di bawah.</div>
           <div class="sadmin-stats">
             <div class="stat-tile st-teal"><div class="st-num">${portfolio.totalProjects}</div><div class="st-label">Total Proyek</div></div>
@@ -9820,92 +9869,61 @@ function renderUserHubPage(){
             <div class="stat-tile st-ink"><div class="st-num">${workload.totals.percent}%</div><div class="st-label">Completion Internal</div></div>
           </div>
           <div class="grid-2" style="margin-top:16px">
-            <div class="card card-pad">
-              <div class="section-label">Portfolio Snapshot</div>
-              <div class="info-list">
-                <div class="info-row"><span>Total timeline seluruh project</span><strong>${portfolio.totalTimeline}</strong></div>
-                <div class="info-row"><span>Timeline selesai</span><strong>${portfolio.completedTimeline}</strong></div>
-                <div class="info-row"><span>Timeline aktif / pending</span><strong>${portfolio.activeTimeline}</strong></div>
-                <div class="info-row"><span>Task open internal</span><strong>${workload.totals.inProgress}</strong></div>
-                <div class="info-row"><span>Task / work item selesai</span><strong>${workload.totals.completed}</strong></div>
-              </div>
-            </div>
-            <div class="card card-pad">
-              <div class="section-label">Executive Notes</div>
-              <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-outline" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Pertama</button>
-              </div>
-            </div>
+            <div class="card card-pad"><div class="section-label">Portfolio Snapshot</div><div class="info-list"><div class="info-row"><span>Total timeline seluruh project</span><strong>${portfolio.totalTimeline}</strong></div><div class="info-row"><span>Timeline selesai</span><strong>${portfolio.completedTimeline}</strong></div><div class="info-row"><span>Timeline aktif / pending</span><strong>${portfolio.activeTimeline}</strong></div><div class="info-row"><span>Task open internal</span><strong>${workload.totals.inProgress}</strong></div><div class="info-row"><span>Task / work item selesai</span><strong>${workload.totals.completed}</strong></div></div></div>
+            <div class="card card-pad"><div class="section-label">Executive Notes</div><div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline" onclick="enterFirstProjectSuperadmin()">▦ Buka Project Pertama</button></div></div>
           </div>
-          <div class="hub-section-head" style="margin:18px 0 12px">
-            <div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Pekerjaan Akun Internal</div>
-          </div>
-          <div class="admin-list">
-            ${workload.rows.length ? workload.rows.map(item => `
+          <div class="hub-section-head" style="margin:18px 0 12px"><div style="font-size:14px;font-weight:700;color:var(--ink)">Statistik Pekerjaan Akun Internal</div></div>
+          <div class="admin-list">${workload.rows.length ? workload.rows.map(item => `
               <div class="admin-row">
-                <div>
-                  <div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div>
-                  <div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.projectCount} project</div>
-                </div>
-                <div class="admin-actions">
-                  <span class="badge badge-ink">Total ${item.total}</span>
-                  <span class="badge badge-teal">Done ${item.completed}</span>
-                  <span class="badge badge-blue">Open ${item.inProgress}</span>
-                  <span class="badge badge-gold">${item.percent}%</span>
-                </div>
-              </div>`).join('') : '<div class="hub-empty-msg">Belum ada akun internal CESGS yang terdeteksi.</div>'}
-          </div>
+                <div><div class="admin-row-title">${escapeHtml(item.name || item.email || 'Management Account')}</div><div class="admin-row-sub">${escapeHtml(item.role || 'Internal')} · ${escapeHtml(item.email || '-')} · ${item.projectCount} project</div></div>
+                <div class="admin-actions"><span class="badge badge-ink">Total ${item.total}</span><span class="badge badge-teal">Done ${item.completed}</span><span class="badge badge-blue">Open ${item.inProgress}</span><span class="badge badge-gold">${item.percent}%</span></div>
+              </div>`).join('') : '<div class="hub-empty-msg">Belum ada akun internal CESGS yang terdeteksi.</div>'}</div>
         </div>`;
     } else {
       saSection.style.display='none';
+      saSection.innerHTML='';
     }
-  }
+  }, ()=>{
+    const saSection=document.getElementById('hub-superadmin-section');
+    if(saSection){ saSection.style.display='none'; saSection.innerHTML=''; }
+  });
 
-  /* ── Projects grid ── */
-  const projectsSection=document.getElementById('hub-projects-section');
-  const projectsGrid=document.getElementById('hub-projects-grid');
-  const projectsTitle=document.getElementById('hub-projects-title');
-  if(projectsTitle) projectsTitle.textContent = isCEO ? '📂 Semua Proyek CESGS' : '📂 Proyek Aktif Anda';
-  if(!projectsGrid) return;
-
-  const sessionProjs=getSessionProjects();
-  let accessiblePids;
-  if(isSA || isCEO){
-    accessiblePids=Object.keys(PROJECTS).filter(pid=>isProjectActive(pid));
-  } else {
-    accessiblePids=sessionProjs.filter(pid=>PROJECTS[pid]&&isProjectActive(pid));
-  }
-
-  if(projectsSection) projectsSection.style.display='block';
-  if(!accessiblePids.length){
-    projectsGrid.innerHTML=`<div class="hub-empty-msg">
-      ${(isSA || isCEO)?'Semua proyek sedang nonaktif. Aktifkan proyek untuk mengakses dashboard.':'Tidak ada proyek aktif yang dapat Anda akses. Hubungi administrator.'}
-    </div>`;
-    return;
-  }
-  const isMA=userCanManage();
-  projectsGrid.innerHTML=accessiblePids.map(pid=>{
-    const p=PROJECTS[pid];
-    if(!p) return '';
-    const caption=(isMA || isCEO)?'Buka Project Dashboard →':'Buka Client Dashboard →';
-    const stats=getProjectCardStats(pid);
-    const docCount=stats.documents;
-    const meetCount=stats.meetings;
-    return `<div class="hub-project-card" onclick="enterProjectFromHub('${pid}')">
-      <div class="hub-pc-accent" style="background:linear-gradient(90deg,${p.accent},${p.accent}77)"></div>
-      <div class="hub-pc-body">
-        <div class="hub-pc-icon" style="background:${p.accent}18">${p.icon}</div>
-        <div class="hub-pc-name">${escapeHtml(p.name)}</div>
-        <div class="hub-pc-org" style="color:${p.accent}">${escapeHtml(p.org)}</div>
-        <div class="hub-pc-desc">${escapeHtml((p.sub||'').slice(0,88))}...</div>
-        <div style="display:flex;gap:6px;margin-bottom:12px">
-          <span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📄 ${docCount} docs</span>
-          <span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📅 ${meetCount} meetings</span>
+  withUserHubSectionGuard('renderUserHubPage.projects', ()=>{
+    const projectsSection=document.getElementById('hub-projects-section');
+    const projectsGrid=document.getElementById('hub-projects-grid');
+    const projectsTitle=document.getElementById('hub-projects-title');
+    if(projectsTitle) projectsTitle.textContent = isCEO ? '📂 Semua Proyek CESGS' : '📂 Proyek Aktif Anda';
+    if(!projectsGrid) return;
+    const sessionProjs=(typeof getSessionProjects === 'function' ? getSessionProjects() : []);
+    const accessiblePids=(isSA || isCEO)
+      ? Object.keys(PROJECTS || {}).filter(pid=>isProjectActive(pid))
+      : sessionProjs.filter(pid=>PROJECTS[pid]&&isProjectActive(pid));
+    if(projectsSection) projectsSection.style.display='block';
+    if(!accessiblePids.length){
+      projectsGrid.innerHTML=`<div class="hub-empty-msg">${(isSA || isCEO)?'Semua proyek sedang nonaktif. Aktifkan proyek untuk mengakses dashboard.':'Tidak ada proyek aktif yang dapat Anda akses. Hubungi administrator.'}</div>`;
+      return;
+    }
+    const isMA=userCanManage();
+    projectsGrid.innerHTML=accessiblePids.map(pid=>{
+      const p=PROJECTS[pid];
+      if(!p) return '';
+      const caption=(isMA || isCEO)?'Buka Project Dashboard →':'Buka Client Dashboard →';
+      const stats=getProjectCardStats(pid);
+      return `<div class="hub-project-card" onclick="enterProjectFromHub('${pid}')">
+        <div class="hub-pc-accent" style="background:linear-gradient(90deg,${p.accent},${p.accent}77)"></div>
+        <div class="hub-pc-body">
+          <div class="hub-pc-icon" style="background:${p.accent}18">${p.icon}</div>
+          <div class="hub-pc-name">${escapeHtml(p.name)}</div>
+          <div class="hub-pc-org" style="color:${p.accent}">${escapeHtml(p.org)}</div>
+          <div class="hub-pc-desc">${escapeHtml((p.sub||'').slice(0,88))}...</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px"><span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📄 ${stats.documents} docs</span><span style="font-size:10px;background:rgba(13,10,30,0.05);color:var(--ink3);padding:3px 9px;border-radius:7px;font-weight:600">📅 ${stats.meetings} meetings</span></div>
+          <div class="hub-pc-btn" style="background:${p.accent};color:#fff">${caption}</div>
         </div>
-        <div class="hub-pc-btn" style="background:${p.accent};color:#fff">${caption}</div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  }, ()=>{
+    renderHubProjectsFallback('Daftar proyek dibuka dalam mode aman. Silakan refresh jika diperlukan.');
+  });
 }
 
 
@@ -13641,6 +13659,122 @@ function showJsonToolbar(){
   if(tb) tb.classList.remove('json-toolbar-hidden');
   if(tg) tg.classList.remove('json-toggle-visible');
 }
+
+
+/* === Focus patch: home navigation + lighter user hub opening === */
+(function(){
+  let __hubRenderRaf = 0;
+  let __hubRenderTimer = 0;
+
+  function cancelHubRenderQueue(){
+    try{ if(__hubRenderRaf) cancelAnimationFrame(__hubRenderRaf); }catch(e){}
+    try{ if(__hubRenderTimer) clearTimeout(__hubRenderTimer); }catch(e){}
+    __hubRenderRaf = 0;
+    __hubRenderTimer = 0;
+  }
+
+  function closeTransientUiForHome(){
+    document.getElementById('user-hub-page')?.classList.remove('show');
+    const profileEdit = document.getElementById('user-profile-edit-page');
+    if(profileEdit) profileEdit.classList.remove('show');
+    const adminConsole = document.getElementById('admin-console');
+    if(adminConsole) adminConsole.style.display='none';
+    const shell = document.getElementById('superadmin-shell');
+    if(shell){
+      shell.style.display='none';
+      shell.classList.remove('show');
+      shell.setAttribute('aria-hidden','true');
+    }
+    const pw = document.getElementById('pw-overlay');
+    if(pw) pw.classList.remove('show');
+    const bk = document.getElementById('bk-overlay');
+    if(bk) bk.classList.remove('show');
+    document.body.style.overflow='';
+  }
+
+  window.returnHubToHome = function(prefill){
+    saveAll();
+    currentUserSession = null;
+    currentAdminEmail = '';
+    currentProjectId = null;
+    authenticatedProjects = {};
+    try{ localStorage.removeItem(SUPERADMIN_LOGIN_BRIDGE_KEY); }catch(e){}
+    closeTransientUiForHome();
+    showLandingScreen(prefill || (typeof resolveLoginPrefill === 'function' ? resolveLoginPrefill() : {}) || {});
+  };
+
+  const __baseShowLandingScreenPatch = showLandingScreen;
+  showLandingScreen = function(prefill){
+    cancelHubRenderQueue();
+    closeTransientUiForHome();
+    __baseShowLandingScreenPatch(prefill || {});
+    try{ window.scrollTo({top:0, behavior:'auto'}); }catch(e){}
+  };
+
+  goToLanding = function(prefill){
+    returnHubToHome(prefill);
+    try{ updateSidebarContext(); }catch(e){}
+  };
+
+  function injectHubHomeButtons(){
+    const topActions = document.getElementById('hub-topbar-actions');
+    if(topActions && !document.getElementById('hub-home-btn-top')){
+      const btn = document.createElement('button');
+      btn.id = 'hub-home-btn-top';
+      btn.className = 'hub-btn hub-btn-console';
+      btn.type = 'button';
+      btn.textContent = '⌂ Home';
+      btn.onclick = function(){ returnHubToHome(typeof resolveLoginPrefill === 'function' ? resolveLoginPrefill() : {}); };
+      topActions.insertBefore(btn, topActions.firstChild || null);
+    }
+    const actionRow = document.querySelector('#hub-profile-card-wrap .hub-action-row');
+    if(actionRow && !document.getElementById('hub-home-btn-profile')){
+      const btn = document.createElement('button');
+      btn.id = 'hub-home-btn-profile';
+      btn.className = 'hub-btn hub-btn-console';
+      btn.type = 'button';
+      btn.textContent = '⌂ Home';
+      btn.onclick = function(){ returnHubToHome(typeof resolveLoginPrefill === 'function' ? resolveLoginPrefill() : {}); };
+      actionRow.insertBefore(btn, actionRow.firstChild || null);
+    }
+  }
+
+  function queueHubRender(){
+    cancelHubRenderQueue();
+    __hubRenderRaf = requestAnimationFrame(function(){
+      __hubRenderRaf = 0;
+      __hubRenderTimer = setTimeout(function(){
+        __hubRenderTimer = 0;
+        try{
+          renderUserHubPage();
+          injectHubHomeButtons();
+        }catch(err){
+          showRenderFailsafe('showUserHubPage.renderUserHubPage', err);
+          renderMinimalUserHub('Dashboard dibuka dalam mode sederhana agar tetap stabil.');
+          injectHubHomeButtons();
+        }
+      }, 0);
+    });
+  }
+
+  showUserHubPage = function(){
+    const landing=document.getElementById('landing-page');
+    const sidebar=document.getElementById('sidebar');
+    const main=document.getElementById('main-content');
+    const hamburger=document.getElementById('hamburger-btn');
+    const hub=document.getElementById('user-hub-page');
+    if(landing) landing.style.display='none';
+    if(sidebar) sidebar.style.display='none';
+    if(main) main.style.display='none';
+    if(hamburger) hamburger.style.display='none';
+    ensureUserHubScaffold();
+    clearRenderFailsafe();
+    if(hub) hub.classList.add('show');
+    injectHubHomeButtons();
+    queueHubRender();
+  };
+})();
+
 </script>
 
 <div id="user-profile-edit-page" class="user-profile-edit-page">
